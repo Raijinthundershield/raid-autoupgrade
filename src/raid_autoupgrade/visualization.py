@@ -55,3 +55,5 @@ def show_regions(screenshot: np.ndarray, regions: dict[str, tuple[int, int, int,
     # Show the visualization
     cv2.namedWindow("Selected Regions", cv2.WINDOW_NORMAL)
     cv2.imshow("Selected Regions", vis_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

@@ -1,0 +1,11 @@
+{
+  "connection_error.png": "connection_error",
+  "fail.png": "fail",
+  "fail_transparent.png": "fail",
+  "fail_transparent_2.png": "fail",
+  "progress.png": "progress",
+  "progress_2.png": "progress",
+  "start.png": "standby",
+  "success.png": "progress",
+  "success_transparent.png": "progress"
+}
