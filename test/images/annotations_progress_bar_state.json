@@ -1,11 +1,18 @@
 {
   "connection_error.png": "connection_error",
   "fail.png": "fail",
-  "fail_transparent.png": "fail",
-  "fail_transparent_2.png": "fail",
+  "fail_2.png": "fail",
+  "fail_3.png": "fail",
   "progress.png": "progress",
   "progress_2.png": "progress",
-  "start.png": "standby",
+  "progress_3.png": "progress",
+  "progress_4.png": "progress",
+  "progress_5.png": "progress",
+  "progress_6.png": "progress",
+  "progress_7.png": "progress",
+  "progress_8.png": "progress",
+  "progress_9.png": "progress",
+  "standby.png": "standby",
   "success.png": "progress",
-  "success_transparent.png": "progress"
+  "success_2.png": "progress"
 }

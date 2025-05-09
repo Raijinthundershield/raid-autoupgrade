@@ -1,3 +1,7 @@
+# program generated files
+regions.json
+
+
 # Python-generated files
 __pycache__/
 *.py[oc]

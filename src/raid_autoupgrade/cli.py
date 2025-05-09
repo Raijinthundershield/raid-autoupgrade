@@ -1,4 +1,6 @@
 from collections import deque
+import json
+from pathlib import Path
 import pygetwindow
 from loguru import logger
 import sys
@@ -16,6 +18,11 @@ pytesseract.pytesseract.tesseract_cmd = (
 
 # TODO: Make into cli that takes in max_fails.
 # TODO: cache screenshot and regions. check for window size.
+# TODO: disable and enable internet.
+# TODO: if cancelled by connection error -> n_fails-1 AND continue upgrade if level<12.
+# TODO: sometimes detect an extra fail when waiting for connection error on succesful upgrade
+# TODO: Not fast enough when cancelling. Will almost always get one extra upgrade.
+# TODO: add detection of level and stars to look at statistics.
 
 
 def get_timestamp() -> str:
@@ -220,7 +227,7 @@ def is_fail(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
         bool: True if color is red, False otherwise
     """
     b, g, r = bgr_color
-    return b < 70 and g < 100 and r > 90
+    return b < 70 and g < 90 and r > 130
 
 
 def is_standby(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
@@ -234,7 +241,7 @@ def is_standby(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
         bool: True if color is black, False otherwise
     """
     b, g, r = bgr_color
-    return b < 60 and g < 60 and r < 70
+    return b < 30 and g < 60 and r < 70
 
 
 def is_connection_error(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
@@ -306,8 +313,8 @@ def count_upgrade_fails(
     window_title: str,
     upgrade_bar_region: tuple[int, int, int, int],
     upgrade_button_region: tuple[int, int, int, int],
-    max_fails: int = 99,
-    check_interval: float = 0.2,
+    max_fails: int = 6,
+    check_interval: float = 0.025,
 ) -> int:
     """Count the number of upgrade files by counting the number of times the
     upgrade bar changes color to red.
@@ -333,7 +340,7 @@ def count_upgrade_fails(
     n_fails = 0
     current_state = None
     last_state = None
-    max_equal_states = 5
+    max_equal_states = 4
     last_n_states = deque(maxlen=max_equal_states)
 
     logger.info("Starting to monitor upgrade bar color changes...")
@@ -345,21 +352,23 @@ def count_upgrade_fails(
 
     # Count the number of fails until the max is reached or the piece has been
     # upgraded.
-    while n_fails <= max_fails:
+    while n_fails < max_fails:
         screenshot = take_screenshot_of_window(window_title)
         upgrade_bar = get_roi_from_screenshot(screenshot, upgrade_bar_region)
 
         current_state = get_progress_bar_state(upgrade_bar)
-        logger.info(f"Current state: {current_state}")
+        # logger.info(f"Current state: {current_state}")
 
         if last_state != current_state and current_state == "fail":
             n_fails += 1
-            logger.info(f"{last_state} -> {current_state} (Total: {n_fails})")
+            if n_fails == max_fails:
+                logger.info("Max fails reached. Clicking cancel upgrade.")
+                click_region_center(window_title, upgrade_button_region)
 
-        if n_fails == max_fails:
-            logger.info("Max fails reached. Clicking cancel upgrade.")
-            click_region_center(window_title, upgrade_button_region)
-            break
+            logger.info(
+                f"{last_state} -> {current_state} (Total: {n_fails}  Max: {max_fails})"
+            )
+        # cv2.imwrite(f"upgrade_bar_{current_state}_{get_timestamp()}.png", upgrade_bar)
 
         last_n_states.append(current_state)
         last_state = last_n_states[-1]
@@ -390,8 +399,6 @@ def count_upgrade_fails(
             logger.info(f"unknown state for the last {max_equal_states} checks")
             break
 
-        # TODO: When the upgrade fails on connection error the bar region will look different.
-
         time.sleep(check_interval)
 
     logger.info(f"Finished monitoring. Detected {n_fails} fails.")
@@ -415,11 +422,34 @@ def main():
         # "icon": "Click and drag to select icon",
     }
 
-    # Select regions
-    # TODO: consider using pyautogui.locateOnScreen('calc7key.png')
-    for name, prompt in region_prompts.items():
-        region = select_region_with_prompt(screenshot, prompt)
-        regions[name] = region
+    # TODO: make more proper cache
+    region_path = Path("regions.json")
+    window = pygetwindow.getWindowsWithTitle(window_title)[0]
+    window_size = [window.height, window.width]
+    select_new_regions = True
+
+    if region_path.exists():
+        with open(region_path) as f:
+            region_data = json.load(f)
+
+        if region_data["window_size"] == window_size:
+            regions = region_data["regions"]
+            select_new_regions = False
+            logger.info("Using cached regions")
+        else:
+            logger.info("Window size has changed. delete cached regions.")
+            region_path.unlink()
+
+    if select_new_regions:
+        logger.info("Selecting new regions")
+
+        # TODO: consider using pyautogui.locateOnScreen('calc7key.png')
+        for name, prompt in region_prompts.items():
+            region = select_region_with_prompt(screenshot, prompt)
+            regions[name] = region
+        region_data = {"window_size": window_size, "regions": regions}
+        with open(region_path, "w") as f:
+            json.dump(region_data, f)
 
     # logger.info("Showing selected regions")
     # show_regions(screenshot, regions)
@@ -428,16 +458,15 @@ def main():
     # 2. User selects new piece
     # 3. Upgrade until original count is reached
 
-    pyautogui.confirm(
-        "Go to piece that you want to upgrade. Then press enter to continue."
-    )
-    # input("Go to piece that you want to upgrade. Then press enter to continue.")
+    # pyautogui.confirm(
+    #     "Go to piece that you want to upgrade. Then press enter to continue."
+    # )
 
     # Count upgrades until levelup or fails have been reaced
-    max_fails = count_upgrade_fails(
-        window_title, regions["upgrade_bar"], regions["upgrade_button"], max_fails=50
+    n_fails = count_upgrade_fails(
+        window_title, regions["upgrade_bar"], regions["upgrade_button"]
     )
-    logger.info(f"Detected {max_fails} fails")
+    logger.info(f"Detected {n_fails} fails")
 
     # input(
     #     "Go to piece that you want to spend upgrades on. Then press enter to continue."
