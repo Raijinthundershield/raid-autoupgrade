@@ -8,12 +8,14 @@ import numpy as np
 import time
 import pytesseract
 from datetime import datetime
-from raid_autoupgrade.visualization import show_regions
 
 # NOTE: Make this configurable...
 pytesseract.pytesseract.tesseract_cmd = (
     "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 )
+
+# TODO: Make into cli that takes in max_fails.
+# TODO: cache screenshot and regions. check for window size.
 
 
 def get_timestamp() -> str:
@@ -256,7 +258,7 @@ def get_roi_from_screenshot(
 
     Args:
         screenshot (np.ndarray): The full screenshot image
-        region (tuple): Region coordinates (left, top, width, height)
+        region (tuple): Region coordinates (left, top, width, height) relative to the screenshot
 
     Returns:
         np.ndarray: The extracted region of interest
@@ -270,7 +272,7 @@ def click_region_center(window_title: str, region: tuple[int, int, int, int]) ->
 
     Args:
         window_title (str): Title of the window to click in
-        region (tuple): Region coordinates (left, top, width, height)
+        region (tuple): Region coordinates (left, top, width, height) relative to the window
     """
     try:
         # Get fresh window reference
@@ -287,15 +289,11 @@ def click_region_center(window_title: str, region: tuple[int, int, int, int]) ->
         screen_x = window.left + center_x
         screen_y = window.top + center_y
 
-        logger.debug(
-            f"Clicking at {screen_x}, {screen_y}, center_coords: {center_x}, {center_y}"
-        )
-        logger.debug(
-            f"Window coords: {window.left}, {window.top}, window_size: {window.width}, {window.height}"
-        )
+        logger.info(f"Click {screen_x}, {screen_y}")
 
-        # Click
         pyautogui.click(screen_x, screen_y)
+        time.sleep(0.5)
+
     except IndexError:
         logger.error(f"Window '{window_title}' not found")
         raise
@@ -311,17 +309,26 @@ def count_upgrade_fails(
     max_fails: int = 99,
     check_interval: float = 0.2,
 ) -> int:
-    """Count the number of times the upgrade bar changes color between yellow and red.
-    Ignores the initial change from black to yellow.
+    """Count the number of upgrade files by counting the number of times the
+    upgrade bar changes color to red.
 
     Args:
         window_title (str): Title of the window to monitor
-        upgrade_bar_region (tuple): Region coordinates (left, top, width, height)
-        max_changes (int): Maximum number of changes to count
-        check_interval (float): Time between checks in seconds
+        upgrade_bar_region (tuple): Region coordinates (left, top, width, height) relative to the window
+        upgrade_button_region (tuple): Region coordinates (left, top, width, height) relative to the window
+        max_fails (int, optional): Maximum number of fails to count before stopping. Defaults to 99.
+        check_interval (float, optional): Time between checks in seconds. Defaults to 0.2.
 
     Returns:
         int: Number of fails detected
+
+    Note:
+        The function will stop monitoring if:
+        - The maximum number of fails is reached
+        - The upgrade bar stays in 'standby' state for 5 consecutive checks
+        - The upgrade bar stays in 'connection_error' state for 5 consecutive checks
+        - The upgrade bar stays in 'unknown' state for 5 consecutive checks
+        - The user presses 'q' to stop monitoring
     """
     n_fails = 0
     current_state = None
@@ -333,6 +340,7 @@ def count_upgrade_fails(
     logger.info("Press 'q' to stop monitoring")
 
     # Click the upgrade level to start monitoring
+    logger.info("Clicking upgrade button")
     click_region_center(window_title, upgrade_button_region)
 
     # Count the number of fails until the max is reached or the piece has been
@@ -348,12 +356,13 @@ def count_upgrade_fails(
             n_fails += 1
             logger.info(f"{last_state} -> {current_state} (Total: {n_fails})")
 
-        if current_state == "unknown":
-            cv2.imwrite(f"unknown_{get_timestamp()}.png", upgrade_bar)
+        if n_fails == max_fails:
+            logger.info("Max fails reached. Clicking cancel upgrade.")
+            click_region_center(window_title, upgrade_button_region)
+            break
 
         last_n_states.append(current_state)
         last_state = last_n_states[-1]
-        print(last_n_states)
 
         # Check for 'q' key press
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -367,10 +376,18 @@ def count_upgrade_fails(
             logger.info(f"Standby for the last {max_equal_states} checks")
             break
 
+        # When a connection error occurs we have completed an upgrade while
+        # having internet turned off.
         if len(last_n_states) >= max_equal_states and np.all(
             np.array(last_n_states) == "connection_error"
         ):
             logger.info(f"connection error for the last {max_equal_states} checks")
+            break
+
+        if len(last_n_states) >= max_equal_states and np.all(
+            np.array(last_n_states) == "unknown"
+        ):
+            logger.info(f"unknown state for the last {max_equal_states} checks")
             break
 
         # TODO: When the upgrade fails on connection error the bar region will look different.
@@ -387,6 +404,7 @@ def main():
     if not window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
+
     screenshot = take_screenshot_of_window(window_title)
 
     # Select regions
@@ -394,29 +412,26 @@ def main():
     region_prompts = {
         "upgrade_bar": "Click and drag to select upgrade bar",
         "upgrade_button": "Click and drag to select upgrade button",
-        "icon": "Click and drag to select icon",
+        # "icon": "Click and drag to select icon",
     }
 
     # Select regions
+    # TODO: consider using pyautogui.locateOnScreen('calc7key.png')
     for name, prompt in region_prompts.items():
         region = select_region_with_prompt(screenshot, prompt)
         regions[name] = region
 
-        # TODO: make user confirm after each region is selected
-
-    logger.info("Showing selected regions")
-    show_regions(screenshot, regions)
+    # logger.info("Showing selected regions")
+    # show_regions(screenshot, regions)
 
     # 1. Count number of upgrades on one piece of equipment
     # 2. User selects new piece
     # 3. Upgrade until original count is reached
 
-    input("Go to piece that you want to upgrade. Then press enter to continue.")
-
-    # Click the upgrade button
-    logger.info("Clicking upgrade button")
-    click_region_center(window_title, regions["upgrade_button"])
-    time.sleep(0.5)  # Give time for click to register
+    pyautogui.confirm(
+        "Go to piece that you want to upgrade. Then press enter to continue."
+    )
+    # input("Go to piece that you want to upgrade. Then press enter to continue.")
 
     # Count upgrades until levelup or fails have been reaced
     max_fails = count_upgrade_fails(
@@ -428,15 +443,15 @@ def main():
     #     "Go to piece that you want to spend upgrades on. Then press enter to continue."
     # )
     # while True:
-    #     screenshot = take_screenshot_of_window(window_title)
-    #     roi = get_roi_from_screenshot(screenshot, regions["upgrade_button"])
+    #    screenshot = take_screenshot_of_window(window_title)
+    #    roi = get_roi_from_screenshot(screenshot, regions["upgrade_button"])
 
-    #     # TODO: need to check that the level is read in correctly
-    #     # level_before = read_text_from_image(roi, regions["upgrade_level"])
+    #    # TODO: need to check that the level is read in correctly
+    #    # level_before = read_text_from_image(roi, regions["upgrade_level"])
 
-    #     fails = count_upgrade_fails(
-    #         window_title, regions["upgrade_bar"], max_fails=max_fails
-    #     )
+    #    fails = count_upgrade_fails(
+    #        window_title, regions["upgrade_bar"], max_fails=max_fails
+    #    )
 
     #     screenshot = take_screenshot_of_window(window_title)
     #     level_after = read_text_from_image(screenshot, regions["upgrade_button"])
