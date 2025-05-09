@@ -4,17 +4,26 @@ from pathlib import Path
 import pygetwindow
 from loguru import logger
 import sys
-import pyautogui
 import cv2
 import numpy as np
 import time
-import pytesseract
-from datetime import datetime
 
-# NOTE: Make this configurable...
-pytesseract.pytesseract.tesseract_cmd = (
-    "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+from raid_autoupgrade.progress_bar import get_progress_bar_state
+from raid_autoupgrade.interaction import (
+    take_screenshot_of_window,
+    window_exists,
+    click_region_center,
+    select_region_with_prompt,
 )
+
+# from raid_autoupgrade.utils import get_timestamp
+from raid_autoupgrade.visualization import get_roi_from_screenshot
+
+# TODO: add when needed
+# NOTE: Make this configurable...
+# pytesseract.pytesseract.tesseract_cmd = (
+#     "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+# )
 
 # TODO: Make into cli that takes in max_fails.
 # TODO: cache screenshot and regions. check for window size.
@@ -25,295 +34,11 @@ pytesseract.pytesseract.tesseract_cmd = (
 # TODO: add detection of level and stars to look at statistics.
 
 
-def get_timestamp() -> str:
-    """Get current timestamp in a format suitable for filenames.
-
-    Returns:
-        str: Timestamp string in format YYYYMMDD_HHMMSS
-    """
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-
-def take_screenshot_of_window(window_title: str) -> np.ndarray:
-    """Take a screenshot of the specified window.
-
-    Args:
-        window_title (str): Title of the window to capture
-
-    Returns:
-        np.ndarray: BGR image of the window
-    """
-    window = pygetwindow.getWindowsWithTitle(window_title)[0]
-    window.activate()
-    time.sleep(0.5)
-
-    screenshot = pyautogui.screenshot(
-        region=(window.left, window.top, window.width, window.height)
-    )
-    screenshot = np.array(screenshot)
-    screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
-
-    return screenshot
-
-
-def select_region_from_image(image: np.ndarray) -> tuple[int, int, int, int] | None:
-    """Let user select a region by clicking and dragging on an image.
-
-    Args:
-        image (np.ndarray): The image to select region from
-
-    Returns:
-        tuple: (left, top, width, height) where:
-            - left (int): X coordinate of the top-left corner of the selected region
-            - top (int): Y coordinate of the top-left corner of the selected region
-            - width (int): Width of the selected region
-            - height (int): Height of the selected region
-    """
-    # Create window for selection
-    cv2.namedWindow("Select Region", cv2.WINDOW_NORMAL)
-    cv2.imshow("Select Region", image)
-
-    # Variables for selection
-    start_point = None
-    end_point = None
-    selecting = False
-
-    def mouse_callback_select_rectangle(event, x, y, flags, param):
-        nonlocal start_point, end_point, selecting, image
-
-        if event == cv2.EVENT_LBUTTONDOWN:
-            start_point = (x, y)
-            selecting = True
-
-        elif event == cv2.EVENT_MOUSEMOVE and selecting:
-            temp_frame = image.copy()
-            cv2.rectangle(temp_frame, start_point, (x, y), (0, 255, 0), 2)
-            cv2.imshow("Select Region", temp_frame)
-
-        elif event == cv2.EVENT_LBUTTONUP:
-            end_point = (x, y)
-            selecting = False
-            cv2.destroyAllWindows()
-
-    cv2.setMouseCallback("Select Region", mouse_callback_select_rectangle)
-    cv2.waitKey(0)
-
-    if start_point and end_point:
-        # Calculate region coordinates relative to window
-        left = min(start_point[0], end_point[0])
-        top = min(start_point[1], end_point[1])
-        width = abs(end_point[0] - start_point[0])
-        height = abs(end_point[1] - start_point[1])
-        return (left, top, width, height)
-
-    else:
-        logger.warning("No region selected")
-        return None
-
-
-def window_exists(window_title: str):
-    """Check if a window with the given title exists.
-
-    Args:
-        window_title (str): The title of the window to check for
-
-    Returns:
-        bool: True if window exists, False otherwise
-    """
-    windows = pygetwindow.getAllWindows()
-
-    if not windows:
-        logger.warning("No active windows found!")
-
-    for window in pygetwindow.getAllWindows():
-        if window.title == window_title:
-            return True
-    else:
-        return False
-
-
-def select_region_with_prompt(
-    image: np.ndarray, prompt: str
-) -> tuple[int, int, int, int]:
-    """Select a region from a window with a user prompt.
-
-    Args:
-        window_title (str): Title of the window to select from
-        prompt (str): Message to show to the user
-
-    Returns:
-        tuple: (screenshot, region) where:
-            - screenshot (np.ndarray): The captured window image
-            - region (tuple): Selected region coordinates (left, top, width, height)
-    """
-    logger.info(prompt)
-    region = select_region_from_image(image)
-    logger.info(f"Region selected: {region}")
-    return region
-
-
-def read_text_from_image(
-    image: np.ndarray, region: tuple[int, int, int, int]
-) -> tuple[str, np.ndarray, np.ndarray]:
-    """Read text from a region in the image using OCR.
-
-    Args:
-        image (np.ndarray): The image to read from
-
-    Returns:
-        tuple: (text, original_roi, processed_roi) where:
-            - text (str): The text read from the region
-            - processed_image (np.ndarray): The processed region used for OCR
-    """
-
-    # Preprocess image for better OCR
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # Apply thresholding to get black and white image
-    _, image_processed = cv2.threshold(
-        gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
-
-    # Perform OCR
-    text = pytesseract.image_to_string(
-        image_processed, config="--psm 7"
-    )  # psm 7 for single line
-
-    # TODO: REMOVE AFTER TESTING
-    # # Save images with timestamp and change count
-    # timestamp = get_timestamp()
-    # cv2.imwrite(f"roi_{timestamp}_ {text}.png", image)
-    # cv2.imwrite(f"roi_gray_{timestamp}_ {text}.png", gray)
-    # cv2.imwrite(f"roi_processed_{timestamp}_{text}.png", image_processed)
-    return text.strip(), image_processed
-
-
-def get_progress_bar_state(progress_bar_roi: np.ndarray) -> str:
-    avg_color = cv2.mean(progress_bar_roi)[:3]
-
-    if is_fail(avg_color):
-        return "fail"
-    elif is_standby(avg_color):
-        return "standby"
-    elif is_progress(avg_color):
-        return "progress"
-    elif is_connection_error(avg_color):
-        return "connection_error"
-    else:
-        return "unknown"
-
-
-def is_progress(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
-    """Check if a BGR color is yellow within a tolerance.
-
-    Args:
-        bgr_color (tuple): BGR color values
-        tolerance (int): Color matching tolerance
-
-    Returns:
-        bool: True if color is yellow, False otherwise
-    """
-    b, g, r = bgr_color
-    return b < 70 and abs(r - g) < 50
-
-
-def is_fail(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
-    """Check if a BGR color is red within a tolerance.
-
-    Args:
-        bgr_color (tuple): BGR color values
-        tolerance (int): Color matching tolerance
-
-    Returns:
-        bool: True if color is red, False otherwise
-    """
-    b, g, r = bgr_color
-    return b < 70 and g < 90 and r > 130
-
-
-def is_standby(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
-    """Check if a BGR color is black within a tolerance.
-
-    Args:
-        bgr_color (tuple): BGR color values
-        tolerance (int): Color matching tolerance
-
-    Returns:
-        bool: True if color is black, False otherwise
-    """
-    b, g, r = bgr_color
-    return b < 30 and g < 60 and r < 70
-
-
-def is_connection_error(bgr_color: tuple[int, int, int], tolerance: int = 30) -> bool:
-    """Check if a BGR color is black within a tolerance.
-
-    Args:
-        bgr_color (tuple): BGR color values
-        tolerance (int): Color matching tolerance
-
-    Returns:
-        bool: True if color is black, False otherwise
-    """
-    b, g, r = bgr_color
-    return b > g and b > r and b > 50
-
-
-def get_roi_from_screenshot(
-    screenshot: np.ndarray, region: tuple[int, int, int, int]
-) -> np.ndarray:
-    """Extract a region of interest (ROI) from a screenshot.
-
-    Args:
-        screenshot (np.ndarray): The full screenshot image
-        region (tuple): Region coordinates (left, top, width, height) relative to the screenshot
-
-    Returns:
-        np.ndarray: The extracted region of interest
-    """
-    left, top, width, height = region
-    return screenshot[top : top + height, left : left + width]
-
-
-def click_region_center(window_title: str, region: tuple[int, int, int, int]) -> None:
-    """Click in the center of a region relative to the window.
-
-    Args:
-        window_title (str): Title of the window to click in
-        region (tuple): Region coordinates (left, top, width, height) relative to the window
-    """
-    try:
-        # Get fresh window reference
-        window = pygetwindow.getWindowsWithTitle(window_title)[0]
-        window.activate()
-        time.sleep(0.5)  # Give window time to activate
-
-        # Calculate center of region relative to window
-        left, top, width, height = region
-        center_x = left + width // 2
-        center_y = top + height // 2
-
-        # Calculate absolute screen coordinates
-        screen_x = window.left + center_x
-        screen_y = window.top + center_y
-
-        logger.info(f"Click {screen_x}, {screen_y}")
-
-        pyautogui.click(screen_x, screen_y)
-        time.sleep(0.5)
-
-    except IndexError:
-        logger.error(f"Window '{window_title}' not found")
-        raise
-    except Exception as e:
-        logger.error(f"Failed to click region: {str(e)}")
-        raise
-
-
 def count_upgrade_fails(
     window_title: str,
     upgrade_bar_region: tuple[int, int, int, int],
     upgrade_button_region: tuple[int, int, int, int],
-    max_fails: int = 6,
+    max_fails: int = 99,
     check_interval: float = 0.025,
 ) -> int:
     """Count the number of upgrade files by counting the number of times the
@@ -361,14 +86,14 @@ def count_upgrade_fails(
 
         if last_state != current_state and current_state == "fail":
             n_fails += 1
-            if n_fails == max_fails:
-                logger.info("Max fails reached. Clicking cancel upgrade.")
-                click_region_center(window_title, upgrade_button_region)
-
             logger.info(
                 f"{last_state} -> {current_state} (Total: {n_fails}  Max: {max_fails})"
             )
-        # cv2.imwrite(f"upgrade_bar_{current_state}_{get_timestamp()}.png", upgrade_bar)
+            # cv2.imwrite(f"upgrade_bar_{current_state}_{get_timestamp()}.png", upgrade_bar)
+
+        if n_fails == max_fails:
+            logger.info("Max fails reached. Clicking cancel upgrade.")
+            click_region_center(window_title, upgrade_button_region)
 
         last_n_states.append(current_state)
         last_state = last_n_states[-1]
@@ -467,29 +192,6 @@ def main():
         window_title, regions["upgrade_bar"], regions["upgrade_button"]
     )
     logger.info(f"Detected {n_fails} fails")
-
-    # input(
-    #     "Go to piece that you want to spend upgrades on. Then press enter to continue."
-    # )
-    # while True:
-    #    screenshot = take_screenshot_of_window(window_title)
-    #    roi = get_roi_from_screenshot(screenshot, regions["upgrade_button"])
-
-    #    # TODO: need to check that the level is read in correctly
-    #    # level_before = read_text_from_image(roi, regions["upgrade_level"])
-
-    #    fails = count_upgrade_fails(
-    #        window_title, regions["upgrade_bar"], max_fails=max_fails
-    #    )
-
-    #     screenshot = take_screenshot_of_window(window_title)
-    #     level_after = read_text_from_image(screenshot, regions["upgrade_button"])
-
-    #     # TODO: check if we have reached the count of upgrades
-    #     #   - a. if we have more to count, continue
-    #     #   - b. if we have reached the count, stop and prompt user to upgrade the original piece
-
-    # logger.info(f"Detected {fails} upgrade levels")
 
 
 if __name__ == "__main__":
