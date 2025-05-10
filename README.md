@@ -1,6 +1,6 @@
 # Raid Autoupgrade
 
-A command-line tool to help doing the "airplane" mode trick semi-automatically. It can caount failed upgrades and stop and upgrade after a set amount of fails.
+A command-line tool to help doing the "airplane" mode trick semi-automatically. It can count failed upgrades and stop and upgrade after a set amount of fails.
 
 ## Usage
 
@@ -52,3 +52,4 @@ Unordered roadmap:
 * Make it possible to have the raid window in the background.
     - Enable background screenshot
     - Enable background clicking
+* use `pyautogui.locateCenterOnScreen` to find upgrade bar and upgrade button instead of manual input.
