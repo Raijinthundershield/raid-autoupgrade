@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import cv2
 import time
+import platform
 
 import click
 import numpy as np
@@ -16,6 +17,7 @@ from raid_autoupgrade.interaction import (
     click_region_center,
     select_region_with_prompt,
 )
+from raid_autoupgrade.network import NetworkManager
 
 # from raid_autoupgrade.utils import get_timestamp
 from raid_autoupgrade.utils import get_timestamp
@@ -173,6 +175,8 @@ def raid_autoupgrade(save_screenshots: bool):
 
     This tool helps automate the process of upgrading equipment in Raid: Shadow Legends
     by monitoring upgrade attempts.
+
+
     """
 
     # Create cache directory
@@ -195,14 +199,24 @@ def raid_autoupgrade(save_screenshots: bool):
 
 @raid_autoupgrade.command()
 @click.option(
+    "--network-adapter-id",
+    "-n",
+    type=int,
+    multiple=True,
+    help="Enable network management on adapters with given ids",
+)
+@click.option(
     "--max-fails",
     "-f",
     type=int,
     default=99,
     help="Maximum number of fails to count before stopping.",
 )
-def count(max_fails: int):
+def count(network_adapter_id: list[int], max_fails: int):
     """Count the number of upgrade fails and stop when the max number of fails is reached.
+
+    Use network adapter ids to enable automatically turning network off and on.
+    Use ids from the output of the `network list` command.
 
     NOTE: one more upgrade than specified might occur due to timing issues.
     """
@@ -237,6 +251,11 @@ def count(max_fails: int):
         logger.info("Using cached regions")
 
     # TODO: add a region validation based on the color of the regions
+
+    # TODO: add network management
+    # if network_adapter_id:
+    # manager = NetworkManager()
+    # manager.toggle_adapter(network_adapter_id, True)
 
     # Count upgrades until levelup or fails have been reaced
     n_fails = count_upgrade_fails(
@@ -333,6 +352,78 @@ def select_regions():
 
     logger.info("Regions selected and cached successfully")
     logger.info("You can now use the count or show-regions commands")
+
+
+@raid_autoupgrade.group()
+def network():
+    """Manage network adapters for the airplane mode trick."""
+    pass
+
+
+@network.command()
+def list():
+    """List all network adapters."""
+    if not platform.system() == "Windows":
+        logger.error("This command only works on Windows")
+        sys.exit(1)
+
+    manager = NetworkManager()
+    adapters = manager.get_adapters()
+    manager.display_adapters(adapters)
+
+
+@network.command()
+@click.argument("adapter", required=False)
+def disable(adapter: str | None):
+    """Disable selected network adapters.
+
+    If ADAPTER is provided, it will try to find and disable that specific adapter.
+    Otherwise, it will prompt you to select adapters interactively.
+    """
+    if not platform.system() == "Windows":
+        logger.error("This command only works on Windows")
+        sys.exit(1)
+
+    manager = NetworkManager()
+    if adapter:
+        adapters = manager.get_adapters()
+        found_adapter = manager.find_adapter(adapters, adapter)
+        if not found_adapter:
+            logger.error(f"No adapter found matching: {adapter}")
+            sys.exit(1)
+        if manager.toggle_adapter(found_adapter.id, False):
+            logger.info(f"Successfully disabled adapter: {found_adapter.name}")
+        else:
+            logger.error(f"Failed to disable adapter: {found_adapter.name}")
+    else:
+        manager.toggle_selected_adapters(False)
+
+
+@network.command()
+@click.argument("adapter", required=False)
+def enable(adapter: str | None):
+    """Enable selected network adapters.
+
+    If ADAPTER is provided, it will try to find and enable that specific adapter.
+    Otherwise, it will prompt you to select adapters interactively.
+    """
+    if not platform.system() == "Windows":
+        logger.error("This command only works on Windows")
+        sys.exit(1)
+
+    manager = NetworkManager()
+    if adapter:
+        adapters = manager.get_adapters()
+        found_adapter = manager.find_adapter(adapters, adapter)
+        if not found_adapter:
+            logger.error(f"No adapter found matching: {adapter}")
+            sys.exit(1)
+        if manager.toggle_adapter(found_adapter.id, True):
+            logger.info(f"Successfully enabled adapter: {found_adapter.name}")
+        else:
+            logger.error(f"Failed to enable adapter: {found_adapter.name}")
+    else:
+        manager.toggle_selected_adapters(True)
 
 
 if __name__ == "__main__":
