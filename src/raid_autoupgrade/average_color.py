@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from pathlib import Path
 from loguru import logger
-import argparse
+import click
 import sys
 
 
@@ -48,65 +48,29 @@ def calculate_average_colors(
     return results
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Calculate average colors of images in a directory"
-    )
-    parser.add_argument(
-        "directory", type=str, help="Directory containing images to analyze"
-    )
-    parser.add_argument(
-        "--pattern",
-        default="*.png",
-        help="Glob pattern to match images (default: *.png)",
-    )
-    parser.add_argument(
-        "--recursive",
-        "-r",
-        action="store_true",
-        help="Recursively search subdirectories",
-    )
-    parser.add_argument(
-        "--keywords",
-        "-k",
-        nargs="+",
-        help="Keywords to match in filenames (e.g., 'fail' 'progress')",
-    )
-
-    args = parser.parse_args()
-    directory = Path(args.directory)
-
-    if not directory.is_dir():
-        logger.error(f"'{directory}' is not a directory!")
-        sys.exit(1)
+@click.command()
+@click.argument(
+    "directory", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.option(
+    "--pattern", default="*.png", help="Glob pattern to match images (default: *.png)"
+)
+@click.option(
+    "--recursive", "-r", is_flag=True, help="Recursively search subdirectories"
+)
+def main(directory: str, pattern: str, recursive: bool):
+    """Calculate average colors of images in a directory."""
+    directory = Path(directory)
 
     # Collect all image paths
-    if args.recursive:
-        image_paths = list(directory.rglob(args.pattern))
+    if recursive:
+        image_paths = list(directory.rglob(pattern))
     else:
-        image_paths = list(directory.glob(args.pattern))
+        image_paths = list(directory.glob(pattern))
 
     if not image_paths:
-        logger.error(
-            f"No images found in '{directory}' matching pattern '{args.pattern}'!"
-        )
+        logger.error(f"No images found in '{directory}' matching pattern '{pattern}'!")
         sys.exit(1)
-
-    # Filter by keywords if provided
-    if args.keywords:
-        filtered_paths = []
-        for path in image_paths:
-            if any(keyword.lower() in path.name.lower() for keyword in args.keywords):
-                filtered_paths.append(path)
-
-        if not filtered_paths:
-            logger.error(f"No images found matching keywords: {args.keywords}")
-            sys.exit(1)
-
-        image_paths = filtered_paths
-        logger.info(
-            f"Found {len(image_paths)} images matching keywords: {args.keywords}"
-        )
 
     # Calculate and display average colors
     colors = calculate_average_colors(image_paths)
@@ -119,8 +83,6 @@ def main():
 
     # Print summary
     print(f"\nSummary of average colors in '{directory}':")
-    if args.keywords:
-        print(f"Matching keywords: {args.keywords}")
     print("-" * 50)
     for name, color in colors.items():
         print(f"{name}: B={color[0]:.1f}, G={color[1]:.1f}, R={color[2]:.1f}")
