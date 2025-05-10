@@ -9,8 +9,8 @@ To count the amount of fails a piece need to be upgraded:
 1. Within raid go to the upgrade menu of the piece.
 2. Disable all network adapters.
 3. Run the command `raid-autoupgrade count`.
-4. A screenshot of the raid application will now pop up. Dragselect a rectangle encompassing the upgrade bar. It is important that we only include the upgrade bar and not too much around it.
-5. Again a screenshot of the raid application will pop up. Dragselect a rectangle within the upgrade button.
+4. A screenshot of the raid application will now pop up. Dragselect a rectangle encompassing the upgrade bar. It is important that we only include the upgrade bar and not too much around it. See image below. for example placement.
+5. Again a screenshot of the raid application will pop up. Dragselect a rectangle within the upgrade button. See image below for example placement.
 
 ![alt text](docs/images/image_with_regions.png)
 
@@ -27,6 +27,10 @@ To spend upgrades:
     </ol>
 
 ``
+
+You might want to record the upgrade bar and upgrade button before starting the count to make sure everything is correct. This can be done with `raid-autougprade select-regions`. As long as the size of the window does not change (and the script is run from the same folder), the regions will be saved and used in the `count` command.
+
+You can nspect and see whether the regions have been marked correclty by calling `raid-autoupgrade show-regions`. Then an image similar to the one above will pop up.
 
 Too see all commands run `raid-autoupgrade --help` on each command.
 
