@@ -51,17 +51,19 @@ def add_region_to_image(
     return vis_image
 
 
-def show_regions(screenshot: np.ndarray, regions: dict[str, tuple[int, int, int, int]]):
-    """Show all upgrade-related regions on the screenshot.
+def show_regions_in_image(
+    image: np.ndarray, regions: dict[str, tuple[int, int, int, int]]
+):
+    """Show all upgrade-related regions on the image.
 
     Args:
-        screenshot (np.ndarray): The captured screenshot
+        image (np.ndarray): The image to draw on
         regions (dict): Dictionary of region names and their coordinates
     """
     # Define colors for different regions
 
     # Start with the screenshot
-    vis_image = screenshot.copy()
+    vis_image = image.copy()
 
     # Add each region
     for name, region in regions.items():

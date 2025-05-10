@@ -23,6 +23,18 @@ wheels = [
 ]
 
 [[package]]
+name = "click"
+version = "8.1.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593, upload-time = "2024-12-21T18:38:44.339Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl", hash = "sha256:63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2", size = 98188, upload-time = "2024-12-21T18:38:41.666Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -38,6 +50,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/07/7e/34f4941ab5ec7d1d4c496282b1944a5119fc52641c5770a78e6fa0ca32ec/comtypes-1.4.10.zip", hash = "sha256:b92372e76299836177b41aeda784225e18c5071c6bacdab88a7433224a4dc912", size = 267293, upload-time = "2025-02-09T23:50:54.176Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4c/44/72009bb0a0d8286f6408c9cb70552350e21e9c280bfa1ef30784b30dfc0f/comtypes-1.4.10-py3-none-any.whl", hash = "sha256:e078555721ee7ab40648a3363697d420b845b323e5944b55846e96aff97d2534", size = 241481, upload-time = "2025-02-09T23:50:52.125Z" },
+]
+
+[[package]]
+name = "diskcache"
+version = "5.6.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/21/1c1ffc1a039ddcc459db43cc108658f32c57d271d7289a2794e401d0fdb6/diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc", size = 67916, upload-time = "2023-08-31T06:12:00.316Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/27/4570e78fc0bf5ea0ca45eb1de3818a23787af9b390c0b0a0033a1b8236f9/diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19", size = 45550, upload-time = "2023-08-31T06:11:58.822Z" },
 ]
 
 [[package]]
@@ -561,6 +582,8 @@ name = "raid-autoupgrade"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
+    { name = "diskcache" },
     { name = "loguru" },
     { name = "mss" },
     { name = "numpy" },
@@ -581,6 +604,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1.8" },
+    { name = "diskcache", specifier = ">=5.6.3" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mss", specifier = ">=10.0.0" },
     { name = "numpy", specifier = ">=1.24.0" },

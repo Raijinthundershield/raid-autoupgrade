@@ -1,12 +1,13 @@
 from collections import deque
-import json
 from pathlib import Path
-import pygetwindow
-from loguru import logger
 import sys
 import cv2
-import numpy as np
 import time
+
+import click
+import numpy as np
+from loguru import logger
+from diskcache import Cache
 
 from raid_autoupgrade.progress_bar import get_progress_bar_state
 from raid_autoupgrade.interaction import (
@@ -17,7 +18,10 @@ from raid_autoupgrade.interaction import (
 )
 
 # from raid_autoupgrade.utils import get_timestamp
-from raid_autoupgrade.visualization import get_roi_from_screenshot
+from raid_autoupgrade.visualization import (
+    get_roi_from_screenshot,
+    show_regions_in_image,
+)
 
 # TODO: add when needed
 # NOTE: Make this configurable...
@@ -33,6 +37,11 @@ from raid_autoupgrade.visualization import get_roi_from_screenshot
 # TODO: Not fast enough when cancelling. Will almost always get one extra upgrade.
 # TODO: add detection of level and stars to look at statistics.
 
+# TODO: Look into screenshot and click of inactive window
+# https://stackoverflow.com/questions/19695214/screenshot-of-inactive-window-printwindow-win32gui/24352388#24352388
+# https://www.reddit.com/r/AutoHotkey/comments/1btj6jx/i_need_help_in_trying_to_click_a_window_without/
+# https://stackoverflow.com/questions/32846550/python-control-window-with-pywinauto-while-the-window-is-minimized-or-hidden/32847266#32847266
+
 
 def count_upgrade_fails(
     window_title: str,
@@ -41,8 +50,12 @@ def count_upgrade_fails(
     max_fails: int = 99,
     check_interval: float = 0.025,
 ) -> int:
-    """Count the number of upgrade files by counting the number of times the
-    upgrade bar changes color to red.
+    """
+    Assumptions:
+        * Raid window is in the upgrade section of a piece of equipment.
+
+    Start upgrade and count the number of upgrade fails by counting the number
+    of times the upgrade bar changes color to red.
 
     Args:
         window_title (str): Title of the window to monitor
@@ -130,16 +143,18 @@ def count_upgrade_fails(
     return n_fails
 
 
-def main():
-    # Check if we can find the Raid window
-    window_title = "Raid: Shadow Legends"
-    if not window_exists(window_title):
-        logger.warning("Raid window not found. Check if Raid is running.")
-        sys.exit(1)
+def select_upgrade_regions(screenshot: np.ndarray):
+    """Select regions for upgrade bar and button.
 
-    screenshot = take_screenshot_of_window(window_title)
+    Assumptions:
+        * Raid window is in the upgrade section of a piece of equipment.
 
-    # Select regions
+    Args:
+        screenshot (np.ndarray): Screenshot of the Raid window
+
+    Returns:
+        dict: Dictionary containing the selected regions
+    """
     regions = {}
     region_prompts = {
         "upgrade_bar": "Click and drag to select upgrade bar",
@@ -147,52 +162,153 @@ def main():
         # "icon": "Click and drag to select icon",
     }
 
-    # TODO: make more proper cache
-    region_path = Path("regions.json")
-    window = pygetwindow.getWindowsWithTitle(window_title)[0]
-    window_size = [window.height, window.width]
-    select_new_regions = True
+    logger.info("Selecting new regions")
+    # TODO: consider using pyautogui.locateOnScreen('calc7key.png')
+    for name, prompt in region_prompts.items():
+        region = select_region_with_prompt(screenshot, prompt)
+        regions[name] = region
 
-    if region_path.exists():
-        with open(region_path) as f:
-            region_data = json.load(f)
+    return regions
 
-        if region_data["window_size"] == window_size:
-            regions = region_data["regions"]
-            select_new_regions = False
-            logger.info("Using cached regions")
-        else:
-            logger.info("Window size has changed. delete cached regions.")
-            region_path.unlink()
 
-    if select_new_regions:
-        logger.info("Selecting new regions")
+@click.group()
+def raid_autoupgrade():
+    """Raid: Shadow Legends auto-upgrade tool.
 
-        # TODO: consider using pyautogui.locateOnScreen('calc7key.png')
-        for name, prompt in region_prompts.items():
-            region = select_region_with_prompt(screenshot, prompt)
-            regions[name] = region
-        region_data = {"window_size": window_size, "regions": regions}
-        with open(region_path, "w") as f:
-            json.dump(region_data, f)
+    This tool helps automate the process of upgrading equipment in Raid: Shadow Legends
+    by monitoring upgrade attempts.
+    """
 
-    # logger.info("Showing selected regions")
-    # show_regions(screenshot, regions)
+    # Create cache directory
+    cache_dir = Path("cache-raid-autoupgrade")
+    cache_dir.mkdir(exist_ok=True)
 
-    # 1. Count number of upgrades on one piece of equipment
-    # 2. User selects new piece
-    # 3. Upgrade until original count is reached
+    # Initialize cache
+    cache = Cache(str(cache_dir))
 
-    # pyautogui.confirm(
-    #     "Go to piece that you want to upgrade. Then press enter to continue."
-    # )
+    # Store cache in context
+    ctx = click.get_current_context()
+    ctx.obj = {"cache": cache, "cache_dir": cache_dir}
+
+
+@raid_autoupgrade.command()
+@click.option(
+    "--max-fails",
+    "-f",
+    type=int,
+    default=99,
+    help="Maximum number of fails to count before stopping.",
+)
+def count(max_fails: int):
+    """Count the number of upgrade fails and stop when the max number of fails is reached.
+
+    NOTE: one more upgrade than specified might occur due to timing issues.
+    """
+    # Check if we can find the Raid window
+    window_title = "Raid: Shadow Legends"
+    if not window_exists(window_title):
+        logger.warning("Raid window not found. Check if Raid is running.")
+        sys.exit(1)
+
+    screenshot = take_screenshot_of_window(window_title)
+    window_size = [screenshot.shape[0], screenshot.shape[1]]
+
+    # Get cache from context
+    ctx = click.get_current_context()
+    cache = ctx.obj["cache"]
+
+    # Create a cache key based on window size
+    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
+    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
+
+    # Try to get cached regions
+    regions = cache.get(cache_key_regions)
+    if regions is None:
+        regions = select_upgrade_regions(screenshot)
+        cache.set(cache_key_regions, regions)
+        cache.set(cache_key_screenshot, screenshot)
+    else:
+        logger.info("Using cached regions")
+
+    # TODO: add a region validation based on the color of the regions
 
     # Count upgrades until levelup or fails have been reaced
     n_fails = count_upgrade_fails(
-        window_title, regions["upgrade_bar"], regions["upgrade_button"]
+        window_title,
+        regions["upgrade_bar"],
+        regions["upgrade_button"],
+        max_fails,
     )
     logger.info(f"Detected {n_fails} fails")
 
 
+@raid_autoupgrade.command()
+def show_regions():
+    """Show the currently cached regions and screenshot."""
+    # Check if we can find the Raid window
+    window_title = "Raid: Shadow Legends"
+    if not window_exists(window_title):
+        logger.warning("Raid window not found. Check if Raid is running.")
+        sys.exit(1)
+
+    screenshot = take_screenshot_of_window(window_title)
+    window_size = [screenshot.shape[0], screenshot.shape[1]]
+
+    # Get cache from context
+    ctx = click.get_current_context()
+    cache = ctx.obj["cache"]
+
+    # Create a cache key based on window size
+    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
+    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
+
+    # Try to get cached regions
+    regions = cache.get(cache_key_regions)
+    screenshot = cache.get(cache_key_screenshot)
+    if regions is None:
+        logger.error(
+            "No cached regions found for current window size. Run count command first to cache regions."
+        )
+        sys.exit(1)
+
+    logger.info("Showing cached regions")
+    show_regions_in_image(screenshot, regions)
+
+
+@raid_autoupgrade.command()
+def select_regions():
+    """Select and cache regions for upgrade bar and button.
+
+    This command allows you to manually select the regions for the upgrade bar and button.
+    The selected regions will be cached for future use.
+    """
+    # Check if we can find the Raid window
+    window_title = "Raid: Shadow Legends"
+    if not window_exists(window_title):
+        logger.warning("Raid window not found. Check if Raid is running.")
+        sys.exit(1)
+
+    screenshot = take_screenshot_of_window(window_title)
+    window_size = [screenshot.shape[0], screenshot.shape[1]]
+
+    # Get cache from context
+    ctx = click.get_current_context()
+    cache = ctx.obj["cache"]
+
+    # Create cache keys
+    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
+    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
+
+    # Select new regions
+    regions = select_upgrade_regions(screenshot)
+
+    # Cache the regions and screenshot
+    cache.set(cache_key_regions, regions)
+    cache.set(cache_key_screenshot, screenshot)
+
+    logger.info("Regions selected and cached successfully")
+    logger.info("You can now use the count or show-regions commands")
+
+
 if __name__ == "__main__":
-    main()
+    raid_autoupgrade()

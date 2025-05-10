@@ -1,5 +1,9 @@
 # program generated files
-regions.json
+cache-raid-autoupgrade/
+cache/
+cache.db
+ragions.json
+screenshot.png
 
 
 # Python-generated files
