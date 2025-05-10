@@ -1,6 +1,6 @@
 # Raid Autoupgrade
 
-A command-line tool to help doing the "airplane" mode trick semi-automatically.
+A command-line tool to help doing the "airplane" mode trick semi-automatically. It can caount failed upgrades and stop and upgrade after a set amount of fails.
 
 ## Usage
 
