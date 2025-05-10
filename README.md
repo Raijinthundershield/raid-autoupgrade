@@ -6,18 +6,19 @@ A command-line tool to help doing the "airplane" mode trick semi-automatically.
 
 To count the amount of fails a piece need to be upgraded:
 
-1. Within raid go to the upgrade menu of the piece
+1. Within raid go to the upgrade menu of the piece.
 2. Disable all network adapters.
-3. Run the command `raid-autoupgrade count`
-4. We will now be prompted to select the upgrade bar region and the upgrade
-button region. It is important that we only include the upgrade bar and not too
-much around it. See example image. If the raid applciation window has not changed in size this will be reused on the next invocation.
-5. The upgrade will now start and the amount of fails will be counted. Make a not of the amount of fails, we will call it here `n_fails`.
+3. Run the command `raid-autoupgrade count`.
+4. A screenshot of the raid application will now pop up. Dragselect a rectangle encompassing the upgrade bar. It is important that we only include the upgrade bar and not too much around it.
+5. Again a screenshot of the raid application will pop up. Dragselect a rectangle within the upgrade button.
 
+![alt text](docs/images/image_with_regions.png)
+
+6. The upgrade will now start and the amount of fails will be counted. Make a note of the amount of fails it detects, we will call it here `n_fails`.
 
 To spend upgrades:
 1. Turn on network.
-2. Go to the upgrade screen of a piece we want to spend upgrades on
+2. Go to the upgrade screen of a piece we want to spend upgrades on.
 3. Run the command `raid-autoupgrade count --max-fails <n_fails-1>`. Note that we will set max fails to one less, since the tool tends to stop one upgrade too late.
 4. Now there are two scenarios:
     <ol type="a">

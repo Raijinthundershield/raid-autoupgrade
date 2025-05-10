@@ -18,24 +18,12 @@ from raid_autoupgrade.interaction import (
 )
 
 # from raid_autoupgrade.utils import get_timestamp
+from raid_autoupgrade.utils import get_timestamp
 from raid_autoupgrade.visualization import (
     get_roi_from_screenshot,
     show_regions_in_image,
 )
 
-# TODO: add when needed
-# NOTE: Make this configurable...
-# pytesseract.pytesseract.tesseract_cmd = (
-#     "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-# )
-
-# TODO: Make into cli that takes in max_fails.
-# TODO: cache screenshot and regions. check for window size.
-# TODO: disable and enable internet.
-# TODO: if cancelled by connection error -> n_fails-1 AND continue upgrade if level<12.
-# TODO: sometimes detect an extra fail when waiting for connection error on succesful upgrade
-# TODO: Not fast enough when cancelling. Will almost always get one extra upgrade.
-# TODO: add detection of level and stars to look at statistics.
 
 # TODO: Look into screenshot and click of inactive window
 # https://stackoverflow.com/questions/19695214/screenshot-of-inactive-window-printwindow-win32gui/24352388#24352388
@@ -49,6 +37,7 @@ def count_upgrade_fails(
     upgrade_button_region: tuple[int, int, int, int],
     max_fails: int = 99,
     check_interval: float = 0.025,
+    screenshot_dir: str = None,
 ) -> int:
     """
     Assumptions:
@@ -91,7 +80,7 @@ def count_upgrade_fails(
     # Count the number of fails until the max is reached or the piece has been
     # upgraded.
     while n_fails < max_fails:
-        screenshot = take_screenshot_of_window(window_title)
+        screenshot = take_screenshot_of_window(window_title, screenshot_dir)
         upgrade_bar = get_roi_from_screenshot(screenshot, upgrade_bar_region)
 
         current_state = get_progress_bar_state(upgrade_bar)
@@ -172,7 +161,14 @@ def select_upgrade_regions(screenshot: np.ndarray):
 
 
 @click.group()
-def raid_autoupgrade():
+@click.option(
+    "--save-screenshots",
+    "-s",
+    is_flag=True,
+    default=False,
+    help="Save screenshots to cache directory",
+)
+def raid_autoupgrade(save_screenshots: bool):
     """Raid: Shadow Legends auto-upgrade tool.
 
     This tool helps automate the process of upgrading equipment in Raid: Shadow Legends
@@ -189,6 +185,12 @@ def raid_autoupgrade():
     # Store cache in context
     ctx = click.get_current_context()
     ctx.obj = {"cache": cache, "cache_dir": cache_dir}
+
+    if save_screenshots:
+        logger.info(f"Saving screenshots to {cache_dir}")
+        ctx.obj["screenshot_dir"] = cache_dir
+    else:
+        ctx.obj["screenshot_dir"] = None
 
 
 @raid_autoupgrade.command()
@@ -210,7 +212,11 @@ def count(max_fails: int):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
-    screenshot = take_screenshot_of_window(window_title)
+    # Take screenshot
+    ctx = click.get_current_context()
+    screenshot_dir = ctx.obj["screenshot_dir"]
+
+    screenshot = take_screenshot_of_window(window_title, screenshot_dir)
     window_size = [screenshot.shape[0], screenshot.shape[1]]
 
     # Get cache from context
@@ -238,12 +244,20 @@ def count(max_fails: int):
         regions["upgrade_bar"],
         regions["upgrade_button"],
         max_fails,
+        screenshot_dir,
     )
     logger.info(f"Detected {n_fails} fails")
 
 
 @raid_autoupgrade.command()
-def show_regions():
+@click.option(
+    "--save-image",
+    "-s",
+    is_flag=True,
+    default=False,
+    help="Save image with regions to cache directory",
+)
+def show_regions(save_image: bool):
     """Show the currently cached regions and screenshot."""
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
@@ -272,7 +286,15 @@ def show_regions():
         sys.exit(1)
 
     logger.info("Showing cached regions")
-    show_regions_in_image(screenshot, regions)
+
+    ctx = click.get_current_context()
+    image = show_regions_in_image(screenshot, regions)
+
+    output_dir = ctx.obj["cache_dir"]
+    if save_image:
+        output_path = Path(output_dir) / f"{get_timestamp()}_image_with_regions.png"
+        logger.info(f"Saving image with regions to {output_path}")
+        cv2.imwrite(output_path, image)
 
 
 @raid_autoupgrade.command()
@@ -288,7 +310,10 @@ def select_regions():
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
-    screenshot = take_screenshot_of_window(window_title)
+    ctx = click.get_current_context()
+    screenshot_dir = ctx.obj["screenshot_dir"]
+
+    screenshot = take_screenshot_of_window(window_title, screenshot_dir)
     window_size = [screenshot.shape[0], screenshot.shape[1]]
 
     # Get cache from context

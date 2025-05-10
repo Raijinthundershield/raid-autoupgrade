@@ -1,3 +1,4 @@
+from pathlib import Path
 import cv2
 import numpy as np
 import pygetwindow
@@ -5,8 +6,10 @@ import pyautogui
 import time
 from loguru import logger
 
+from raid_autoupgrade.utils import get_timestamp
 
-def take_screenshot_of_window(window_title: str) -> np.ndarray:
+
+def take_screenshot_of_window(window_title: str, output_dir: str = None) -> np.ndarray:
     """Take a screenshot of the specified window.
 
     Args:
@@ -24,6 +27,10 @@ def take_screenshot_of_window(window_title: str) -> np.ndarray:
     )
     screenshot = np.array(screenshot)
     screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
+
+    if output_dir:
+        output_path = Path(output_dir) / f"{get_timestamp()}_screenshot.png"
+        cv2.imwrite(output_path, screenshot)
 
     return screenshot
 

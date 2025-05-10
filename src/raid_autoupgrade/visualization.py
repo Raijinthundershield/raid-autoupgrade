@@ -52,13 +52,19 @@ def add_region_to_image(
 
 
 def show_regions_in_image(
-    image: np.ndarray, regions: dict[str, tuple[int, int, int, int]]
-):
+    image: np.ndarray,
+    regions: dict[str, tuple[int, int, int, int]],
+    output_dir: str = None,
+) -> np.ndarray:
     """Show all upgrade-related regions on the image.
 
     Args:
         image (np.ndarray): The image to draw on
         regions (dict): Dictionary of region names and their coordinates
+        output_dir (str, optional): Directory to save the image
+
+    Returns:
+        np.ndarray: The image with regions drawn on it
     """
     # Define colors for different regions
 
@@ -68,10 +74,12 @@ def show_regions_in_image(
     # Add each region
     for name, region in regions.items():
         logger.debug(f"Adding region {name} to image")
-        vis_image = add_region_to_image(vis_image, region, name, (0, 255, 0))
+        vis_image = add_region_to_image(vis_image, region, name, (255, 255, 255))
 
     # Show the visualization
     cv2.namedWindow("Selected Regions", cv2.WINDOW_NORMAL)
     cv2.imshow("Selected Regions", vis_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    return vis_image
