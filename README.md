@@ -36,6 +36,7 @@ Too see all commands run `raid-autoupgrade --help` on each command.
 
 
 ## Limitations and Considerations
+* The raid window will force itself to the foreground. This makes workign on something on the same monitor a bit difficult.
 * The upgrade will sometimes count one too many when waiting for connection timeout.
 * If you are running RSLHelper you need to run the script as administrator. This is due to raid being started as administrator.
 * While the command runs make sure not to change the window size of the raid application.
