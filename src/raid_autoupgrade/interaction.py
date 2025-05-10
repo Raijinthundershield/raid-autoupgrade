@@ -20,7 +20,7 @@ def take_screenshot_of_window(window_title: str, output_dir: str = None) -> np.n
     """
     window = pygetwindow.getWindowsWithTitle(window_title)[0]
     window.activate()
-    time.sleep(0.5)
+    time.sleep(0.05)
 
     screenshot = pyautogui.screenshot(
         region=(window.left, window.top, window.width, window.height)
