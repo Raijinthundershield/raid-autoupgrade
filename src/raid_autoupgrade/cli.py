@@ -75,10 +75,6 @@ def count_upgrade_fails(
     logger.info("Starting to monitor upgrade bar color changes...")
     logger.info("Press 'q' to stop monitoring")
 
-    # Click the upgrade level to start monitoring
-    logger.info("Clicking upgrade button")
-    click_region_center(window_title, upgrade_button_region)
-
     # Count the number of fails until the max is reached or the piece has been
     # upgraded.
     while n_fails < max_fails:
@@ -256,6 +252,10 @@ def count(network_adapter_id: list[int], max_fails: int):
     # if network_adapter_id:
     # manager = NetworkManager()
     # manager.toggle_adapter(network_adapter_id, True)
+
+    # Click the upgrade level to start upgrading
+    logger.info("Clicking upgrade button")
+    click_region_center(window_title, regions["upgrade_button"])
 
     # Count upgrades until levelup or fails have been reaced
     n_fails = count_upgrade_fails(
