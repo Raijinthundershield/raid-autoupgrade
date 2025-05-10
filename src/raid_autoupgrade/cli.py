@@ -4,6 +4,7 @@ import sys
 import cv2
 import time
 import platform
+from enum import Enum
 
 import click
 import numpy as np
@@ -33,14 +34,23 @@ from raid_autoupgrade.visualization import (
 # https://stackoverflow.com/questions/32846550/python-control-window-with-pywinauto-while-the-window-is-minimized-or-hidden/32847266#32847266
 
 
+class StopCountReason(Enum):
+    MAX_FAILS = "max_fails"
+    UPGRADED = "upgraded"
+    UNKNOWN = "unknown"
+    STANDBY = "standby"
+    POPUP = "popup"
+    CONNECTION_ERROR = "connection_error"
+
+
 def count_upgrade_fails(
     window_title: str,
     upgrade_bar_region: tuple[int, int, int, int],
     upgrade_button_region: tuple[int, int, int, int],
     max_fails: int = 99,
     check_interval: float = 0.025,
-    screenshot_dir: str = None,
-) -> int:
+    screenshot_dir: str | None = None,
+) -> tuple[int, StopCountReason]:
     """
     Assumptions:
         * Raid window is in the upgrade section of a piece of equipment.
@@ -53,10 +63,11 @@ def count_upgrade_fails(
         upgrade_bar_region (tuple): Region coordinates (left, top, width, height) relative to the window
         upgrade_button_region (tuple): Region coordinates (left, top, width, height) relative to the window
         max_fails (int, optional): Maximum number of fails to count before stopping. Defaults to 99.
-        check_interval (float, optional): Time between checks in seconds. Defaults to 0.2.
+        check_interval (float, optional): Time between checks in seconds. Defaults to 0.025.
+        screenshot_dir (str | None, optional): Directory to save screenshots. Defaults to None.
 
     Returns:
-        int: Number of fails detected
+        tuple[int, StopCountReason]: Number of fails detected and reason for stopping
 
     Note:
         The function will stop monitoring if:
@@ -64,7 +75,6 @@ def count_upgrade_fails(
         - The upgrade bar stays in 'standby' state for 5 consecutive checks
         - The upgrade bar stays in 'connection_error' state for 5 consecutive checks
         - The upgrade bar stays in 'unknown' state for 5 consecutive checks
-        - The user presses 'q' to stop monitoring
     """
     n_fails = 0
     current_state = None
@@ -73,7 +83,6 @@ def count_upgrade_fails(
     last_n_states = deque(maxlen=max_equal_states)
 
     logger.info("Starting to monitor upgrade bar color changes...")
-    logger.info("Press 'q' to stop monitoring")
 
     # Count the number of fails until the max is reached or the piece has been
     # upgraded.
@@ -82,52 +91,52 @@ def count_upgrade_fails(
         upgrade_bar = get_roi_from_screenshot(screenshot, upgrade_bar_region)
 
         current_state = get_progress_bar_state(upgrade_bar)
-        # logger.info(f"Current state: {current_state}")
 
         if last_state != current_state and current_state == "fail":
             n_fails += 1
             logger.info(
                 f"{last_state} -> {current_state} (Total: {n_fails}  Max: {max_fails})"
             )
-            # cv2.imwrite(f"upgrade_bar_{current_state}_{get_timestamp()}.png", upgrade_bar)
 
         if n_fails == max_fails:
             logger.info("Max fails reached. Clicking cancel upgrade.")
-            click_region_center(window_title, upgrade_button_region)
+            return n_fails, StopCountReason.MAX_FAILS
 
         last_n_states.append(current_state)
         last_state = last_n_states[-1]
-
-        # Check for 'q' key press
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            logger.info("Monitoring stopped by user")
-            break
 
         # If the ugrade has been completed, there will only be a black bar.
         if len(last_n_states) >= max_equal_states and np.all(
             np.array(last_n_states) == "standby"
         ):
             logger.info(f"Standby for the last {max_equal_states} checks")
-            break
+            if n_fails > 0:
+                return n_fails, StopCountReason.UPGRADED
+            else:
+                return n_fails, StopCountReason.STANDBY
 
         # When a connection error occurs we have completed an upgrade while
         # having internet turned off.
         if len(last_n_states) >= max_equal_states and np.all(
             np.array(last_n_states) == "connection_error"
         ):
-            logger.info(f"connection error for the last {max_equal_states} checks")
-            break
+            # TODO: rename class to popup, will also cover the instant upgrade popup
+            logger.info(f"popup for the last {max_equal_states} checks")
+            if n_fails > 0:
+                return n_fails, StopCountReason.CONNECTION_ERROR
+            else:
+                return n_fails, StopCountReason.POPUP
 
         if len(last_n_states) >= max_equal_states and np.all(
             np.array(last_n_states) == "unknown"
         ):
             logger.info(f"unknown state for the last {max_equal_states} checks")
-            break
+            return n_fails, StopCountReason.UNKNOWN
 
         time.sleep(check_interval)
 
     logger.info(f"Finished monitoring. Detected {n_fails} fails.")
-    return n_fails
+    return n_fails, StopCountReason.UNKNOWN
 
 
 def select_upgrade_regions(screenshot: np.ndarray):
@@ -193,6 +202,11 @@ def raid_autoupgrade(save_screenshots: bool):
         ctx.obj["screenshot_dir"] = None
 
 
+# TODO: add modes
+#    * one for counting an upgrade piece
+#    * one for spending upågrades
+
+
 @raid_autoupgrade.command()
 @click.option(
     "--network-adapter-id",
@@ -249,6 +263,7 @@ def count(network_adapter_id: list[int], max_fails: int):
     # TODO: add a region validation based on the color of the regions
 
     # TODO: add network management
+    #    * Need to also consider mode, ie. whether we are counting or spending upgrades
     # if network_adapter_id:
     # manager = NetworkManager()
     # manager.toggle_adapter(network_adapter_id, True)
@@ -258,14 +273,19 @@ def count(network_adapter_id: list[int], max_fails: int):
     click_region_center(window_title, regions["upgrade_button"])
 
     # Count upgrades until levelup or fails have been reaced
-    n_fails = count_upgrade_fails(
-        window_title,
-        regions["upgrade_bar"],
-        regions["upgrade_button"],
-        max_fails,
-        screenshot_dir,
+    n_fails, reason = count_upgrade_fails(
+        window_title=window_title,
+        upgrade_bar_region=regions["upgrade_bar"],
+        upgrade_button_region=regions["upgrade_button"],
+        max_fails=max_fails,
+        screenshot_dir=screenshot_dir,
     )
-    logger.info(f"Detected {n_fails} fails")
+
+    if reason == StopCountReason.MAX_FAILS:
+        logger.info("Upgrade successful. Clicking cancel upgrade.")
+        click_region_center(window_title, regions["upgrade_button"])
+
+    logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
 
 
 @raid_autoupgrade.command()
