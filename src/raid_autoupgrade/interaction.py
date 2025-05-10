@@ -142,7 +142,7 @@ def click_region_center(window_title: str, region: tuple[int, int, int, int]) ->
         # Get fresh window reference
         window = pygetwindow.getWindowsWithTitle(window_title)[0]
         window.activate()
-        time.sleep(0.5)  # Give window time to activate
+        time.sleep(0.05)  # Give window time to activate
 
         # Calculate center of region relative to window
         left, top, width, height = region
@@ -156,7 +156,7 @@ def click_region_center(window_title: str, region: tuple[int, int, int, int]) ->
         logger.info(f"Click {screen_x}, {screen_y}")
 
         pyautogui.click(screen_x, screen_y)
-        time.sleep(0.5)
+        time.sleep(0.05)
 
     except IndexError:
         logger.error(f"Window '{window_title}' not found")
