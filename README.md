@@ -1,3 +1,48 @@
 # Raid Autoupgrade
 
-A tool to run the "airplane" mode trick semi-automatically.
+A command-line tool to help doing the "airplane" mode trick semi-automatically.
+
+## Usage
+
+To count the amount of fails a piece need to be upgraded:
+
+1. Within raid go to the upgrade menu of the piece
+2. Disable all network adapters.
+3. Run the command `raid-autoupgrade count`
+4. We will now be prompted to select the upgrade bar region and the upgrade
+button region. It is important that we only include the upgrade bar and not too
+much around it. See example image. If the raid applciation window has not changed in size this will be reused on the next invocation.
+5. The upgrade will now start and the amount of fails will be counted. Make a not of the amount of fails, we will call it here `n_fails`.
+
+
+To spend upgrades:
+1. Turn on network.
+2. Go to the upgrade screen of a piece we want to spend upgrades on
+3. Run the command `raid-autoupgrade count --max-fails <n_fails-1>`. Note that we will set max fails to one less, since the tool tends to stop one upgrade too late.
+4. Now there are two scenarios:
+    <ol type="a">
+    <li>The piece upgrades, but we have not reached the amount of fails. In that case continue from step 2 until we have reached `n_fails`. When starting the command in step 3 make sure to adjust `--max-fails` and take into account that the upgrade itself also spends an upgrade attempt.</li>
+    <li>We have reached `n_fails`. Then we can upgrade the original piece.</li>
+    </ol>
+
+``
+
+Too see all commands run `raid-autoupgrade --help` on each command.
+
+
+## Limitations and Considerations
+* The upgrade will sometimes count one too many when waiting for connection timeout.
+* If you are running RSLHelper you need to run the script as administrator. This is due to raid being started as administrator.
+* While the command runs make sure not to change the window size of the raid application.
+* A cache folder will be generated in the folder in which the command is called.
+
+
+## TODO
+
+Unordered roadmap:
+* Make UI which can start from a bat file.
+* If spending upgrades on a piece that is level 10, make it possible to start an upgrade after it has upgraded once to continue spending upgrade attempts.
+* Add ability to turn off and on internet.
+* Make it possible to ahve the raid window in the background.
+    - Enable background screenshot
+    - Enable background clicking
