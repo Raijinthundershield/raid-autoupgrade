@@ -44,6 +44,6 @@ Unordered roadmap:
 * Make UI which can start from a bat file.
 * If spending upgrades on a piece that is level 10, make it possible to start an upgrade after it has upgraded once to continue spending upgrade attempts.
 * Add ability to turn off and on internet.
-* Make it possible to ahve the raid window in the background.
+* Make it possible to have the raid window in the background.
     - Enable background screenshot
     - Enable background clicking
