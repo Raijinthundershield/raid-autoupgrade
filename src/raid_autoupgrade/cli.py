@@ -264,6 +264,7 @@ def count(network_adapter_id: list[int]):
 
     regions = get_regions(screenshot, ctx.obj["cache"])
     manager.toggle_adapters(network_adapter_id, enable=False)
+    time.sleep(1)
 
     # Click the upgrade level to start upgrading
     logger.info("Clicking upgrade button")
@@ -353,7 +354,7 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
             n_upgrades += 1
             logger.info(f"Piece upgraded at {n_attempts} upgrade attempts.")
 
-        if continue_upgrade and n_upgrades < 1 and n_attempts < max_attempts:
+        if continue_upgrade and n_upgrades == 1 and n_attempts < max_attempts:
             upgrade = True
             logger.info("Continue upgrade.")
 
