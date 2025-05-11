@@ -46,7 +46,7 @@ class StopCountReason(Enum):
 def count_upgrade_fails(
     window_title: str,
     upgrade_bar_region: tuple[int, int, int, int],
-    max_fails: int = 99,
+    max_attempts: int = 99,
     check_interval: float = 0.25,
     screenshot_dir: str | None = None,
 ) -> tuple[int, StopCountReason]:
@@ -60,7 +60,7 @@ def count_upgrade_fails(
     Args:
         window_title (str): Title of the window to monitor
         upgrade_bar_region (tuple): Region coordinates (left, top, width, height) relative to the window
-        max_fails (int, optional): Maximum number of fails to count before stopping. Defaults to 99.
+        max_attempts (int, optional): Maximum number of upgrade attempts to count before stopping. Defaults to 99.
         check_interval (float, optional): Time between checks in seconds. Defaults to 0.025.
         screenshot_dir (str | None, optional): Directory to save screenshots. Defaults to None.
 
@@ -84,7 +84,7 @@ def count_upgrade_fails(
 
     # Count the number of fails until the max is reached or the piece has been
     # upgraded.
-    while n_fails < max_fails:
+    while n_fails < max_attempts:
         screenshot = take_screenshot_of_window(window_title, screenshot_dir)
         upgrade_bar = get_roi_from_screenshot(screenshot, upgrade_bar_region)
 
@@ -93,10 +93,10 @@ def count_upgrade_fails(
         if last_state != current_state and current_state == "fail":
             n_fails += 1
             logger.info(
-                f"{last_state} -> {current_state} (Total: {n_fails}  Max: {max_fails})"
+                f"{last_state} -> {current_state} (Total: {n_fails}  Max: {max_attempts})"
             )
 
-        if n_fails == max_fails:
+        if n_fails == max_attempts:
             logger.info("Max fails reached. Clicking cancel upgrade.")
             return n_fails, StopCountReason.MAX_FAILS
 
@@ -273,7 +273,7 @@ def count(network_adapter_id: list[int]):
     n_fails, reason = count_upgrade_fails(
         window_title=window_title,
         upgrade_bar_region=regions["upgrade_bar"],
-        max_fails=99,
+        max_attempts=99,
         screenshot_dir=screenshot_dir,
     )
 
@@ -323,24 +323,21 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
 
     regions = get_regions(screenshot, ctx.obj["cache"])
 
-    logger.info("Clicking upgrade button")
-    click_region_center(window_title, regions["upgrade_button"])
-
     upgrade = True
     n_upgrades = 0
     n_attempts = 0
     n_fails = 0  # Initialize n_fails
-    while upgrade and n_upgrades < 1 and n_attempts < max_attempts:
-        logger.debug(
-            f"max_fails={max_attempts}, continue_upgrade={continue_upgrade}, n_upgrades={n_upgrades}, n_fails={n_fails}"
-        )
+    while upgrade:
         upgrade = False
+
+        logger.info("Clicking upgrade button")
+        click_region_center(window_title, regions["upgrade_button"])
 
         # Count upgrades until levelup or fails have been reaced
         n_fails, reason = count_upgrade_fails(
             window_title=window_title,
             upgrade_bar_region=regions["upgrade_bar"],
-            max_fails=max_attempts,
+            max_attempts=max_attempts - n_attempts,
             screenshot_dir=screenshot_dir,
         )
         n_attempts += n_fails
@@ -351,14 +348,18 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
             )
             click_region_center(window_title, regions["upgrade_button"])
 
-        elif reason == StopCountReason.UPGRADED and continue_upgrade:
-            logger.info("Upgrade successful. Continue counting.")
-            click_region_center(window_title, regions["upgrade_button"])
-            n_attempts += 1
-            upgrade = True
-
         elif reason == StopCountReason.UPGRADED:
+            n_attempts += 1
+            n_upgrades += 1
             logger.info(f"Piece upgraded at {n_attempts} upgrade attempts.")
+
+        if continue_upgrade and n_upgrades < 1 and n_attempts < max_attempts:
+            upgrade = True
+            logger.info("Continue upgrade.")
+
+    logger.info(
+        f"Total upgrade attempts: {n_attempts}. There are {max_attempts-n_attempts} left."
+    )
 
 
 @raid_autoupgrade.command()
