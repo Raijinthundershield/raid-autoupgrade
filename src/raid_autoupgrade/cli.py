@@ -46,9 +46,8 @@ class StopCountReason(Enum):
 def count_upgrade_fails(
     window_title: str,
     upgrade_bar_region: tuple[int, int, int, int],
-    upgrade_button_region: tuple[int, int, int, int],
     max_fails: int = 99,
-    check_interval: float = 0.025,
+    check_interval: float = 0.25,
     screenshot_dir: str | None = None,
 ) -> tuple[int, StopCountReason]:
     """
@@ -61,7 +60,6 @@ def count_upgrade_fails(
     Args:
         window_title (str): Title of the window to monitor
         upgrade_bar_region (tuple): Region coordinates (left, top, width, height) relative to the window
-        upgrade_button_region (tuple): Region coordinates (left, top, width, height) relative to the window
         max_fails (int, optional): Maximum number of fails to count before stopping. Defaults to 99.
         check_interval (float, optional): Time between checks in seconds. Defaults to 0.025.
         screenshot_dir (str | None, optional): Directory to save screenshots. Defaults to None.
@@ -167,6 +165,34 @@ def select_upgrade_regions(screenshot: np.ndarray):
     return regions
 
 
+def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
+    """Get cached regions for the current window size or prompt user to select new ones.
+
+    Args:
+        screenshot (np.ndarray): Screenshot of the Raid window
+        cache (Cache): Cache object to store/retrieve regions
+
+    Returns:
+        dict: Dictionary containing the selected regions
+    """
+    window_size = [screenshot.shape[0], screenshot.shape[1]]
+
+    # Create cache keys based on window size
+    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
+    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
+
+    # Try to get cached regions
+    regions = cache.get(cache_key_regions)
+    if regions is None:
+        regions = select_upgrade_regions(screenshot)
+        cache.set(cache_key_regions, regions)
+        cache.set(cache_key_screenshot, screenshot)
+    else:
+        logger.info("Using cached regions")
+
+    return regions
+
+
 @click.group()
 @click.option(
     "--save-screenshots",
@@ -202,71 +228,42 @@ def raid_autoupgrade(save_screenshots: bool):
         ctx.obj["screenshot_dir"] = None
 
 
-# TODO: add modes
-#    * one for counting an upgrade piece
-#    * one for spending upågrades
-
-
 @raid_autoupgrade.command()
 @click.option(
     "--network-adapter-id",
     "-n",
     type=int,
     multiple=True,
-    help="Enable network management on adapters with given ids",
+    help="Network adapter ids to enable automatically turning network off and on.",
 )
-@click.option(
-    "--max-fails",
-    "-f",
-    type=int,
-    default=99,
-    help="Maximum number of fails to count before stopping.",
-)
-def count(network_adapter_id: list[int], max_fails: int):
-    """Count the number of upgrade fails and stop when the max number of fails is reached.
+def count(network_adapter_id: list[int]):
+    """Count the number of upgrade fails.
 
     Use network adapter ids to enable automatically turning network off and on.
     Use ids from the output of the `network list` command.
-
-    NOTE: one more upgrade than specified might occur due to timing issues.
     """
+
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
     if not window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
+    # Initialize network manager and check network access
+    manager = NetworkManager()
+    if manager.check_network_access() and not network_adapter_id:
+        logger.warning(
+            "Internet access detected and netwrok id not specified. This will upgrade the piece. Aborting."
+        )
+        sys.exit(1)
+
     # Take screenshot
     ctx = click.get_current_context()
     screenshot_dir = ctx.obj["screenshot_dir"]
-
     screenshot = take_screenshot_of_window(window_title, screenshot_dir)
-    window_size = [screenshot.shape[0], screenshot.shape[1]]
 
-    # Get cache from context
-    ctx = click.get_current_context()
-    cache = ctx.obj["cache"]
-
-    # Create a cache key based on window size
-    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
-    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
-
-    # Try to get cached regions
-    regions = cache.get(cache_key_regions)
-    if regions is None:
-        regions = select_upgrade_regions(screenshot)
-        cache.set(cache_key_regions, regions)
-        cache.set(cache_key_screenshot, screenshot)
-    else:
-        logger.info("Using cached regions")
-
-    # TODO: add a region validation based on the color of the regions
-
-    # TODO: add network management
-    #    * Need to also consider mode, ie. whether we are counting or spending upgrades
-    # if network_adapter_id:
-    # manager = NetworkManager()
-    # manager.toggle_adapter(network_adapter_id, True)
+    regions = get_regions(screenshot, ctx.obj["cache"])
+    manager.toggle_adapters(network_adapter_id, enable=False)
 
     # Click the upgrade level to start upgrading
     logger.info("Clicking upgrade button")
@@ -276,16 +273,92 @@ def count(network_adapter_id: list[int], max_fails: int):
     n_fails, reason = count_upgrade_fails(
         window_title=window_title,
         upgrade_bar_region=regions["upgrade_bar"],
-        upgrade_button_region=regions["upgrade_button"],
-        max_fails=max_fails,
+        max_fails=99,
         screenshot_dir=screenshot_dir,
     )
 
-    if reason == StopCountReason.MAX_FAILS:
-        logger.info("Upgrade successful. Clicking cancel upgrade.")
-        click_region_center(window_title, regions["upgrade_button"])
+    # Wait for Raid to reach connection timeout before enabling network.
+    time.sleep(3)
+    manager.toggle_adapters(network_adapter_id, enable=True)
 
     logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
+
+
+@raid_autoupgrade.command()
+@click.option(
+    "--max-attempts",
+    "-m",
+    type=int,
+    default=99,
+    required=True,
+    help="Maximum number of upgrade attempts to count before stopping.",
+)
+@click.option(
+    "--continue-upgrade",
+    "-c",
+    is_flag=True,
+    help="Continue upgrading after reaching an upgrade. Only use if the piece is level 10.",
+)
+def upgrade(max_attempts: int, continue_upgrade: bool):
+    """
+    Upgrade the piece until the max number of fails is reached.
+    """
+
+    # Check if we can find the Raid window
+    window_title = "Raid: Shadow Legends"
+    if not window_exists(window_title):
+        logger.warning("Raid window not found. Check if Raid is running.")
+        sys.exit(1)
+
+    # Initialize network manager and check network access
+    manager = NetworkManager()
+    if not manager.check_network_access():
+        logger.warning("No internet access detected. Aborting.")
+        sys.exit(1)
+
+    # Take screenshot
+    ctx = click.get_current_context()
+    screenshot_dir = ctx.obj["screenshot_dir"]
+    screenshot = take_screenshot_of_window(window_title, screenshot_dir)
+
+    regions = get_regions(screenshot, ctx.obj["cache"])
+
+    logger.info("Clicking upgrade button")
+    click_region_center(window_title, regions["upgrade_button"])
+
+    upgrade = True
+    n_upgrades = 0
+    n_attempts = 0
+    n_fails = 0  # Initialize n_fails
+    while upgrade and n_upgrades < 1 and n_attempts < max_attempts:
+        logger.debug(
+            f"max_fails={max_attempts}, continue_upgrade={continue_upgrade}, n_upgrades={n_upgrades}, n_fails={n_fails}"
+        )
+        upgrade = False
+
+        # Count upgrades until levelup or fails have been reaced
+        n_fails, reason = count_upgrade_fails(
+            window_title=window_title,
+            upgrade_bar_region=regions["upgrade_bar"],
+            max_fails=max_attempts,
+            screenshot_dir=screenshot_dir,
+        )
+        n_attempts += n_fails
+
+        if reason == StopCountReason.MAX_FAILS:
+            logger.info(
+                "Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
+            )
+            click_region_center(window_title, regions["upgrade_button"])
+
+        elif reason == StopCountReason.UPGRADED and continue_upgrade:
+            logger.info("Upgrade successful. Continue counting.")
+            click_region_center(window_title, regions["upgrade_button"])
+            n_attempts += 1
+            upgrade = True
+
+        elif reason == StopCountReason.UPGRADED:
+            logger.info(f"Piece upgraded at {n_attempts} upgrade attempts.")
 
 
 @raid_autoupgrade.command()
@@ -305,19 +378,12 @@ def show_regions(save_image: bool):
         sys.exit(1)
 
     screenshot = take_screenshot_of_window(window_title)
-    window_size = [screenshot.shape[0], screenshot.shape[1]]
 
     # Get cache from context
     ctx = click.get_current_context()
     cache = ctx.obj["cache"]
 
-    # Create a cache key based on window size
-    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
-    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
-
-    # Try to get cached regions
-    regions = cache.get(cache_key_regions)
-    screenshot = cache.get(cache_key_screenshot)
+    regions = get_regions(screenshot, cache)
     if regions is None:
         logger.error(
             "No cached regions found for current window size. Run count command first to cache regions."

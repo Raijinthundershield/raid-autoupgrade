@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import warnings
-
+import socket
+from urllib import request
+from urllib.error import URLError
 
 import wmi
 from loguru import logger
@@ -33,6 +35,27 @@ class NetworkManager:
     def __init__(self) -> None:
         self.wmi_obj = wmi.WMI()
         self.console = Console()
+
+    def check_network_access(self, timeout: float = 5.0) -> bool:
+        """Check if there is internet connectivity.
+
+        Args:
+            timeout (float): Timeout in seconds for the connection test
+
+        Returns:
+            bool: True if internet is accessible, False otherwise
+        """
+        try:
+            # Try to connect to a reliable host
+            socket.create_connection(("8.8.8.8", 53), timeout=timeout)
+            return True
+        except OSError:
+            try:
+                # Fallback to HTTP request
+                request.urlopen("http://www.google.com", timeout=timeout)
+                return True
+            except (URLError, TimeoutError):
+                return False
 
     def get_adapters(self) -> list[NetworkAdapter]:
         """Get all physical network adapters"""
@@ -143,6 +166,13 @@ class NetworkManager:
             logger.error(f"Failed to toggle adapter {adapter_id}: {str(e)}")
             return False
 
+    def toggle_adapters(self, adapter_ids: list[str], enable: bool) -> bool:
+        success_count = 0
+        for adapter_id in adapter_ids:
+            if self.toggle_adapter(adapter_id, enable):
+                success_count += 1
+        return success_count > 0
+
     def toggle_selected_adapters(self, enable: bool) -> None:
         """Toggle selected adapters"""
         selected_ids = self.select_adapters()
@@ -157,9 +187,7 @@ class NetworkManager:
             logger.info("Operation cancelled")
             return
 
-        success_count = 0
-        for adapter_id in selected_ids:
-            if self.toggle_adapter(adapter_id, enable):
-                success_count += 1
-
-        logger.info(f"Successfully toggled {success_count} adapters")
+        if self.toggle_adapters(selected_ids, enable):
+            logger.info("Successfully toggled adapters")
+        else:
+            logger.warning("Failed to toggle some adapters")
