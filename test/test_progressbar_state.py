@@ -1,6 +1,6 @@
 import json
 import cv2
-from raid_autoupgrade.cli import get_progress_bar_state
+from autoraid.autoupgrade.autoupgrade import get_progress_bar_state
 
 annotations_progress_bar = json.load(
     open("test/images/annotations_progress_bar_state.json")

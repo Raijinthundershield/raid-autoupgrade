@@ -6,7 +6,7 @@ import pyautogui
 import time
 from loguru import logger
 
-from raid_autoupgrade.utils import get_timestamp
+from autoraid.utils import get_timestamp
 
 
 def take_screenshot_of_window(window_title: str, output_dir: str = None) -> np.ndarray:

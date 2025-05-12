@@ -1,6 +1,8 @@
-# Raid Autoupgrade
+# AutoRaid
 
-A command-line tool to help doing the "airplane" mode trick semi-automatically.
+The following tools are currently available:
+
+`raid_autoupgrade`: A command-line tool to help doing the "airplane" mode trick semi-automatically.
 It can count failed upgrades as well as starting an upgrade and stop it after a
 set amount of upgrade attempts.
 
@@ -141,9 +143,11 @@ The regions selected here will be cached and used with the other commands.
 * A cache folder will be generated in the folder in which the command is called.
 
 
-## Roadmap (unordered)
-* Create GUI.
+## Roadmap (slightly ordered)
 * Use `pyautogui.locateCenterOnScreen` to find upgrade bar and upgrade button instead of manual input.
+* Take screenshot of the last piece a count was done for and add command to show it.
+* Create GUI for autoupgrade.
+* Create an autobattle tool that allows to create rules for battles.
 * Make it possible to have the raid window in the background.
     - Enable background screenshot
     - Enable background clicking

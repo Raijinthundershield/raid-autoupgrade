@@ -1,5 +1,5 @@
 [project]
-name = "raid-autoupgrade"
+name = "autoraid"
 version = "0.1.0"
 description = ""
 readme = "README.md"
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-raid-autoupgrade = "raid_autoupgrade.cli:raid_autoupgrade"
+raid-autoupgrade = "autoraid.autoupgrade.cli:raid_autoupgrade"
 
 [build-system]
 requires = ["hatchling"]
