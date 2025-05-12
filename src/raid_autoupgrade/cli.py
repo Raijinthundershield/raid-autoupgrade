@@ -97,7 +97,7 @@ def count_upgrade_fails(
             )
 
         if n_fails == max_attempts:
-            logger.info("Max fails reached. Clicking cancel upgrade.")
+            logger.info("Max fails reached.")
             return n_fails, StopCountReason.MAX_FAILS
 
         last_n_states.append(current_state)
@@ -109,9 +109,10 @@ def count_upgrade_fails(
         ):
             logger.info(f"Standby for the last {max_equal_states} checks")
             if n_fails > 0:
-                return n_fails, StopCountReason.UPGRADED
+                reason = StopCountReason.UPGRADED
             else:
-                return n_fails, StopCountReason.STANDBY
+                reason = StopCountReason.STANDBY
+            break
 
         # When a connection error occurs we have completed an upgrade while
         # having internet turned off.
@@ -121,20 +122,22 @@ def count_upgrade_fails(
             # TODO: rename class to popup, will also cover the instant upgrade popup
             logger.info(f"popup for the last {max_equal_states} checks")
             if n_fails > 0:
-                return n_fails, StopCountReason.CONNECTION_ERROR
+                reason = StopCountReason.CONNECTION_ERROR
             else:
-                return n_fails, StopCountReason.POPUP
+                reason = StopCountReason.POPUP
+            break
 
         if len(last_n_states) >= max_equal_states and np.all(
             np.array(last_n_states) == "unknown"
         ):
             logger.info(f"unknown state for the last {max_equal_states} checks")
-            return n_fails, StopCountReason.UNKNOWN
+            reason = StopCountReason.UNKNOWN
+            break
 
         time.sleep(check_interval)
 
-    logger.info(f"Finished monitoring. Detected {n_fails} fails.")
-    return n_fails, StopCountReason.UNKNOWN
+    logger.info(f"Finished counting. Detected {n_fails} fails.")
+    return n_fails, reason
 
 
 def select_upgrade_regions(screenshot: np.ndarray):
@@ -256,6 +259,15 @@ def count(network_adapter_id: list[int]):
             "Internet access detected and netwrok id not specified. This will upgrade the piece. Aborting."
         )
         sys.exit(1)
+    manager.toggle_adapters(network_adapter_id, enable=False)
+    for _ in range(3):
+        logger.info("Waiting for network to turn off.")
+        time.sleep(1)
+        if not manager.check_network_access():
+            break
+    else:
+        logger.warning("Failed to turn off network. Aborting.")
+        sys.exit(1)
 
     # Take screenshot
     ctx = click.get_current_context()
@@ -263,8 +275,6 @@ def count(network_adapter_id: list[int]):
     screenshot = take_screenshot_of_window(window_title, screenshot_dir)
 
     regions = get_regions(screenshot, ctx.obj["cache"])
-    manager.toggle_adapters(network_adapter_id, enable=False)
-    time.sleep(1)
 
     # Click the upgrade level to start upgrading
     logger.info("Clicking upgrade button")
@@ -345,7 +355,7 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
 
         if reason == StopCountReason.MAX_FAILS:
             logger.info(
-                "Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
+                f"Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
             )
             click_region_center(window_title, regions["upgrade_button"])
 

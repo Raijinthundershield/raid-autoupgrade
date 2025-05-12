@@ -133,6 +133,7 @@ The regions selected here will be cached and used with the other commands.
 
 
 ## Limitations and Considerations
+* Does not handle if there is an upgrade attempt on first try!
 * Windows only
 * The raid window will force itself to the foreground. This makes working on something on the same monitor a bit difficult.
 * If you are running RSLHelper you need to run the script as administrator. This is due to raid being started as administrator.
