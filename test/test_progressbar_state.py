@@ -3,7 +3,7 @@ import cv2
 from autoraid.autoupgrade.autoupgrade import get_progress_bar_state
 
 annotations_progress_bar = json.load(
-    open("test/images/annotations_progress_bar_state.json")
+    open("test/images/progress_bar_state/annotations_progress_bar_state.json")
 )
 
 

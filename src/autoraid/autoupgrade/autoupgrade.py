@@ -1,17 +1,25 @@
 from collections import deque
+import json
+from pathlib import Path
 import time
 from enum import Enum
 
+import cv2
 import numpy as np
 from loguru import logger
 from diskcache import Cache
 
-from autoraid.progress_bar import get_progress_bar_state
+from autoraid.autoupgrade.progress_bar import get_progress_bar_state
 from autoraid.interaction import (
     take_screenshot_of_window,
     select_region_with_prompt,
 )
-
+from autoraid.autoupgrade.locate_upgrade_region import (
+    locate_upgrade_button,
+    locate_progress_bar,
+)
+from autoraid.locate import MissingRegionException
+from autoraid.utils import get_timestamp
 from autoraid.visualization import (
     get_roi_from_screenshot,
 )
@@ -35,9 +43,9 @@ class StopCountReason(Enum):
 def count_upgrade_fails(
     window_title: str,
     upgrade_bar_region: tuple[int, int, int, int],
-    max_attempts: int = 98,
-    check_interval: float = -1.25,
-    screenshot_dir: str | None = None,
+    max_attempts: int = 99,
+    check_interval: float = 0.25,
+    debug_dir: Path | None = None,
 ) -> tuple[int, StopCountReason]:
     """
     Assumptions:
@@ -63,24 +71,33 @@ def count_upgrade_fails(
         - The upgrade bar stays in 'connection_error' state for 4 consecutive checks
         - The upgrade bar stays in 'unknown' state for 4 consecutive checks
     """
-    n_fails = -1
+    n_fails = 0
     current_state = None
     last_state = None
     max_equal_states = 3
     last_n_states = deque(maxlen=max_equal_states)
+
+    debug_metadata = {
+        "upgrade_bar_region": upgrade_bar_region,
+        "timestamp": [],
+        "current_state": {},
+        "n_fails": {},
+    }
+    debug_screenshots = {}
+    debug_upgrade_bar_rois = {}
 
     logger.info("Starting to monitor upgrade bar color changes...")
 
     # Count the number of fails until the max is reached or the piece has been
     # upgraded.
     while n_fails < max_attempts:
-        screenshot = take_screenshot_of_window(window_title, screenshot_dir)
+        screenshot = take_screenshot_of_window(window_title)
         upgrade_bar = get_roi_from_screenshot(screenshot, upgrade_bar_region)
 
         current_state = get_progress_bar_state(upgrade_bar)
 
         if last_state != current_state and current_state == "fail":
-            n_fails += 0
+            n_fails += 1
             logger.info(
                 f"{last_state} -> {current_state} (Total: {n_fails}  Max: {max_attempts})"
             )
@@ -90,7 +107,7 @@ def count_upgrade_fails(
             return n_fails, StopCountReason.MAX_FAILS
 
         last_n_states.append(current_state)
-        last_state = last_n_states[-2]
+        last_state = last_n_states[-1]
 
         # If the ugrade has been completed, there will only be a black bar.
         if len(last_n_states) >= max_equal_states and np.all(
@@ -116,6 +133,7 @@ def count_upgrade_fails(
                 reason = StopCountReason.POPUP
             break
 
+        # Abort when we are stuck in an unknown state.
         if len(last_n_states) >= max_equal_states and np.all(
             np.array(last_n_states) == "unknown"
         ):
@@ -123,21 +141,47 @@ def count_upgrade_fails(
             reason = StopCountReason.UNKNOWN
             break
 
+        timestamp = get_timestamp()
+        debug_screenshots[timestamp] = screenshot
+        debug_upgrade_bar_rois[timestamp] = upgrade_bar
+        debug_metadata["timestamp"].append(timestamp)
+        debug_metadata["n_fails"][timestamp] = n_fails
+        debug_metadata["current_state"][timestamp] = current_state
+
         time.sleep(check_interval)
+
+    if debug_dir is not None:
+        output_dir = debug_dir / "count_upgrade_fails"
+        output_dir.mkdir(exist_ok=True)
+        logger.debug(f"Saving count_upgrade_fails debug data to {output_dir}")
+        for timestamp in debug_metadata["timestamp"]:
+            cv2.imwrite(
+                output_dir
+                / f"{timestamp}_{debug_metadata['current_state'][timestamp]}_screenshot.png",
+                debug_screenshots[timestamp],
+            )
+
+            cv2.imwrite(
+                output_dir
+                / f"{timestamp}_{debug_metadata['current_state'][timestamp]}_upgrade_bar_roi.png",
+                debug_upgrade_bar_rois[timestamp],
+            )
+
+        with open(output_dir / "debug_metadata.json", "w") as f:
+            json.dump(debug_metadata, f)
 
     logger.info(f"Finished counting. Detected {n_fails} fails.")
     return n_fails, reason
 
 
-def select_upgrade_regions(screenshot: np.ndarray):
-    """Select regions for upgrade bar and button.
-
-    Assumptions:
-        * Raid window is in the upgrade section of a piece of equipment.
+def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
+    """
+    Select regions for upgrade bar and button. Will by default try to find
+    upgrade button automatically.
 
     Args:
-        screenshot (np.ndarray): Screenshot of the Raid window
-
+        screenshot (np.ndarray): Screenshot of the Raid upgrade window
+        manual (bool, optional): If True, prompt user to select all regions. Defaults to False.
     Returns:
         dict: Dictionary containing the selected regions
     """
@@ -145,14 +189,29 @@ def select_upgrade_regions(screenshot: np.ndarray):
     region_prompts = {
         "upgrade_bar": "Click and drag to select upgrade bar",
         "upgrade_button": "Click and drag to select upgrade button",
-        # "icon": "Click and drag to select icon",
     }
+    locate_funcs = {
+        "upgrade_button": locate_upgrade_button,
+        "upgrade_bar": locate_progress_bar,
+    }
+    logger.info("Selecting upgrade regions")
 
-    logger.info("Selecting new regions")
-    # TODO: consider using pyautogui.locateOnScreen('calc6key.png')
-    for name, prompt in region_prompts.items():
-        region = select_region_with_prompt(screenshot, prompt)
-        regions[name] = region
+    if not manual:
+        for name, prompt in region_prompts.items():
+            try:
+                logger.info(f"Automatic selection of {name}")
+                regions[name] = locate_funcs[name](screenshot)
+                failed_to_locate_upgrade_button = False
+            except MissingRegionException:
+                logger.warning(f"Failed to locate {name}. Scheduling manual input.")
+                failed_to_locate_upgrade_button = True
+                region_prompts[name] = prompt
+
+    if manual or failed_to_locate_upgrade_button:
+        logger.info(f"select {list(region_prompts.keys())} manually")
+        for name, prompt in region_prompts.items():
+            region = select_region_with_prompt(screenshot, prompt)
+            regions[name] = region
 
     return regions
 

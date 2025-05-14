@@ -1,0 +1,19 @@
+{
+    "0": {
+        "screenshot": "screenshot_0.png",
+        "progress_bar_roi": "progress_bar_0.png",
+        "upgrade_button_roi": "upgrade_button_0.png",
+        "progress_bar_region": [
+            439,
+            186,
+            429,
+            32
+        ],
+        "upgrade_button_region": [
+            752,
+            623,
+            270,
+            73
+        ]
+    }
+}

@@ -1,3 +1,4 @@
+import json
 import click
 from pathlib import Path
 import time
@@ -25,13 +26,13 @@ from autoraid.visualization import show_regions_in_image
 
 @click.group()
 @click.option(
-    "--save-screenshots",
-    "-s",
+    "--debug",
+    "-d",
     is_flag=True,
     default=False,
-    help="Save screenshots to cache directory",
+    help="Save screenshots and other information to debug directory within cache directory.",
 )
-def raid_autoupgrade(save_screenshots: bool):
+def raid_autoupgrade(debug: bool):
     """Raid: Shadow Legends auto-upgrade tool.
 
     This tool helps automate the process of upgrading equipment in Raid: Shadow Legends
@@ -51,11 +52,16 @@ def raid_autoupgrade(save_screenshots: bool):
     ctx = click.get_current_context()
     ctx.obj = {"cache": cache, "cache_dir": cache_dir}
 
-    if save_screenshots:
-        logger.info(f"Saving screenshots to {cache_dir}")
-        ctx.obj["screenshot_dir"] = cache_dir
-    else:
-        ctx.obj["screenshot_dir"] = None
+    # Set debug mode
+    ctx.obj["debug"] = debug
+    ctx.obj["debug_dir"] = None
+    if debug:
+        debug_dir = cache_dir / "debug"
+        debug_dir.mkdir(exist_ok=True)
+        logger.debug(
+            f"Debug mode enabled. Saving screenshots and other information to {debug_dir}"
+        )
+        ctx.obj["debug_dir"] = debug_dir
 
 
 @raid_autoupgrade.command()
@@ -96,28 +102,38 @@ def count(network_adapter_id: list[int]):
         logger.warning("Failed to turn off network. Aborting.")
         sys.exit(1)
 
-    # Take screenshot
-    ctx = click.get_current_context()
-    screenshot_dir = ctx.obj["screenshot_dir"]
-    screenshot = take_screenshot_of_window(window_title, screenshot_dir)
+    try:
+        # Take screenshot
+        ctx = click.get_current_context()
+        screenshot = take_screenshot_of_window(window_title)
+        regions = get_regions(screenshot, ctx.obj["cache"])
 
-    regions = get_regions(screenshot, ctx.obj["cache"])
+        debug_dir = ctx.obj["debug_dir"]
+        if ctx.obj["debug"]:
+            output_dir = debug_dir / "count"
+            output_dir.mkdir(exist_ok=True)
 
-    # Click the upgrade level to start upgrading
-    logger.info("Clicking upgrade button")
-    click_region_center(window_title, regions["upgrade_button"])
+            timestamp = get_timestamp()
+            cv2.imwrite(output_dir / f"{timestamp}_screenshot.png", screenshot)
+            with open(output_dir / f"{timestamp}_regions.json", "w") as f:
+                json.dump(regions, f)
 
-    # Count upgrades until levelup or fails have been reaced
-    n_fails, reason = count_upgrade_fails(
-        window_title=window_title,
-        upgrade_bar_region=regions["upgrade_bar"],
-        max_attempts=99,
-        screenshot_dir=screenshot_dir,
-    )
+        # Click the upgrade level to start upgrading
+        logger.info("Clicking upgrade button")
+        click_region_center(window_title, regions["upgrade_button"])
 
-    # Wait for Raid to reach connection timeout before enabling network.
-    time.sleep(3)
-    manager.toggle_adapters(network_adapter_id, enable=True)
+        # Count upgrades until levelup or fails have been reaced
+        n_fails, reason = count_upgrade_fails(
+            window_title=window_title,
+            upgrade_bar_region=regions["upgrade_bar"],
+            max_attempts=99,
+            debug_dir=debug_dir,
+        )
+
+        # Wait for Raid to reach connection timeout before enabling network.
+        time.sleep(3)
+    finally:
+        manager.toggle_adapters(network_adapter_id, enable=True)
 
     logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
 
@@ -142,6 +158,9 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
     Upgrade the piece until the max number of fails is reached.
     """
 
+    ctx = click.get_current_context()
+    debug_dir = ctx.obj["debug_dir"]
+
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
     if not window_exists(window_title):
@@ -155,11 +174,18 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
         sys.exit(1)
 
     # Take screenshot
-    ctx = click.get_current_context()
-    screenshot_dir = ctx.obj["screenshot_dir"]
-    screenshot = take_screenshot_of_window(window_title, screenshot_dir)
-
+    screenshot = take_screenshot_of_window(window_title)
     regions = get_regions(screenshot, ctx.obj["cache"])
+
+    debug_dir = ctx.obj["debug_dir"]
+    if ctx.obj["debug"]:
+        output_dir = debug_dir / "upgrade"
+        output_dir.mkdir(exist_ok=True)
+
+        timestamp = get_timestamp()
+        cv2.imwrite(output_dir / f"{timestamp}_screenshot.png", screenshot)
+        with open(output_dir / f"{timestamp}_regions.json", "w") as f:
+            json.dump(regions, f)
 
     upgrade = True
     n_upgrades = 0
@@ -176,7 +202,7 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
             window_title=window_title,
             upgrade_bar_region=regions["upgrade_bar"],
             max_attempts=max_attempts - n_attempts,
-            screenshot_dir=screenshot_dir,
+            debug_dir=debug_dir,
         )
         n_attempts += n_fails
 
@@ -235,8 +261,13 @@ def show_regions(save_image: bool):
     image = show_regions_in_image(screenshot, regions)
 
     output_dir = ctx.obj["cache_dir"]
+
     if save_image:
-        output_path = Path(output_dir) / f"{get_timestamp()}_image_with_regions.png"
+        output_path = (
+            Path(output_dir)
+            / "show_regions"
+            / f"{get_timestamp()}_image_with_regions.png"
+        )
         logger.info(f"Saving image with regions to {output_path}")
         cv2.imwrite(output_path, image)
 
