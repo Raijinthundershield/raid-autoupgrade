@@ -2,28 +2,62 @@
 
 The following tools are currently available:
 
-`raid_autoupgrade`: A command-line tool to help doing the "airplane" mode trick semi-automatically.
+`autoraid`: A command-line tool to help doing the "airplane" mode trick semi-automatically.
 It can count failed upgrades as well as starting an upgrade and stop it after a
 set amount of upgrade attempts.
 
 ## Usage
 
-There are two main commands `raid-autoupgrade count` and `raid-autoupgrade
-upgrade`. The former is used to count the amount of upgrade attempts that is
-required to upgrade a piece, while the latter will spend upgrade attempts.
+The tool provides several commands to help with upgrading equipment in Raid:
 
+- `autoraid upgrade`: Commands for counting and spending upgrade attempts
+- `autoraid network`: Commands for managing network adapters
 
 ### Counting upgrade attempts
 
 To count the amount of fails we need to have internet turned off. This can be handled manually or automatically by the tool itself.
 
-#### Getting network adapter id
+
+#### Counting upgrades
+
+To count the number of fails needed to upgrade a piece:
+
+1. Within Raid, go to the upgrade menu of the piece you want to test.
+
+2. If using network management:
+   ```bash
+   autoraid upgrade count -n <adapter_ids>
+   ```
+   The tool will automatically disable the specified network adapters and turn them on again on exit.
+
+3. If managing network manually:
+   - Disable your network adapters first
+   - Then run:
+   ```bash
+   autoraid upgrade count
+   ```
+
+4. The tool will try to detect the progress bar and the upgrade button, if not it will prompt you to select two regions (see example image below) :
+   - First, select the upgrade bar region (only include the bar itself)
+   - Then, select the upgrade button region
+
+![alt text](docs/images/image_with_regions.png)
+
+5. The tool will:
+   - Start the upgrade process
+   - Count the number of fails
+   - Stop when it detects a successful upgrade
+   - Re-enable network adapters if using network management
+
+6. Note down the number of fails reported. You'll need this number when spending upgrade attempts.
+
+### Getting network adapter id
 
 To automatically manage network adapters, you need to get their IDs first:
 
 1. Run the command:
 ```bash
-raid-autoupgrade network list
+autoraid network list
 ```
 
 2. This will display a table showing all available network adapters with their:
@@ -48,40 +82,6 @@ Network Adapters
 
 In this example, you would use `-n 1 2` to control both the Wi-Fi and Ethernet adapters with the `count command`.
 
-#### Counting upgrades
-
-To count the number of fails needed to upgrade a piece:
-
-1. Within Raid, go to the upgrade menu of the piece you want to test.
-
-2. If using network management:
-   ```bash
-   raid-autoupgrade count -n <adapter_ids>
-   ```
-   The tool will automatically disable the specified network adapters.
-
-3. If managing network manually:
-   - Disable your network adapters first
-   - Then run:
-   ```bash
-   raid-autoupgrade count
-   ```
-
-4. The tool will prompt you to select two regions (see example image below) :
-   - First, select the upgrade bar region (only include the bar itself)
-   - Then, select the upgrade button region
-
-![alt text](docs/images/image_with_regions.png)
-
-5. The tool will:
-   - Start the upgrade process
-   - Count the number of fails
-   - Stop when it detects a successful upgrade
-   - Re-enable network adapters if using network management
-
-6. Note down the number of fails reported. You'll need this number when spending upgrade attempts.
-
-
 ### Spending upgrade attempts
 
 To spend upgrade attempts on a piece:
@@ -92,13 +92,13 @@ To spend upgrade attempts on a piece:
 
 3. Run the command:
    ```bash
-   raid-autoupgrade upgrade --max-attempts <n_fails>
+   autoraid upgrade spend --max-attempts <n_fails>
    ```
    Where `n_fails` is the number of fails you noted from the counting process.
 
    If you're upgrading a piece that is level 10 and want to continue spending attempts after an upgrade, use the `--continue-upgrade` flag:
    ```bash
-   raid-autoupgrade upgrade --max-attempts <n_fails> --continue-upgrade
+   autoraid upgrade spend --max-attempts <n_fails> --continue-upgrade
    ```
    This will continue spending upgrade attempts until the piece upgrades to level 12.
 
@@ -115,16 +115,16 @@ You can review and manage the regions used for upgrade bar and button detection:
 
 1. To view the currently cached regions:
    ```bash
-   raid-autoupgrade show-regions
+   autoraid upgrade show-regions
    ```
    This will display an image with the cached regions highlighted. You can save this image by adding the `-s` flag:
    ```bash
-   raid-autoupgrade show-regions -s
+   autoraid upgrade show-regions -s
    ```
 
-2. To select new regions manuallt:
+2. To select new regions manually:
    ```bash
-   raid-autoupgrade select-regions
+   autoraid upgrade select-regions
    ```
    This will prompt you to:
    - Select the upgrade bar region (only include the bar itself)
@@ -132,7 +132,15 @@ You can review and manage the regions used for upgrade bar and button detection:
 
 The regions selected here will be cached and used with the other commands.
 
+### Debug Mode
 
+You can enable debug mode to save screenshots and other debugging information:
+
+```bash
+autoraid --debug <command>
+```
+
+This will save additional information to a `debug` directory within the cache folder.
 
 ## Limitations and Considerations
 * Does not handle if there is an upgrade attempt on first try!
