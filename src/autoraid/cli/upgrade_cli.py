@@ -269,8 +269,6 @@ def regions_select():
     screenshot = take_screenshot_of_window(window_title)
     regions = select_upgrade_regions(screenshot)
 
-    ctx = click.get_current_context()
-
     # Cache the regions and screenshot
     ctx = click.get_current_context()
     cache = ctx.obj["cache"]
