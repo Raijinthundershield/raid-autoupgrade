@@ -1,5 +1,4 @@
 import cv2
-from loguru import logger
 import numpy as np
 
 
@@ -73,7 +72,6 @@ def show_regions_in_image(
 
     # Add each region
     for name, region in regions.items():
-        logger.debug(f"Adding region {name} to image")
         vis_image = add_region_to_image(vis_image, region, name, (255, 255, 255))
 
     # Show the visualization

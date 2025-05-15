@@ -15,6 +15,10 @@ from autoraid.network import NetworkManager
 from autoraid.autoupgrade.autoupgrade import (
     StopCountReason,
     count_upgrade_fails,
+    create_cache_key_regions,
+    create_cache_key_screenshot,
+    get_cached_regions,
+    get_cached_screenshot,
     get_regions,
     select_upgrade_regions,
 )
@@ -193,10 +197,15 @@ def spend(max_attempts: int, continue_upgrade: bool):
     )
 
 
-# TODO:
-# - Don't take a screenshot, but rather use cached screenshot
-# - change get_regions get_cached_regions
-@upgrade.command()
+@upgrade.group()
+def region():
+    """
+    Commands for selecting and showing regions.
+    """
+    pass
+
+
+@region.command("show")
 @click.option(
     "--save-image",
     "-s",
@@ -204,7 +213,7 @@ def spend(max_attempts: int, continue_upgrade: bool):
     default=False,
     help="Save image with regions to cache directory",
 )
-def check_regions(save_image: bool):
+def regions_show(save_image: bool):
     """Show the currently cached regions within a screenshot of the current window"""
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
@@ -212,13 +221,14 @@ def check_regions(save_image: bool):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
-    screenshot = take_screenshot_of_window(window_title)
-
     # Get cache from context
     ctx = click.get_current_context()
     cache = ctx.obj["cache"]
 
-    regions = get_regions(screenshot, cache)
+    current_screenshot = take_screenshot_of_window(window_title)
+    regions = get_cached_regions(current_screenshot.shape, cache)
+    screenshot = get_cached_screenshot(current_screenshot.shape, cache)
+
     if regions is None:
         logger.error(
             "No cached regions found for current window size. Run count command first to cache regions."
@@ -242,8 +252,8 @@ def check_regions(save_image: bool):
         cv2.imwrite(output_path, image)
 
 
-@upgrade.command()
-def select_regions():
+@region.command("select")
+def regions_select():
     """Select and cache regions for upgrade bar and button.
 
     This command allows you to manually select the regions for the upgrade bar and button.
@@ -255,26 +265,21 @@ def select_regions():
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
+    # Select new regions
+    screenshot = take_screenshot_of_window(window_title)
+    regions = select_upgrade_regions(screenshot)
+
     ctx = click.get_current_context()
-    screenshot_dir = ctx.obj["screenshot_dir"]
 
-    screenshot = take_screenshot_of_window(window_title, screenshot_dir)
-    window_size = [screenshot.shape[0], screenshot.shape[1]]
-
-    # Get cache from context
+    # Cache the regions and screenshot
     ctx = click.get_current_context()
     cache = ctx.obj["cache"]
 
-    # Create cache keys
-    cache_key_regions = f"regions_{window_size[0]}_{window_size[1]}"
-    cache_key_screenshot = f"screenshot_{window_size[0]}_{window_size[1]}"
+    window_size = [screenshot.shape[0], screenshot.shape[1]]
+    cache_key_regions = create_cache_key_regions(window_size)
+    cache_key_screenshot = create_cache_key_screenshot(window_size)
 
-    # Select new regions
-    regions = select_upgrade_regions(screenshot)
-
-    # Cache the regions and screenshot
     cache.set(cache_key_regions, regions)
     cache.set(cache_key_screenshot, screenshot)
 
     logger.info("Regions selected and cached successfully")
-    logger.info("You can now use the count or show-regions commands")

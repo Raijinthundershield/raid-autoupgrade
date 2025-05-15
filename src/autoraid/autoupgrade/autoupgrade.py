@@ -216,6 +216,28 @@ def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
     return regions
 
 
+def create_cache_key_regions(window_size: tuple[int, int]) -> str:
+    """Create a cache key for the regions based on the window size."""
+    return f"regions_{window_size[0]}_{window_size[1]}"
+
+
+def create_cache_key_screenshot(window_size: tuple[int, int]) -> str:
+    """Create a cache key for the screenshot based on the window size."""
+    return f"screenshot_{window_size[0]}_{window_size[1]}"
+
+
+def get_cached_regions(window_size: tuple[int, int], cache: Cache) -> dict:
+    """Get cached regions for the current window size or prompt user to select new ones."""
+    cache_key_regions = create_cache_key_regions(window_size)
+    return cache.get(cache_key_regions)
+
+
+def get_cached_screenshot(window_size: tuple[int, int], cache: Cache) -> np.ndarray:
+    """Get cached screenshot for the current window size."""
+    cache_key_screenshot = create_cache_key_screenshot(window_size)
+    return cache.get(cache_key_screenshot)
+
+
 def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
     """Get cached regions for the current window size or prompt user to select new ones.
 
@@ -226,11 +248,11 @@ def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
     Returns:
         dict: Dictionary containing the selected regions
     """
-    window_size = [screenshot.shape[-1], screenshot.shape[1]]
+    window_size = [screenshot.shape[0], screenshot.shape[1]]
 
     # Create cache keys based on window size
-    cache_key_regions = f"regions_{window_size[-1]}_{window_size[1]}"
-    cache_key_screenshot = f"screenshot_{window_size[-1]}_{window_size[1]}"
+    cache_key_regions = create_cache_key_regions(window_size)
+    cache_key_screenshot = create_cache_key_screenshot(window_size)
 
     # Try to get cached regions
     regions = cache.get(cache_key_regions)
