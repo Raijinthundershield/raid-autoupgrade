@@ -144,7 +144,6 @@ The regions selected here will be cached and used with the other commands.
 
 
 ## Roadmap (slightly ordered)
-* Use `pyautogui.locateCenterOnScreen` to find upgrade bar and upgrade button instead of manual input.
 * Take screenshot of the last piece a count was done for and add command to show it.
 * Create GUI for autoupgrade.
 * Create an autobattle tool that allows to create rules for battles.
