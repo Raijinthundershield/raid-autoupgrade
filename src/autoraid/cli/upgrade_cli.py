@@ -3,10 +3,8 @@ import click
 from pathlib import Path
 import time
 import sys
-import platform
 import cv2
 from loguru import logger
-from diskcache import Cache
 
 from autoraid.interaction import (
     click_region_center,
@@ -25,46 +23,16 @@ from autoraid.visualization import show_regions_in_image
 
 
 @click.group()
-@click.option(
-    "--debug",
-    "-d",
-    is_flag=True,
-    default=False,
-    help="Save screenshots and other information to debug directory within cache directory.",
-)
-def raid_autoupgrade(debug: bool):
+def upgrade():
     """Raid: Shadow Legends auto-upgrade tool.
 
     This tool helps automate the process of upgrading equipment in Raid: Shadow Legends
     by monitoring upgrade attempts.
 
-
     """
 
-    # Create cache directory
-    cache_dir = Path("cache-raid-autoupgrade")
-    cache_dir.mkdir(exist_ok=True)
 
-    # Initialize cache
-    cache = Cache(str(cache_dir))
-
-    # Store cache in context
-    ctx = click.get_current_context()
-    ctx.obj = {"cache": cache, "cache_dir": cache_dir}
-
-    # Set debug mode
-    ctx.obj["debug"] = debug
-    ctx.obj["debug_dir"] = None
-    if debug:
-        debug_dir = cache_dir / "debug"
-        debug_dir.mkdir(exist_ok=True)
-        logger.debug(
-            f"Debug mode enabled. Saving screenshots and other information to {debug_dir}"
-        )
-        ctx.obj["debug_dir"] = debug_dir
-
-
-@raid_autoupgrade.command()
+@upgrade.command()
 @click.option(
     "--network-adapter-id",
     "-n",
@@ -138,12 +106,11 @@ def count(network_adapter_id: list[int]):
     logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
 
 
-@raid_autoupgrade.command()
+@upgrade.command()
 @click.option(
     "--max-attempts",
     "-m",
     type=int,
-    default=99,
     required=True,
     help="Maximum number of upgrade attempts to count before stopping.",
 )
@@ -153,7 +120,7 @@ def count(network_adapter_id: list[int]):
     is_flag=True,
     help="Continue upgrading after reaching an upgrade. Only use if the piece is level 10.",
 )
-def upgrade(max_attempts: int, continue_upgrade: bool):
+def spend(max_attempts: int, continue_upgrade: bool):
     """
     Upgrade the piece until the max number of fails is reached.
     """
@@ -222,11 +189,14 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
             logger.info("Continue upgrade.")
 
     logger.info(
-        f"Total upgrade attempts: {n_attempts}. There are {max_attempts-n_attempts} left."
+        f"Total upgrade attempts: {n_attempts}. There are {max_attempts - n_attempts} left."
     )
 
 
-@raid_autoupgrade.command()
+# TODO:
+# - Don't take a screenshot, but rather use cached screenshot
+# - change get_regions get_cached_regions
+@upgrade.command()
 @click.option(
     "--save-image",
     "-s",
@@ -234,8 +204,8 @@ def upgrade(max_attempts: int, continue_upgrade: bool):
     default=False,
     help="Save image with regions to cache directory",
 )
-def show_regions(save_image: bool):
-    """Show the currently cached regions and screenshot."""
+def check_regions(save_image: bool):
+    """Show the currently cached regions within a screenshot of the current window"""
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
     if not window_exists(window_title):
@@ -272,7 +242,7 @@ def show_regions(save_image: bool):
         cv2.imwrite(output_path, image)
 
 
-@raid_autoupgrade.command()
+@upgrade.command()
 def select_regions():
     """Select and cache regions for upgrade bar and button.
 
@@ -308,79 +278,3 @@ def select_regions():
 
     logger.info("Regions selected and cached successfully")
     logger.info("You can now use the count or show-regions commands")
-
-
-@raid_autoupgrade.group()
-def network():
-    """Manage network adapters for the airplane mode trick."""
-    pass
-
-
-@network.command()
-def list():
-    """List all network adapters."""
-    if not platform.system() == "Windows":
-        logger.error("This command only works on Windows")
-        sys.exit(1)
-
-    manager = NetworkManager()
-    adapters = manager.get_adapters()
-    manager.display_adapters(adapters)
-
-
-@network.command()
-@click.argument("adapter", required=False)
-def disable(adapter: str | None):
-    """Disable selected network adapters.
-
-    If ADAPTER is provided, it will try to find and disable that specific adapter.
-    Otherwise, it will prompt you to select adapters interactively.
-    """
-    if not platform.system() == "Windows":
-        logger.error("This command only works on Windows")
-        sys.exit(1)
-
-    manager = NetworkManager()
-    if adapter:
-        adapters = manager.get_adapters()
-        found_adapter = manager.find_adapter(adapters, adapter)
-        if not found_adapter:
-            logger.error(f"No adapter found matching: {adapter}")
-            sys.exit(1)
-        if manager.toggle_adapter(found_adapter.id, False):
-            logger.info(f"Successfully disabled adapter: {found_adapter.name}")
-        else:
-            logger.error(f"Failed to disable adapter: {found_adapter.name}")
-    else:
-        manager.toggle_selected_adapters(False)
-
-
-@network.command()
-@click.argument("adapter", required=False)
-def enable(adapter: str | None):
-    """Enable selected network adapters.
-
-    If ADAPTER is provided, it will try to find and enable that specific adapter.
-    Otherwise, it will prompt you to select adapters interactively.
-    """
-    if not platform.system() == "Windows":
-        logger.error("This command only works on Windows")
-        sys.exit(1)
-
-    manager = NetworkManager()
-    if adapter:
-        adapters = manager.get_adapters()
-        found_adapter = manager.find_adapter(adapters, adapter)
-        if not found_adapter:
-            logger.error(f"No adapter found matching: {adapter}")
-            sys.exit(1)
-        if manager.toggle_adapter(found_adapter.id, True):
-            logger.info(f"Successfully enabled adapter: {found_adapter.name}")
-        else:
-            logger.error(f"Failed to enable adapter: {found_adapter.name}")
-    else:
-        manager.toggle_selected_adapters(True)
-
-
-if __name__ == "__main__":
-    raid_autoupgrade()
