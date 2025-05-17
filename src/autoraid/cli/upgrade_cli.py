@@ -44,12 +44,32 @@ def upgrade():
     multiple=True,
     help="Network adapter ids to enable automatically turning network off and on.",
 )
-def count(network_adapter_id: list[int]):
+@click.option(
+    "--show-most-recent-gear",
+    "-s",
+    required=False,
+    is_flag=True,
+    help="Show the most recent gear piece that was counted.",
+)
+def count(network_adapter_id: list[int], show_most_recent_gear: bool):
     """Count the number of upgrade fails.
 
     Use network adapter ids to enable automatically turning network off and on.
     Use ids from the output of the `network list` command.
     """
+
+    if show_most_recent_gear:
+        logger.info("Showing the most recent gear piece that was counted.")
+        ctx = click.get_current_context()
+        if ctx.obj["cache"].get("current_gear_counted") is None:
+            logger.warning("No gear piece has been counted yet. Aborting.")
+            sys.exit(1)
+
+        screenshot = ctx.obj["cache"].get("current_gear_counted")
+        cv2.imshow("Gear", screenshot)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        sys.exit(0)
 
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
@@ -75,8 +95,9 @@ def count(network_adapter_id: list[int]):
         sys.exit(1)
 
     try:
-        # Take screenshot
         ctx = click.get_current_context()
+
+        # Take screenshot
         screenshot = take_screenshot_of_window(window_title)
         regions = get_regions(screenshot, ctx.obj["cache"])
 
@@ -107,6 +128,7 @@ def count(network_adapter_id: list[int]):
     finally:
         manager.toggle_adapters(network_adapter_id, enable=True)
 
+    ctx.obj["cache"].set("current_gear_counted", screenshot)
     logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
 
 
@@ -253,7 +275,14 @@ def regions_show(save_image: bool):
 
 
 @region.command("select")
-def regions_select():
+@click.option(
+    "--manual",
+    "-m",
+    is_flag=True,
+    default=False,
+    help="Manually select the regions.",
+)
+def regions_select(manual: bool):
     """Select and cache regions for upgrade bar and button.
 
     This command allows you to manually select the regions for the upgrade bar and button.
@@ -267,7 +296,7 @@ def regions_select():
 
     # Select new regions
     screenshot = take_screenshot_of_window(window_title)
-    regions = select_upgrade_regions(screenshot)
+    regions = select_upgrade_regions(screenshot, manual=manual)
 
     # Cache the regions and screenshot
     ctx = click.get_current_context()
