@@ -30,6 +30,7 @@ To count the number of fails needed to upgrade a piece:
    ```
    The tool will automatically disable the specified network adapters and turn them on again on exit.
 
+
 3. If managing network manually:
    - Disable your network adapters first
    - Then run:
@@ -51,7 +52,14 @@ To count the number of fails needed to upgrade a piece:
 
 6. Note down the number of fails reported. You'll need this number when spending upgrade attempts.
 
-### Getting network adapter id
+
+You can view the most recent gear piece that was counted using the `-s` flag:
+```bash
+autoraid upgrade count -s
+```
+This will display an image of the gear piece that was last counted. This is useful for verifying which piece was being upgraded.
+
+#### Getting network adapter id
 
 To automatically manage network adapters, you need to get their IDs first:
 
@@ -115,20 +123,25 @@ You can review and manage the regions used for upgrade bar and button detection:
 
 1. To view the currently cached regions:
    ```bash
-   autoraid upgrade show-regions
+   autoraid upgrade region show
    ```
    This will display an image with the cached regions highlighted. You can save this image by adding the `-s` flag:
    ```bash
-   autoraid upgrade show-regions -s
+   autoraid upgrade region show -s
    ```
 
-2. To select new regions manually:
+2. To select new regions:
    ```bash
-   autoraid upgrade select-regions
+   autoraid upgrade region select
    ```
    This will prompt you to:
    - Select the upgrade bar region (only include the bar itself)
    - Select the upgrade button region
+
+   You can also force manual selection even if regions are cached by using the `-m` flag:
+   ```bash
+   autoraid upgrade region select -m
+   ```
 
 The regions selected here will be cached and used with the other commands.
 
@@ -152,7 +165,9 @@ This will save additional information to a `debug` directory within the cache fo
 
 
 ## Roadmap (slightly ordered)
-* Take screenshot of the last piece a count was done for and add command to show it.
+* Add automatic detection of piece level and whether it can continue to upgrade
+   - lvl 10 -> continue upgrade
+   - check to see if we spend upgrades on a piece with level <10 or >= 12
 * Create GUI for autoupgrade.
 * Create an autobattle tool that allows to create rules for battles.
 * Make it possible to have the raid window in the background.

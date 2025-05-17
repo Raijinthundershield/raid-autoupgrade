@@ -222,7 +222,11 @@ def spend(max_attempts: int, continue_upgrade: bool):
 @upgrade.group()
 def region():
     """
-    Commands for selecting and showing regions.
+    Commands for managing regions used for upgrade detection.
+
+    These commands allow you to view, select, and manage the regions used for detecting
+    the upgrade bar and button in the Raid window. The regions are cached and used by
+    other commands to automate the upgrade process.
     """
     pass
 
@@ -236,7 +240,12 @@ def region():
     help="Save image with regions to cache directory",
 )
 def regions_show(save_image: bool):
-    """Show the currently cached regions within a screenshot of the current window"""
+    """Show the currently cached regions within a screenshot of the current window.
+
+    This command displays an image showing the currently cached regions for the upgrade bar
+    and button. If no regions are cached for the current window size, it will exit with an error.
+    Use the -s flag to save the image to the cache directory.
+    """
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
     if not window_exists(window_title):
@@ -285,8 +294,11 @@ def regions_show(save_image: bool):
 def regions_select(manual: bool):
     """Select and cache regions for upgrade bar and button.
 
-    This command allows you to manually select the regions for the upgrade bar and button.
-    The selected regions will be cached for future use.
+    This command allows you to select the regions used for detecting the upgrade bar and button.
+    The selected regions will be cached for future use by other commands.
+
+    By default, it will only prompt for manual selection if no regions are cached for the
+    current window size. Use the -m flag to force manual selection regardless of cached regions.
     """
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
