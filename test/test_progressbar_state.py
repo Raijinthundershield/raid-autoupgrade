@@ -1,24 +1,34 @@
 import json
+from pathlib import Path
 import cv2
 from autoraid.autoupgrade.autoupgrade import get_progress_bar_state
 
-annotations_progress_bar = json.load(
-    open("test/images/progress_bar_state/annotations_progress_bar_state.json")
-)
+import pytest
+
+# Load annotations once
+IMAGE_DIR = Path(__file__).parent / Path("images/progress_bar_state")
+ANNOTATION_PATH = IMAGE_DIR / "annotations_progress_bar_state.json"
+with open(ANNOTATION_PATH) as f:
+    ANNOTATIONS = json.load(f)
 
 
-def test_get_progress_bar_state():
+@pytest.mark.parametrize("image_name, true_state", ANNOTATIONS.items())
+def test_get_progress_bar_state(image_name, true_state):
     """
     Only important to differentiate between fail vs progress or standby.
     """
 
-    for image_path, true_state in annotations_progress_bar.items():
-        image = cv2.imread(f"test/images/{image_path}")
-        avg_color = cv2.mean(image)[:3]
-        state = get_progress_bar_state(image)
+    image_path = IMAGE_DIR / image_name
 
-        # Check if we categorize the fails correctly
-        if state == "fail" or true_state == "fail":
-            assert (
-                state == true_state
-            ), f"image_path: {image_path}, avg_color: {avg_color}"
+    assert image_path.exists(), f" test image_path: {image_path} does not exist"
+
+    image = cv2.imread(image_path)
+
+    avg_color = cv2.mean(image)[:3]
+    state = get_progress_bar_state(image)
+
+    # Check if we categorize the fails correctly
+    if state == "fail" or true_state == "fail":
+        assert (
+            state == true_state
+        ), f"detected state: {state}, image_path: {image_path}, avg_color: {avg_color}"

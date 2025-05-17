@@ -2,6 +2,7 @@ from functools import partial
 import importlib.resources
 
 import cv2
+import numpy as np
 
 from autoraid.locate import locate_region
 
@@ -18,9 +19,27 @@ locate_upgrade_button = partial(
     region_name="upgrade_button",
 )
 
-locate_progress_bar = partial(
-    locate_region,
-    template=progress_bar_template,
-    confidence=0.65,
-    region_name="progress_bar",
-)
+# locate_progress_bar = partial(
+#     locate_region,
+#     template=progress_bar_template,
+#     confidence=0.7,
+#     region_name="progress_bar",
+# )
+
+
+# TODO: instead of reducing area, alter the conditions of finding the progress bar states.
+def locate_progress_bar(screenshot: np.ndarray) -> tuple[int, int, int, int]:
+    regions = locate_region(
+        screenshot=screenshot,
+        template=progress_bar_template,
+        confidence=0.7,
+        region_name="progress_bar",
+    )
+    x, y, w, h = regions
+    region_reduction = 5
+    return (
+        x + region_reduction,
+        y + region_reduction,
+        w - 2 * region_reduction,
+        h - 2 * region_reduction,
+    )

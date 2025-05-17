@@ -74,7 +74,7 @@ def count_upgrade_fails(
     n_fails = 0
     current_state = None
     last_state = None
-    max_equal_states = 3
+    max_equal_states = 4
     last_n_states = deque(maxlen=max_equal_states)
 
     debug_metadata = {

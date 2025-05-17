@@ -14,11 +14,10 @@ from autoraid.autoupgrade.locate_upgrade_region import (
 
 
 # Load annotations once
-image_dir = Path(__file__).parent / Path("images/locate_upgrade_regions")
-annotation_path = image_dir / "annotation.json"
-with open(annotation_path) as f:
-    annotations = json.load(f)
-annotations
+IMAGE_DIR = Path(__file__).parent / Path("images/locate_upgrade_regions")
+ANNOTATION_PATH = IMAGE_DIR / "annotation.json"
+with open(ANNOTATION_PATH) as f:
+    ANNOTATIONS = json.load(f)
 
 
 @pytest.fixture()
@@ -35,10 +34,10 @@ def test_upgrade_templates(template: np.ndarray):
 
 @pytest.mark.parametrize(
     "annotation_id, annotation",
-    list(annotations.items()),
+    list(ANNOTATIONS.items()),
 )
-def test_locate_upgrade_button(annotation_id, annotation, image_dir):
-    screenshot_path = image_dir / annotation["screenshot"]
+def test_locate_upgrade_button(annotation_id, annotation):
+    screenshot_path = IMAGE_DIR / annotation["screenshot"]
     screenshot = cv2.imread(str(screenshot_path))
     upgrade_button_region = annotation["upgrade_button_region"]
 
@@ -62,10 +61,10 @@ def test_locate_upgrade_button(annotation_id, annotation, image_dir):
 
 @pytest.mark.parametrize(
     "annotation_id, annotation",
-    list(annotations.items()),
+    list(ANNOTATIONS.items()),
 )
-def test_locate_progress_bar(annotation_id, annotation, image_dir):
-    screenshot_path = image_dir / annotation["screenshot"]
+def test_locate_progress_bar(annotation_id, annotation):
+    screenshot_path = IMAGE_DIR / annotation["screenshot"]
     screenshot = cv2.imread(str(screenshot_path))
     progress_bar_region = annotation["progress_bar_region"]
 
