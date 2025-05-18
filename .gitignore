@@ -4,6 +4,8 @@ cache/
 cache.db
 ragions.json
 screenshot.png
+*.jpg
+*.jpeg
 
 
 # Python-generated files

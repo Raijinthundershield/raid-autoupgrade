@@ -17,6 +17,7 @@ from autoraid.interaction import (
 from autoraid.autoupgrade.locate_upgrade_region import (
     locate_upgrade_button,
     locate_progress_bar,
+    locate_artifact_icon,
 )
 from autoraid.locate import MissingRegionException
 from autoraid.utils import get_timestamp
@@ -189,10 +190,12 @@ def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
     region_prompts = {
         "upgrade_bar": "Click and drag to select upgrade bar",
         "upgrade_button": "Click and drag to select upgrade button",
+        "artifact_icon": "Click and drag to select artifact icon",
     }
     locate_funcs = {
         "upgrade_button": locate_upgrade_button,
         "upgrade_bar": locate_progress_bar,
+        "artifact_icon": locate_artifact_icon,
     }
     logger.info("Selecting upgrade regions")
 

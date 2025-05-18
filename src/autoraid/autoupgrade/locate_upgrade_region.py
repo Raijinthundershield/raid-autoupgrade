@@ -10,6 +10,7 @@ template_dir = importlib.resources.files("autoraid") / "autoupgrade" / "template
 
 upgrade_button_template = cv2.imread(template_dir / "upgrade_button.png")
 progress_bar_template = cv2.imread(template_dir / "progress_bar.png")
+artifact_icon_template = cv2.imread(template_dir / "artifact_icon.png")
 
 # objects that appear within the upgrade screen
 locate_upgrade_button = partial(
@@ -19,12 +20,12 @@ locate_upgrade_button = partial(
     region_name="upgrade_button",
 )
 
-# locate_progress_bar = partial(
-#     locate_region,
-#     template=progress_bar_template,
-#     confidence=0.7,
-#     region_name="progress_bar",
-# )
+locate_artifact_icon = partial(
+    locate_region,
+    template=artifact_icon_template,
+    confidence=0.6,
+    region_name="artifact_icon",
+)
 
 
 # TODO: instead of reducing area, alter the conditions of finding the progress bar states.
