@@ -233,18 +233,18 @@ def region():
 
 @region.command("show")
 @click.option(
-    "--save-image",
-    "-s",
-    is_flag=True,
-    default=False,
+    "--output-dir",
+    "-o",
+    type=str,
+    default=None,
     help="Save image with regions to cache directory",
 )
-def regions_show(save_image: bool):
+def regions_show(output_dir: str):
     """Show the currently cached regions within a screenshot of the current window.
 
     This command displays an image showing the currently cached regions for the upgrade bar
     and button. If no regions are cached for the current window size, it will exit with an error.
-    Use the -s flag to save the image to the cache directory.
+    Use the -o flag to save the image and regions to a directory.
     """
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
@@ -269,18 +269,30 @@ def regions_show(save_image: bool):
     logger.info("Showing cached regions")
 
     ctx = click.get_current_context()
-    image = show_regions_in_image(screenshot, regions)
+    screenshot_w_regions = show_regions_in_image(screenshot, regions)
 
-    output_dir = ctx.obj["cache_dir"]
+    if output_dir:
+        output_dir = Path(output_dir) / "region_show"
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    if save_image:
-        output_path = (
-            Path(output_dir)
-            / "show_regions"
-            / f"{get_timestamp()}_image_with_regions.png"
+        region_cache_key = create_cache_key_regions(screenshot.shape)
+        screenshot_cache_key = create_cache_key_screenshot(screenshot.shape)
+
+        json_path = output_dir / f"{region_cache_key}_regions.json"
+        screenshot_path = output_dir / f"{screenshot_cache_key}_screenshot.png"
+        screenshot_w_regions_path = (
+            output_dir / f"{screenshot_cache_key}_screenshot_with_regions.png"
         )
-        logger.info(f"Saving image with regions to {output_path}")
-        cv2.imwrite(output_path, image)
+
+        logger.info(f"Saving regions to {json_path}")
+        with open(json_path, "w") as f:
+            json.dump(regions, f, indent=2)
+
+        logger.info(f"Saving screenshot to {screenshot_path}")
+        cv2.imwrite(screenshot_path, screenshot)
+
+        logger.info(f"Saving screenshot with regions to {screenshot_w_regions_path}")
+        cv2.imwrite(screenshot_w_regions_path, screenshot_w_regions)
 
 
 @region.command("select")
