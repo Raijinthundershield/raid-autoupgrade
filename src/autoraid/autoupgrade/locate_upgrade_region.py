@@ -4,7 +4,7 @@ import importlib.resources
 import cv2
 import numpy as np
 
-from autoraid.locate import locate_region
+from autoraid.locate import MissingRegionException, locate_region
 
 template_dir = importlib.resources.files("autoraid") / "autoupgrade" / "templates"
 
@@ -44,3 +44,7 @@ def locate_progress_bar(screenshot: np.ndarray) -> tuple[int, int, int, int]:
         w - 2 * region_reduction,
         h - 2 * region_reduction,
     )
+
+
+def locate_instant_upgrade_tickbox(screenshot: np.ndarray) -> tuple[int, int, int, int]:
+    raise MissingRegionException("instant_upgrade_tickbox")

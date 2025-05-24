@@ -23,7 +23,7 @@ from autoraid.autoupgrade.autoupgrade import (
     select_upgrade_regions,
 )
 from autoraid.utils import get_timestamp
-from autoraid.visualization import show_regions_in_image
+from autoraid.visualization import get_roi_from_screenshot, show_regions_in_image
 
 
 @click.group()
@@ -275,24 +275,47 @@ def regions_show(output_dir: str):
         output_dir = Path(output_dir) / "region_show"
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        timestamp = get_timestamp()
         region_cache_key = create_cache_key_regions(screenshot.shape)
         screenshot_cache_key = create_cache_key_screenshot(screenshot.shape)
 
-        json_path = output_dir / f"{region_cache_key}_regions.json"
-        screenshot_path = output_dir / f"{screenshot_cache_key}_screenshot.png"
-        screenshot_w_regions_path = (
-            output_dir / f"{screenshot_cache_key}_screenshot_with_regions.png"
+        json_path = output_dir / f"{timestamp}-{region_cache_key}-regions.json"
+        screenshot_path = (
+            output_dir / f"{timestamp}-{screenshot_cache_key}-screenshot.png"
         )
+        screenshot_w_regions_path = (
+            output_dir
+            / f"{timestamp}-{screenshot_cache_key}-screenshot_with_regions.png"
+        )
+        rois = {
+            name: get_roi_from_screenshot(screenshot, region)
+            for name, region in regions.items()
+        }
+        roi_paths = {
+            name: output_dir / f"{timestamp}-{screenshot_cache_key}-{name}_roi.png"
+            for name in regions.keys()
+        }
+
+        metadata = {}
+        metadata["regions"] = regions
+        metadata["screenshot"] = screenshot_path.name
+        metadata["screenshot_w_regions"] = screenshot_w_regions_path.name
+        metadata["rois"] = {name: roi_path.name for name, roi_path in roi_paths.items()}
 
         logger.info(f"Saving regions to {json_path}")
         with open(json_path, "w") as f:
-            json.dump(regions, f, indent=2)
+            json.dump(metadata, f, indent=4)
 
         logger.info(f"Saving screenshot to {screenshot_path}")
         cv2.imwrite(screenshot_path, screenshot)
 
         logger.info(f"Saving screenshot with regions to {screenshot_w_regions_path}")
         cv2.imwrite(screenshot_w_regions_path, screenshot_w_regions)
+
+        for name, roi in rois.items():
+            cv2.imwrite(
+                output_dir / f"{timestamp}-{screenshot_cache_key}-{name}_roi.png", roi
+            )
 
 
 @region.command("select")

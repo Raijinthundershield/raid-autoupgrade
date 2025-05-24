@@ -15,6 +15,7 @@ from autoraid.interaction import (
     select_region_with_prompt,
 )
 from autoraid.autoupgrade.locate_upgrade_region import (
+    locate_instant_upgrade_tickbox,
     locate_upgrade_button,
     locate_progress_bar,
     locate_artifact_icon,
@@ -191,28 +192,30 @@ def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
         "upgrade_bar": "Click and drag to select upgrade bar",
         "upgrade_button": "Click and drag to select upgrade button",
         "artifact_icon": "Click and drag to select artifact icon",
+        "instant_upgrade_tickbox": "Click and drag to select instant upgrade tickbox",
     }
     locate_funcs = {
         "upgrade_button": locate_upgrade_button,
         "upgrade_bar": locate_progress_bar,
         "artifact_icon": locate_artifact_icon,
+        "instant_upgrade_tickbox": locate_instant_upgrade_tickbox,
     }
+
     logger.info("Selecting upgrade regions")
 
+    failed_prompts = {}
     if not manual:
         for name, prompt in region_prompts.items():
             try:
                 logger.info(f"Automatic selection of {name}")
                 regions[name] = locate_funcs[name](screenshot)
-                failed_to_locate_upgrade_button = False
             except MissingRegionException:
                 logger.warning(f"Failed to locate {name}. Scheduling manual input.")
-                failed_to_locate_upgrade_button = True
-                region_prompts[name] = prompt
+                failed_prompts[name] = prompt
 
-    if manual or failed_to_locate_upgrade_button:
-        logger.info(f"select {list(region_prompts.keys())} manually")
-        for name, prompt in region_prompts.items():
+    if manual or len(failed_prompts) > 0:
+        logger.info(f"select {list(failed_prompts.keys())} manually")
+        for name, prompt in failed_prompts.items():
             region = select_region_with_prompt(screenshot, prompt)
             regions[name] = region
 
