@@ -37,12 +37,13 @@ def locate_progress_bar(screenshot: np.ndarray) -> tuple[int, int, int, int]:
         region_name="progress_bar",
     )
     x, y, w, h = regions
-    region_reduction = 5
+    region_reduction_x = 0.02 * w
+    region_reduction_y = 0.15 * h
     return (
-        x + region_reduction,
-        y + region_reduction,
-        w - 2 * region_reduction,
-        h - 2 * region_reduction,
+        int(x + region_reduction_x),
+        int(y + region_reduction_y),
+        int(w - 2 * region_reduction_x),
+        int(h - 2 * region_reduction_y),
     )
 
 

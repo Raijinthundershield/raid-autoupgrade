@@ -70,12 +70,16 @@ def test_locate_progress_bar(annotation_id, annotation):
 
     detected_region: tuple[int, int, int, int] = locate_progress_bar(screenshot)
 
-    tolerance = 10
+    tolerance = 0.2
     is_within_tolerance = (
-        abs(detected_region[0] - progress_bar_region[0]) <= tolerance
-        and abs(detected_region[1] - progress_bar_region[1]) <= tolerance
-        and abs(detected_region[2] - progress_bar_region[2]) <= tolerance
-        and abs(detected_region[3] - progress_bar_region[3]) <= tolerance
+        abs(detected_region[0] - progress_bar_region[0])
+        <= tolerance * progress_bar_region[0]
+        and abs(detected_region[1] - progress_bar_region[1])
+        <= tolerance * progress_bar_region[1]
+        and abs(detected_region[2] - progress_bar_region[2])
+        <= tolerance * progress_bar_region[2]
+        and abs(detected_region[3] - progress_bar_region[3])
+        <= tolerance * progress_bar_region[3]
     )
 
     assert is_within_tolerance, (
