@@ -346,21 +346,21 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T125 [US5] Review src/autoraid/autoupgrade/autoupgrade.py for deprecated wrapper functions and mark for removal
-- [ ] T126 [US5] Remove deprecated functions from autoupgrade.py if no longer called
-- [ ] T127 [US5] Review src/autoraid/interaction.py and simplify or remove if logic moved to services
-- [ ] T128 [US5] Update src/autoraid/services/__init__.py to export all service classes
-- [ ] T129 [US5] Create exceptions.py file at src/autoraid/exceptions.py with custom exception classes
-- [ ] T130 [US5] Define CacheInitializationError, WindowNotFoundException, RegionDetectionError, DependencyResolutionError in exceptions.py
-- [ ] T131 [US5] Update services to raise custom exceptions instead of generic Exception where appropriate
-- [ ] T132 [US5] Update CLAUDE.md Architecture section with service-based architecture overview
-- [ ] T133 [US5] Add container dependency graph (ASCII art) to CLAUDE.md
-- [ ] T134 [US5] Document service responsibilities and lifecycles (Singleton vs Factory) in CLAUDE.md
-- [ ] T135 [US5] Update CLAUDE.md Testing section with mock testing patterns
-- [ ] T136 [US5] Add troubleshooting section to CLAUDE.md for common DI container issues
-- [ ] T137 [US5] Run `uv run ruff check .` to verify code quality
-- [ ] T138 [US5] Run `uv run ruff format .` to format all code
-- [ ] T139 [US5] Run `uv run pytest` to ensure all tests pass after cleanup
+- [X] T125 [US5] Review src/autoraid/autoupgrade/autoupgrade.py for deprecated wrapper functions and mark for removal
+- [X] T126 [US5] Remove deprecated functions from autoupgrade.py if no longer called
+- [X] T127 [US5] Review src/autoraid/interaction.py and simplify or remove if logic moved to services
+- [X] T128 [US5] Update src/autoraid/services/__init__.py to export all service classes
+- [X] T129 [US5] Create exceptions.py file at src/autoraid/exceptions.py with custom exception classes
+- [X] T130 [US5] Define CacheInitializationError, WindowNotFoundException, RegionDetectionError, DependencyResolutionError in exceptions.py
+- [X] T131 [US5] Update services to raise custom exceptions instead of generic Exception where appropriate
+- [X] T132 [US5] Update CLAUDE.md Architecture section with service-based architecture overview
+- [X] T133 [US5] Add container dependency graph (ASCII art) to CLAUDE.md
+- [X] T134 [US5] Document service responsibilities and lifecycles (Singleton vs Factory) in CLAUDE.md
+- [X] T135 [US5] Update CLAUDE.md Testing section with mock testing patterns
+- [X] T136 [US5] Add troubleshooting section to CLAUDE.md for common DI container issues
+- [X] T137 [US5] Run `uv run ruff check .` to verify code quality
+- [X] T138 [US5] Run `uv run ruff format .` to format all code
+- [X] T139 [US5] Run `uv run pytest` to ensure all tests pass after cleanup
 - [ ] T140 Run full integration test suite manually with live Raid window
 - [ ] T141 Verify all US5 acceptance criteria: all phases completed, tests pass, workflows functional
 

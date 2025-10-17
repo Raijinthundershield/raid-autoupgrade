@@ -9,6 +9,11 @@ import cv2
 from loguru import logger
 
 from autoraid.autoupgrade.autoupgrade import StopCountReason, count_upgrade_fails
+from autoraid.exceptions import (
+    WindowNotFoundException,
+    NetworkAdapterError,
+    UpgradeWorkflowError,
+)
 from autoraid.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
@@ -93,7 +98,9 @@ class UpgradeOrchestrator:
         # Validate window exists
         if not self._screenshot_service.window_exists(window_title):
             logger.error("[UpgradeOrchestrator] Raid window not found")
-            raise ValueError("Raid window not found. Check if Raid is running.")
+            raise WindowNotFoundException(
+                "Raid window not found. Check if Raid is running."
+            )
 
         # Initialize network manager
         manager = NetworkManager()
@@ -103,7 +110,7 @@ class UpgradeOrchestrator:
             logger.warning(
                 "[UpgradeOrchestrator] Internet access detected but no network adapter specified"
             )
-            raise RuntimeError(
+            raise UpgradeWorkflowError(
                 "Internet access detected and network id not specified. This will upgrade the piece. Aborting."
             )
 
@@ -123,7 +130,7 @@ class UpgradeOrchestrator:
                     break
             else:
                 logger.error("[UpgradeOrchestrator] Failed to disable network")
-                raise RuntimeError("Failed to turn off network. Aborting.")
+                raise NetworkAdapterError("Failed to turn off network. Aborting.")
 
         try:
             # Capture screenshot
@@ -219,13 +226,15 @@ class UpgradeOrchestrator:
         # Validate window exists
         if not self._screenshot_service.window_exists(window_title):
             logger.error("[UpgradeOrchestrator] Raid window not found")
-            raise ValueError("Raid window not found. Check if Raid is running.")
+            raise WindowNotFoundException(
+                "Raid window not found. Check if Raid is running."
+            )
 
         # Validate network access
         manager = NetworkManager()
         if not manager.check_network_access():
             logger.error("[UpgradeOrchestrator] No internet access detected")
-            raise RuntimeError("No internet access detected. Aborting.")
+            raise NetworkAdapterError("No internet access detected. Aborting.")
 
         # Capture screenshot
         logger.info("[UpgradeOrchestrator] Captured screenshot")

@@ -11,11 +11,7 @@ import pyautogui
 import pygetwindow
 from loguru import logger
 
-
-class WindowNotFoundException(Exception):
-    """Raised when a window is not found."""
-
-    pass
+from autoraid.exceptions import WindowNotFoundException
 
 
 class WindowInteractionService:
@@ -97,8 +93,7 @@ class WindowInteractionService:
                 f'[WindowInteractionService] Window "{window_title}" not found'
             )
             raise WindowNotFoundException(
-                f'Window "{window_title}" not found. '
-                f"Ensure the application is running."
+                f'Window "{window_title}" not found. Ensure the application is running.'
             )
         except Exception as e:
             logger.error(f"[WindowInteractionService] Failed to click region: {e}")
@@ -142,8 +137,7 @@ class WindowInteractionService:
                 f'[WindowInteractionService] Window "{window_title}" not found'
             )
             raise WindowNotFoundException(
-                f'Window "{window_title}" not found. '
-                f"Ensure the application is running."
+                f'Window "{window_title}" not found. Ensure the application is running.'
             )
         except Exception as e:
             logger.error(f"[WindowInteractionService] Failed to activate window: {e}")

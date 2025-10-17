@@ -7,6 +7,11 @@ from loguru import logger
 from dependency_injector.wiring import inject, Provide
 
 from autoraid.container import Container
+from autoraid.exceptions import (
+    WindowNotFoundException,
+    NetworkAdapterError,
+    UpgradeWorkflowError,
+)
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 from autoraid.autoupgrade.autoupgrade import (
@@ -77,7 +82,7 @@ def count(
             debug_dir=ctx.obj["debug_dir"],
         )
         logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
-    except (ValueError, RuntimeError) as e:
+    except (WindowNotFoundException, NetworkAdapterError, UpgradeWorkflowError) as e:
         logger.error(str(e))
         sys.exit(1)
 
@@ -116,7 +121,7 @@ def spend(
             f"Total upgrade attempts: {result['n_attempts']}. "
             f"There are {result['n_remaining']} left."
         )
-    except (ValueError, RuntimeError) as e:
+    except (WindowNotFoundException, NetworkAdapterError, UpgradeWorkflowError) as e:
         logger.error(str(e))
         sys.exit(1)
 

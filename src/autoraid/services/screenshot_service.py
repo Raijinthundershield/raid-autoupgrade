@@ -14,11 +14,7 @@ import pyautogui
 import pygetwindow
 from loguru import logger
 
-
-class WindowNotFoundException(Exception):
-    """Raised when a window is not found."""
-
-    pass
+from autoraid.exceptions import WindowNotFoundException
 
 
 class ScreenshotService:
@@ -83,8 +79,7 @@ class ScreenshotService:
         except IndexError:
             logger.error(f'[ScreenshotService] Window "{window_title}" not found')
             raise WindowNotFoundException(
-                f'Window "{window_title}" not found. '
-                f"Ensure the application is running."
+                f'Window "{window_title}" not found. Ensure the application is running.'
             )
         except Exception as e:
             logger.error(f"[ScreenshotService] Failed to capture screenshot: {e}")
