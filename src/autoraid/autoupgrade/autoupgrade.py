@@ -27,6 +27,7 @@ from autoraid.utils import get_timestamp
 from autoraid.visualization import (
     get_roi_from_screenshot,
 )
+from autoraid.services.cache_service import CacheService
 
 
 # TODO: Look into screenshot and click of inactive window
@@ -201,25 +202,43 @@ def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
 
 
 def create_cache_key_regions(window_size: tuple[int, int]) -> str:
-    """Create a cache key for the regions based on the window size."""
-    return f"regions_{window_size[0]}_{window_size[1]}"
+    """Create a cache key for the regions based on the window size.
+
+    Deprecated: Use CacheService.create_regions_key instead.
+    This function is kept for backward compatibility with CLI code.
+    """
+    cache_service = CacheService(cache=None)  # Temporary for method access
+    return cache_service.create_regions_key(tuple(window_size))
 
 
 def create_cache_key_screenshot(window_size: tuple[int, int]) -> str:
-    """Create a cache key for the screenshot based on the window size."""
-    return f"screenshot_{window_size[0]}_{window_size[1]}"
+    """Create a cache key for the screenshot based on the window size.
+
+    Deprecated: Use CacheService.create_screenshot_key instead.
+    This function is kept for backward compatibility with CLI code.
+    """
+    cache_service = CacheService(cache=None)  # Temporary for method access
+    return cache_service.create_screenshot_key(tuple(window_size))
 
 
 def get_cached_regions(window_size: tuple[int, int], cache: Cache) -> dict:
-    """Get cached regions for the current window size or prompt user to select new ones."""
-    cache_key_regions = create_cache_key_regions(window_size)
-    return cache.get(cache_key_regions)
+    """Get cached regions for the current window size.
+
+    Deprecated: Use CacheService.get_regions instead.
+    This function is kept for backward compatibility with CLI code.
+    """
+    cache_service = CacheService(cache)
+    return cache_service.get_regions(tuple(window_size))
 
 
 def get_cached_screenshot(window_size: tuple[int, int], cache: Cache) -> np.ndarray:
-    """Get cached screenshot for the current window size."""
-    cache_key_screenshot = create_cache_key_screenshot(window_size)
-    return cache.get(cache_key_screenshot)
+    """Get cached screenshot for the current window size.
+
+    Deprecated: Use CacheService.get_screenshot instead.
+    This function is kept for backward compatibility with CLI code.
+    """
+    cache_service = CacheService(cache)
+    return cache_service.get_screenshot(tuple(window_size))
 
 
 def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
@@ -232,18 +251,15 @@ def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
     Returns:
         dict: Dictionary containing the selected regions
     """
-    window_size = [screenshot.shape[0], screenshot.shape[1]]
-
-    # Create cache keys based on window size
-    cache_key_regions = create_cache_key_regions(window_size)
-    cache_key_screenshot = create_cache_key_screenshot(window_size)
+    cache_service = CacheService(cache)
+    window_size = (screenshot.shape[0], screenshot.shape[1])
 
     # Try to get cached regions
-    regions = cache.get(cache_key_regions)
+    regions = cache_service.get_regions(window_size)
     if regions is None:
         regions = select_upgrade_regions(screenshot)
-        cache.set(cache_key_regions, regions)
-        cache.set(cache_key_screenshot, screenshot)
+        cache_service.set_regions(window_size, regions)
+        cache_service.set_screenshot(window_size, screenshot)
     else:
         logger.info("Using cached regions")
 

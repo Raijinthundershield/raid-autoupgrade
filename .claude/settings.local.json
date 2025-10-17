@@ -6,7 +6,9 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
       "Bash(uv sync:*)",
       "Bash(git rev-parse:*)",
-      "Bash(uv run pytest:*)"
+      "Bash(uv run pytest:*)",
+      "Bash(uv run:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

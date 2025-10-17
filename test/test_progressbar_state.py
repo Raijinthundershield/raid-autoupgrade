@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import cv2
-from autoraid.autoupgrade.autoupgrade import get_progress_bar_state
+from autoraid.autoupgrade.progress_bar import get_progress_bar_state
 
 import pytest
 

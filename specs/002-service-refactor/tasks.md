@@ -132,24 +132,24 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T033 [US4] Create directory src/autoraid/services/ if not exists
-- [ ] T034 [US4] Create new file src/autoraid/services/__init__.py (empty initially)
-- [ ] T035 [US4] Create new file src/autoraid/services/cache_service.py
-- [ ] T036 [US4] Define CacheService class with __init__(cache: diskcache.Cache) in cache_service.py
-- [ ] T037 [US4] Implement create_regions_key(window_size: tuple[int, int]) -> str method returning f"regions_{width}_{height}"
-- [ ] T038 [US4] Implement get_regions(window_size: tuple[int, int]) -> dict | None method
-- [ ] T039 [US4] Implement set_regions(window_size: tuple[int, int], regions: dict) -> None method
-- [ ] T040 [US4] Implement get_screenshot(window_size: tuple[int, int]) -> np.ndarray | None method
-- [ ] T041 [US4] Implement set_screenshot(window_size: tuple[int, int], screenshot: np.ndarray) -> None method
-- [ ] T042 [US4] Add cache_service Singleton provider to Container class in src/autoraid/container.py
-- [ ] T043 [US4] Create new file test/test_cache_service.py for smoke tests
-- [ ] T044 [US4] Add smoke test: test_cache_service_instantiates() verifying CacheService(mock_cache) creates instance
-- [ ] T045 [US4] Add smoke test: test_cache_service_generates_correct_key() asserting key format matches "regions_{width}_{height}"
-- [ ] T046 [US4] Update src/autoraid/autoupgrade/autoupgrade.py to inject and use cache_service
-- [ ] T047 [US4] Update src/autoraid/cli/upgrade_cli.py to inject and use cache_service if needed
-- [ ] T048 Run `uv run pytest test/test_cache_service.py` to verify cache service smoke tests pass
-- [ ] T049 Run `uv run pytest` to ensure all tests still pass
-- [ ] T050 Run `uv run autoraid upgrade count --help` to verify CLI still works
+- [X] T033 [US4] Create directory src/autoraid/services/ if not exists
+- [X] T034 [US4] Create new file src/autoraid/services/__init__.py (empty initially)
+- [X] T035 [US4] Create new file src/autoraid/services/cache_service.py
+- [X] T036 [US4] Define CacheService class with __init__(cache: diskcache.Cache) in cache_service.py
+- [X] T037 [US4] Implement create_regions_key(window_size: tuple[int, int]) -> str method returning f"regions_{width}_{height}"
+- [X] T038 [US4] Implement get_regions(window_size: tuple[int, int]) -> dict | None method
+- [X] T039 [US4] Implement set_regions(window_size: tuple[int, int], regions: dict) -> None method
+- [X] T040 [US4] Implement get_screenshot(window_size: tuple[int, int]) -> np.ndarray | None method
+- [X] T041 [US4] Implement set_screenshot(window_size: tuple[int, int], screenshot: np.ndarray) -> None method
+- [X] T042 [US4] Add cache_service Singleton provider to Container class in src/autoraid/container.py
+- [X] T043 [US4] Create new file test/test_cache_service.py for smoke tests
+- [X] T044 [US4] Add smoke test: test_cache_service_instantiates() verifying CacheService(mock_cache) creates instance
+- [X] T045 [US4] Add smoke test: test_cache_service_generates_correct_key() asserting key format matches "regions_{width}_{height}"
+- [X] T046 [US4] Update src/autoraid/autoupgrade/autoupgrade.py to inject and use cache_service
+- [X] T047 [US4] Update src/autoraid/cli/upgrade_cli.py to inject and use cache_service if needed
+- [X] T048 Run `uv run pytest test/test_cache_service.py` to verify cache service smoke tests pass
+- [X] T049 Run `uv run pytest` to ensure all tests still pass
+- [X] T050 Run `uv run autoraid upgrade count --help` to verify CLI still works
 
 **Checkpoint**: CacheService extracted. All caching through one service. Backward-compatible cache keys maintained.
 

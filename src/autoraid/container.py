@@ -4,6 +4,7 @@ from dependency_injector import containers, providers
 import diskcache
 
 from autoraid.autoupgrade.state_machine import UpgradeStateMachine
+from autoraid.services.cache_service import CacheService
 
 
 class Container(containers.DeclarativeContainer):
@@ -29,6 +30,12 @@ class Container(containers.DeclarativeContainer):
     disk_cache = providers.Singleton(
         diskcache.Cache,
         directory=config.cache_dir,
+    )
+
+    # Singleton services (shared instance across application)
+    cache_service = providers.Singleton(
+        CacheService,
+        cache=disk_cache,
     )
 
     # Factory services (new instance per operation)
