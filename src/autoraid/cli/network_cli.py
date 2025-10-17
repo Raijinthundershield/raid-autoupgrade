@@ -4,7 +4,7 @@ import sys
 
 from loguru import logger
 
-from autoraid.network import NetworkManager
+from autoraid.platform.network import NetworkManager
 
 
 @click.group()

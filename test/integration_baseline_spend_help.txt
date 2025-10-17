@@ -1,0 +1,10 @@
+Usage: autoraid upgrade spend [OPTIONS]
+
+  Upgrade the piece until the max number of fails is reached.
+
+Options:
+  -m, --max-attempts INTEGER  Maximum number of upgrade attempts to count
+                              before stopping.  [required]
+  -c, --continue-upgrade      Continue upgrading after reaching an upgrade.
+                              Only use if the piece is level 10.
+  --help                      Show this message and exit.
