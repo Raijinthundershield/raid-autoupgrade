@@ -26,7 +26,7 @@ class ScreenshotService:
 
     def __init__(self) -> None:
         """Initialize ScreenshotService with no dependencies."""
-        logger.debug("[ScreenshotService] Initializing")
+        logger.debug("Initializing")
 
     def take_screenshot(self, window_title: str) -> np.ndarray:
         """Take a screenshot of the specified window.
@@ -41,10 +41,8 @@ class ScreenshotService:
             WindowNotFoundException: If window not found
             ValueError: If window_title is empty
         """
-        logger.info("[ScreenshotService] Capturing screenshot")
-        logger.debug(
-            f'[ScreenshotService] take_screenshot called with window_title="{window_title}"'
-        )
+        logger.info("Capturing screenshot")
+        logger.debug(f'take_screenshot called with window_title="{window_title}"')
 
         if not window_title:
             raise ValueError("window_title cannot be empty")
@@ -70,17 +68,17 @@ class ScreenshotService:
             screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
 
             logger.debug(
-                f"[ScreenshotService] take_screenshot returned screenshot of size {screenshot.shape[1]}x{screenshot.shape[0]}"
+                f"take_screenshot returned screenshot of size {screenshot.shape[1]}x{screenshot.shape[0]}"
             )
             return screenshot
 
         except IndexError:
-            logger.error(f'[ScreenshotService] Window "{window_title}" not found')
+            logger.error(f'Window "{window_title}" not found')
             raise WindowNotFoundException(
                 f'Window "{window_title}" not found. Ensure the application is running.'
             )
         except Exception as e:
-            logger.error(f"[ScreenshotService] Failed to capture screenshot: {e}")
+            logger.error(f"Failed to capture screenshot: {e}")
             raise
 
     def extract_roi(
@@ -98,7 +96,7 @@ class ScreenshotService:
         Raises:
             ValueError: If region coordinates are invalid
         """
-        logger.debug(f"[ScreenshotService] extract_roi called with region={region}")
+        logger.debug(f"extract_roi called with region={region}")
 
         left, top, width, height = region
 
@@ -126,7 +124,5 @@ class ScreenshotService:
         # Extract ROI
         roi = screenshot[top : top + height, left : left + width]
 
-        logger.debug(
-            f"[ScreenshotService] extract_roi returned ROI of size {roi.shape[1]}x{roi.shape[0]}"
-        )
+        logger.debug(f"extract_roi returned ROI of size {roi.shape[1]}x{roi.shape[0]}")
         return roi

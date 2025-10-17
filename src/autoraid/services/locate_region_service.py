@@ -38,7 +38,7 @@ class LocateRegionService:
             cache_service: Service for caching regions
             screenshot_service: Service for screenshot operations
         """
-        logger.debug("[LocateRegionService] Initializing")
+        logger.debug("Initializing")
         self._cache_service = cache_service
         self._screenshot_service = screenshot_service
 
@@ -56,14 +56,14 @@ class LocateRegionService:
         Returns:
             Dictionary mapping region names to (left, top, width, height) tuples
         """
-        logger.info("[LocateRegionService] Getting regions")
+        logger.info("Getting regions")
         window_size = (screenshot.shape[0], screenshot.shape[1])
 
         # Try to get cached regions
         if not manual:
             cached_regions = self._cache_service.get_regions(window_size)
             if cached_regions is not None:
-                logger.info("[LocateRegionService] Using cached regions")
+                logger.info("Using cached regions")
                 return cached_regions
 
         # Try automatic detection if not manual mode
@@ -92,7 +92,7 @@ class LocateRegionService:
         Returns:
             Dictionary of regions if all detected successfully, None otherwise
         """
-        logger.info("[LocateRegionService] Attempting automatic detection")
+        logger.info("Attempting automatic detection")
 
         region_prompts = {
             "upgrade_bar": "Click and drag to select upgrade bar",
@@ -109,22 +109,18 @@ class LocateRegionService:
 
         for name, prompt in region_prompts.items():
             try:
-                logger.info(f"[LocateRegionService] Automatic selection of {name}")
+                logger.info(f"Automatic selection of {name}")
                 regions[name] = locate_funcs[name](screenshot)
             except MissingRegionException:
-                logger.warning(
-                    f"[LocateRegionService] Failed to locate {name}. Will need manual input."
-                )
+                logger.warning(f"Failed to locate {name}. Will need manual input.")
                 failed_regions.append(name)
 
         # If any region failed, return None to trigger full manual selection
         if failed_regions:
-            logger.info(
-                f"[LocateRegionService] Automatic detection failed for: {failed_regions}"
-            )
+            logger.info(f"Automatic detection failed for: {failed_regions}")
             return None
 
-        logger.info("[LocateRegionService] Automatic detection successful")
+        logger.info("Automatic detection successful")
         return regions
 
     def _manual_selection(
@@ -138,7 +134,7 @@ class LocateRegionService:
         Returns:
             Dictionary of manually selected regions
         """
-        logger.info("[LocateRegionService] Starting manual region selection")
+        logger.info("Starting manual region selection")
 
         region_prompts = {
             "upgrade_bar": "Click and drag to select upgrade bar",
@@ -150,5 +146,5 @@ class LocateRegionService:
             region = select_region_with_prompt(screenshot, prompt)
             regions[name] = region
 
-        logger.info("[LocateRegionService] Manual selection complete")
+        logger.info("Manual selection complete")
         return regions

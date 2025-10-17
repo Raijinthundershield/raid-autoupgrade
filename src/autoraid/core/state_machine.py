@@ -47,9 +47,7 @@ class UpgradeStateMachine:
         self.fail_count = 0
         self.recent_states: deque[ProgressBarState] = deque(maxlen=4)
 
-        logger.debug(
-            f"[UpgradeStateMachine] Initialized with max_attempts={max_attempts}"
-        )
+        logger.debug(f"Initialized with max_attempts={max_attempts}")
 
     def process_frame(
         self, roi_image: np.ndarray
@@ -68,7 +66,7 @@ class UpgradeStateMachine:
         # Detect current state
         previous_state = self.recent_states[-1] if self.recent_states else None
         state = self._detect_state(roi_image)
-        logger.debug(f"[UpgradeStateMachine] Detected state: {state.value}")
+        logger.debug(f"Detected state: {state.value}")
 
         # Update recent states
         self.recent_states.append(state)
@@ -76,20 +74,16 @@ class UpgradeStateMachine:
         # Count fail states
         if state == ProgressBarState.FAIL and previous_state != ProgressBarState.FAIL:
             self.fail_count += 1
-            logger.debug(
-                f"[UpgradeStateMachine] Fail detected, count now: {self.fail_count}"
-            )
+            logger.debug(f"Fail detected, count now: {self.fail_count}")
 
         # Log warning for unknown states
         if state == ProgressBarState.UNKNOWN:
-            logger.warning("[UpgradeStateMachine] Unknown progress bar state detected")
+            logger.warning("Unknown progress bar state detected")
 
         # Check stop conditions
         stop_reason = self._check_stop_condition()
         if stop_reason:
-            logger.info(
-                f"[UpgradeStateMachine] Stop condition met: {stop_reason.value}"
-            )
+            logger.info(f"Stop condition met: {stop_reason.value}")
 
         return self.fail_count, stop_reason
 
@@ -109,9 +103,7 @@ class UpgradeStateMachine:
         try:
             return ProgressBarState(state_str)
         except ValueError:
-            logger.warning(
-                f"[UpgradeStateMachine] Unexpected state string: {state_str}"
-            )
+            logger.warning(f"Unexpected state string: {state_str}")
             return ProgressBarState.UNKNOWN
 
     def _check_stop_condition(self) -> StopCountReason | None:

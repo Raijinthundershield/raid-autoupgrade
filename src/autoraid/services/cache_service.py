@@ -19,9 +19,7 @@ class CacheService:
             cache: diskcache.Cache instance for persistent storage
         """
         self._cache = cache
-        logger.debug(
-            "[CacheService] Initialized with cache directory: {}", cache.directory
-        )
+        logger.debug("Initialized with cache directory: {}", cache.directory)
 
     @staticmethod
     def create_regions_key(window_size: tuple[int, int]) -> str:
@@ -59,13 +57,9 @@ class CacheService:
         cache_key = self.create_regions_key(window_size)
         regions = self._cache.get(cache_key)
         if regions is not None:
-            logger.debug(
-                "[CacheService] Found cached regions for window size {}", window_size
-            )
+            logger.debug("Found cached regions for window size {}", window_size)
         else:
-            logger.debug(
-                "[CacheService] No cached regions for window size {}", window_size
-            )
+            logger.debug("No cached regions for window size {}", window_size)
         return regions
 
     def set_regions(self, window_size: tuple[int, int], regions: dict) -> None:
@@ -77,7 +71,7 @@ class CacheService:
         """
         cache_key = self.create_regions_key(window_size)
         self._cache.set(cache_key, regions)
-        logger.debug("[CacheService] Cached regions for window size {}", window_size)
+        logger.debug("Cached regions for window size {}", window_size)
 
     def get_screenshot(self, window_size: tuple[int, int]) -> np.ndarray | None:
         """Retrieve cached screenshot for window size.
@@ -91,13 +85,9 @@ class CacheService:
         cache_key = self.create_screenshot_key(window_size)
         screenshot = self._cache.get(cache_key)
         if screenshot is not None:
-            logger.debug(
-                "[CacheService] Found cached screenshot for window size {}", window_size
-            )
+            logger.debug("Found cached screenshot for window size {}", window_size)
         else:
-            logger.debug(
-                "[CacheService] No cached screenshot for window size {}", window_size
-            )
+            logger.debug("No cached screenshot for window size {}", window_size)
         return screenshot
 
     def set_screenshot(
@@ -111,4 +101,4 @@ class CacheService:
         """
         cache_key = self.create_screenshot_key(window_size)
         self._cache.set(cache_key, screenshot)
-        logger.debug("[CacheService] Cached screenshot for window size {}", window_size)
+        logger.debug("Cached screenshot for window size {}", window_size)

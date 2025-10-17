@@ -56,12 +56,20 @@ def autoraid(debug: bool):
 
     # Configure logging based on debug mode
     logger.remove()  # Remove default handler
+
+    # Custom format function to extract short module name
+    def format_short_name(record):
+        """Extract short module name (last component) from full module path."""
+        module_name = record["name"].split(".")[-1]
+        function_name = record["function"]
+        record["extra"]["short_name"] = f"{module_name}.{function_name}"
+
     if debug:
         # DEBUG mode: detailed logging with timestamps, save to file
         debug_dir = cache_dir / "debug"
         debug_dir.mkdir(exist_ok=True)
 
-        # Console output with timestamps
+        # Console output with timestamps and full module path
         logger.add(
             sink=lambda msg: click.echo(msg, err=True),
             format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
@@ -80,12 +88,14 @@ def autoraid(debug: bool):
         logger.debug(f"Debug mode enabled. Logging to {debug_dir / 'autoraid.log'}")
         ctx.obj["debug_dir"] = debug_dir
     else:
-        # INFO mode: clean output without timestamps
+        # INFO mode: clean output with timestamps and short module.function names
         logger.add(
             sink=lambda msg: click.echo(msg, err=True),
-            format="<level>{message}</level>",
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <cyan>{extra[short_name]: <35}</cyan> | <level>{message}</level>",
             level="INFO",
             colorize=True,
+            filter=lambda record: format_short_name(record)
+            or True,  # Patch each record
         )
         ctx.obj["debug_dir"] = None
 

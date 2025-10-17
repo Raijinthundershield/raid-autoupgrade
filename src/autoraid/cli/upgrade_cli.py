@@ -16,6 +16,7 @@ from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
+from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.utils.common import get_timestamp
 from autoraid.utils.visualization import show_regions_in_image
 
@@ -145,6 +146,9 @@ def region():
 def regions_show(
     output_dir: str,
     cache_service: CacheService = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionService = Provide[
+        Container.window_interaction_service
+    ],
     screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
 ):
     """Show the currently cached regions within a screenshot of the current window.
@@ -155,7 +159,7 @@ def regions_show(
     """
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
-    if not screenshot_service.window_exists(window_title):
+    if not window_interaction_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
@@ -236,6 +240,9 @@ def regions_show(
 def regions_select(
     manual: bool,
     screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    window_interaction_service: WindowInteractionService = Provide[
+        Container.window_interaction_service
+    ],
     locate_region_service: LocateRegionService = Provide[
         Container.locate_region_service
     ],
@@ -250,7 +257,7 @@ def regions_select(
     """
     # Check if we can find the Raid window
     window_title = "Raid: Shadow Legends"
-    if not screenshot_service.window_exists(window_title):
+    if not window_interaction_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 

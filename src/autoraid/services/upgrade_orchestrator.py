@@ -170,9 +170,9 @@ class UpgradeOrchestrator:
             ValueError: If Raid window not found
             RuntimeError: If network disable/enable fails
         """
-        logger.info("[UpgradeOrchestrator] Starting count workflow")
+        logger.info("Starting count workflow")
         logger.debug(
-            f"[UpgradeOrchestrator] count_workflow called with network_adapter_id={network_adapter_id}, "
+            f"count_workflow called with network_adapter_id={network_adapter_id}, "
             f"max_attempts={max_attempts}, debug_dir={debug_dir}"
         )
 
@@ -180,7 +180,7 @@ class UpgradeOrchestrator:
 
         # Validate window exists
         if not self._window_interaction_service.window_exists(window_title):
-            logger.error("[UpgradeOrchestrator] Raid window not found")
+            logger.error("Raid window not found")
             raise WindowNotFoundException(
                 "Raid window not found. Check if Raid is running."
             )
@@ -190,38 +190,34 @@ class UpgradeOrchestrator:
 
         # Check network access and disable if needed
         if manager.check_network_access() and not network_adapter_id:
-            logger.warning(
-                "[UpgradeOrchestrator] Internet access detected but no network adapter specified"
-            )
+            logger.warning("Internet access detected but no network adapter specified")
             raise UpgradeWorkflowError(
                 "Internet access detected and network id not specified. This will upgrade the piece. Aborting."
             )
 
         # Disable network adapters
         if network_adapter_id:
-            logger.info(
-                f"[UpgradeOrchestrator] Disabling network adapters: {network_adapter_id}"
-            )
+            logger.info(f"Disabling network adapters: {network_adapter_id}")
             manager.toggle_adapters(network_adapter_id, enable=False)
 
             # Wait for network to turn off (max 3 seconds)
             for _ in range(3):
-                logger.debug("[UpgradeOrchestrator] Waiting for network to turn off")
+                logger.debug("Waiting for network to turn off")
                 time.sleep(1)
                 if not manager.check_network_access():
-                    logger.info("[UpgradeOrchestrator] Network disabled successfully")
+                    logger.info("Network disabled successfully")
                     break
             else:
-                logger.error("[UpgradeOrchestrator] Failed to disable network")
+                logger.error("Failed to disable network")
                 raise NetworkAdapterError("Failed to turn off network. Aborting.")
 
         try:
             # Capture screenshot
-            logger.info("[UpgradeOrchestrator] Captured screenshot")
+            logger.info("Captured screenshot")
             screenshot = self._screenshot_service.take_screenshot(window_title)
 
             # Get regions (from cache or detection)
-            logger.debug("[UpgradeOrchestrator] Getting upgrade regions")
+            logger.debug("Getting upgrade regions")
             regions = self._locate_region_service.get_regions(screenshot, manual=False)
 
             # Save debug data if requested
@@ -232,16 +228,16 @@ class UpgradeOrchestrator:
                 cv2.imwrite(str(output_dir / f"{timestamp}_screenshot.png"), screenshot)
                 with open(output_dir / f"{timestamp}_regions.json", "w") as f:
                     json.dump(regions, f)
-                logger.debug(f"[UpgradeOrchestrator] Saved debug data to {output_dir}")
+                logger.debug(f"Saved debug data to {output_dir}")
 
             # Click upgrade button
-            logger.info("[UpgradeOrchestrator] Clicking upgrade button")
+            logger.info("Clicking upgrade button")
             self._window_interaction_service.click_region(
                 window_title, regions["upgrade_button"]
             )
 
             # Count upgrade fails
-            logger.info("[UpgradeOrchestrator] Counting upgrade fails")
+            logger.info("Counting upgrade fails")
             n_fails, reason = self._count_upgrade_fails(
                 window_title=window_title,
                 upgrade_bar_region=regions["upgrade_bar"],
@@ -250,22 +246,18 @@ class UpgradeOrchestrator:
             )
 
             # Wait for connection timeout
-            logger.debug("[UpgradeOrchestrator] Waiting for connection timeout (3s)")
+            logger.debug("Waiting for connection timeout (3s)")
             time.sleep(3)
 
-            logger.info(
-                f"[UpgradeOrchestrator] Count workflow completed: {n_fails} fails, reason={reason}"
-            )
+            logger.info(f"Count workflow completed: {n_fails} fails, reason={reason}")
             return n_fails, reason
 
         finally:
             # Always re-enable network adapters
             if network_adapter_id:
-                logger.info(
-                    f"[UpgradeOrchestrator] Re-enabling network adapters: {network_adapter_id}"
-                )
+                logger.info(f"Re-enabling network adapters: {network_adapter_id}")
                 manager.toggle_adapters(network_adapter_id, enable=True)
-                logger.debug("[UpgradeOrchestrator] Network adapters re-enabled")
+                logger.debug("Network adapters re-enabled")
 
     def spend_workflow(
         self,
@@ -298,9 +290,9 @@ class UpgradeOrchestrator:
             ValueError: If Raid window not found
             RuntimeError: If no internet access detected
         """
-        logger.info("[UpgradeOrchestrator] Starting spend workflow")
+        logger.info("Starting spend workflow")
         logger.debug(
-            f"[UpgradeOrchestrator] spend_workflow called with max_attempts={max_attempts}, "
+            f"spend_workflow called with max_attempts={max_attempts}, "
             f"continue_upgrade={continue_upgrade}, debug_dir={debug_dir}"
         )
 
@@ -308,7 +300,7 @@ class UpgradeOrchestrator:
 
         # Validate window exists
         if not self._window_interaction_service.window_exists(window_title):
-            logger.error("[UpgradeOrchestrator] Raid window not found")
+            logger.error("Raid window not found")
             raise WindowNotFoundException(
                 "Raid window not found. Check if Raid is running."
             )
@@ -316,15 +308,15 @@ class UpgradeOrchestrator:
         # Validate network access
         manager = NetworkManager()
         if not manager.check_network_access():
-            logger.error("[UpgradeOrchestrator] No internet access detected")
+            logger.error("No internet access detected")
             raise NetworkAdapterError("No internet access detected. Aborting.")
 
         # Capture screenshot
-        logger.info("[UpgradeOrchestrator] Captured screenshot")
+        logger.info("Captured screenshot")
         screenshot = self._screenshot_service.take_screenshot(window_title)
 
         # Get regions
-        logger.debug("[UpgradeOrchestrator] Getting upgrade regions")
+        logger.debug("Getting upgrade regions")
         regions = self._locate_region_service.get_regions(screenshot, manual=False)
 
         # Save debug data if requested
@@ -335,7 +327,7 @@ class UpgradeOrchestrator:
             cv2.imwrite(str(output_dir / f"{timestamp}_screenshot.png"), screenshot)
             with open(output_dir / f"{timestamp}_regions.json", "w") as f:
                 json.dump(regions, f)
-            logger.debug(f"[UpgradeOrchestrator] Saved debug data to {output_dir}")
+            logger.debug(f"Saved debug data to {output_dir}")
 
         # Loop upgrading until max attempts reached
         upgrade = True
@@ -346,14 +338,14 @@ class UpgradeOrchestrator:
         while upgrade:
             upgrade = False
 
-            logger.info("[UpgradeOrchestrator] Clicking upgrade button")
+            logger.info("Clicking upgrade button")
             self._window_interaction_service.click_region(
                 window_title, regions["upgrade_button"]
             )
 
             # Count upgrade fails
             logger.debug(
-                f"[UpgradeOrchestrator] Counting upgrade fails (remaining: {max_attempts - n_attempts})"
+                f"Counting upgrade fails (remaining: {max_attempts - n_attempts})"
             )
             n_fails, reason = self._count_upgrade_fails(
                 window_title=window_title,
@@ -366,7 +358,7 @@ class UpgradeOrchestrator:
 
             if reason == StopCountReason.MAX_ATTEMPTS_REACHED:
                 logger.info(
-                    f"[UpgradeOrchestrator] Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
+                    f"Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
                 )
                 self._window_interaction_service.click_region(
                     window_title, regions["upgrade_button"]
@@ -375,16 +367,12 @@ class UpgradeOrchestrator:
             elif reason == StopCountReason.UPGRADED:
                 n_attempts += 1
                 n_upgrades += 1
-                logger.info(
-                    f"[UpgradeOrchestrator] Piece upgraded at {n_attempts} upgrade attempts."
-                )
+                logger.info(f"Piece upgraded at {n_attempts} upgrade attempts.")
 
             # Check if should continue upgrading
             if continue_upgrade and n_upgrades == 1 and n_attempts < max_attempts:
                 upgrade = True
-                logger.info(
-                    "[UpgradeOrchestrator] Continue upgrade enabled, starting next upgrade"
-                )
+                logger.info("Continue upgrade enabled, starting next upgrade")
 
         result = {
             "n_upgrades": n_upgrades,
@@ -394,7 +382,7 @@ class UpgradeOrchestrator:
         }
 
         logger.info(
-            f"[UpgradeOrchestrator] Spend workflow completed: {n_upgrades} upgrades, "
+            f"Spend workflow completed: {n_upgrades} upgrades, "
             f"{n_attempts} attempts, {result['n_remaining']} remaining"
         )
         return result
