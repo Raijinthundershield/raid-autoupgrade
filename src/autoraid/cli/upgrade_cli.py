@@ -1,22 +1,19 @@
 import json
 import click
 from pathlib import Path
-import time
 import sys
 import cv2
 from loguru import logger
+from dependency_injector.wiring import inject, Provide
 
+from autoraid.container import Container
 from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.network import NetworkManager
+from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 from autoraid.autoupgrade.autoupgrade import (
-    StopCountReason,
-    count_upgrade_fails,
     create_cache_key_regions,
     create_cache_key_screenshot,
     get_cached_regions,
     get_cached_screenshot,
-    get_regions,
     select_upgrade_regions,
 )
 from autoraid.utils import get_timestamp
@@ -48,88 +45,41 @@ def upgrade():
     is_flag=True,
     help="Show the most recent gear piece that was counted.",
 )
-def count(network_adapter_id: list[int], show_most_recent_gear: bool):
+@inject
+def count(
+    network_adapter_id: list[int],
+    show_most_recent_gear: bool,
+    orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
+):
     """Count the number of upgrade fails.
 
     Use network adapter ids to enable automatically turning network off and on.
     Use ids from the output of the `network list` command.
     """
+    ctx = click.get_current_context()
 
+    # Handle show most recent gear flag
     if show_most_recent_gear:
-        logger.info("Showing the most recent gear piece that was counted.")
-        ctx = click.get_current_context()
-        if ctx.obj["cache"].get("current_gear_counted") is None:
+        screenshot = ctx.obj["cache"].get("current_gear_counted")
+        if screenshot is None:
             logger.warning("No gear piece has been counted yet. Aborting.")
             sys.exit(1)
-
-        screenshot = ctx.obj["cache"].get("current_gear_counted")
         cv2.imshow("Gear", screenshot)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         sys.exit(0)
 
-    # Check if we can find the Raid window
-    # Create temporary service instances (will be injected in Phase 6)
-    screenshot_service = ScreenshotService()
-    window_interaction_service = WindowInteractionService()
-    window_title = "Raid: Shadow Legends"
-    if not screenshot_service.window_exists(window_title):
-        logger.warning("Raid window not found. Check if Raid is running.")
-        sys.exit(1)
-
-    # Initialize network manager and check network access
-    manager = NetworkManager()
-    if manager.check_network_access() and not network_adapter_id:
-        logger.warning(
-            "Internet access detected and netwrok id not specified. This will upgrade the piece. Aborting."
-        )
-        sys.exit(1)
-    manager.toggle_adapters(network_adapter_id, enable=False)
-    for _ in range(3):
-        logger.info("Waiting for network to turn off.")
-        time.sleep(1)
-        if not manager.check_network_access():
-            break
-    else:
-        logger.warning("Failed to turn off network. Aborting.")
-        sys.exit(1)
-
+    # Execute count workflow via orchestrator
     try:
-        ctx = click.get_current_context()
-
-        # Take screenshot
-        screenshot = screenshot_service.take_screenshot(window_title)
-        regions = get_regions(screenshot, ctx.obj["cache"])
-
-        debug_dir = ctx.obj["debug_dir"]
-        if ctx.obj["debug"]:
-            output_dir = debug_dir / "count"
-            output_dir.mkdir(exist_ok=True)
-
-            timestamp = get_timestamp()
-            cv2.imwrite(output_dir / f"{timestamp}_screenshot.png", screenshot)
-            with open(output_dir / f"{timestamp}_regions.json", "w") as f:
-                json.dump(regions, f)
-
-        # Click the upgrade level to start upgrading
-        logger.info("Clicking upgrade button")
-        window_interaction_service.click_region(window_title, regions["upgrade_button"])
-
-        # Count upgrades until levelup or fails have been reaced
-        n_fails, reason = count_upgrade_fails(
-            window_title=window_title,
-            upgrade_bar_region=regions["upgrade_bar"],
+        n_fails, reason = orchestrator.count_workflow(
+            network_adapter_id=list(network_adapter_id) if network_adapter_id else None,
             max_attempts=99,
-            debug_dir=debug_dir,
+            debug_dir=ctx.obj["debug_dir"],
         )
-
-        # Wait for Raid to reach connection timeout before enabling network.
-        time.sleep(3)
-    finally:
-        manager.toggle_adapters(network_adapter_id, enable=True)
-
-    ctx.obj["cache"].set("current_gear_counted", screenshot)
-    logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
+        logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
+    except (ValueError, RuntimeError) as e:
+        logger.error(str(e))
+        sys.exit(1)
 
 
 @upgrade.command()
@@ -146,82 +96,29 @@ def count(network_adapter_id: list[int], show_most_recent_gear: bool):
     is_flag=True,
     help="Continue upgrading after reaching an upgrade. Only use if the piece is level 10.",
 )
-def spend(max_attempts: int, continue_upgrade: bool):
-    """
-    Upgrade the piece until the max number of fails is reached.
-    """
-
+@inject
+def spend(
+    max_attempts: int,
+    continue_upgrade: bool,
+    orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
+):
+    """Upgrade the piece until the max number of fails is reached."""
     ctx = click.get_current_context()
-    debug_dir = ctx.obj["debug_dir"]
 
-    # Check if we can find the Raid window
-    # Create temporary service instances (will be injected in Phase 6)
-    screenshot_service = ScreenshotService()
-    window_interaction_service = WindowInteractionService()
-    window_title = "Raid: Shadow Legends"
-    if not screenshot_service.window_exists(window_title):
-        logger.warning("Raid window not found. Check if Raid is running.")
-        sys.exit(1)
-
-    # Initialize network manager and check network access
-    manager = NetworkManager()
-    if not manager.check_network_access():
-        logger.warning("No internet access detected. Aborting.")
-        sys.exit(1)
-
-    # Take screenshot
-    screenshot = screenshot_service.take_screenshot(window_title)
-    regions = get_regions(screenshot, ctx.obj["cache"])
-
-    debug_dir = ctx.obj["debug_dir"]
-    if ctx.obj["debug"]:
-        output_dir = debug_dir / "upgrade"
-        output_dir.mkdir(exist_ok=True)
-
-        timestamp = get_timestamp()
-        cv2.imwrite(output_dir / f"{timestamp}_screenshot.png", screenshot)
-        with open(output_dir / f"{timestamp}_regions.json", "w") as f:
-            json.dump(regions, f)
-
-    upgrade = True
-    n_upgrades = 0
-    n_attempts = 0
-    n_fails = 0  # Initialize n_fails
-    while upgrade:
-        upgrade = False
-
-        logger.info("Clicking upgrade button")
-        window_interaction_service.click_region(window_title, regions["upgrade_button"])
-
-        # Count upgrades until levelup or fails have been reaced
-        n_fails, reason = count_upgrade_fails(
-            window_title=window_title,
-            upgrade_bar_region=regions["upgrade_bar"],
-            max_attempts=max_attempts - n_attempts,
-            debug_dir=debug_dir,
+    # Execute spend workflow via orchestrator
+    try:
+        result = orchestrator.spend_workflow(
+            max_attempts=max_attempts,
+            continue_upgrade=continue_upgrade,
+            debug_dir=ctx.obj["debug_dir"],
         )
-        n_attempts += n_fails
-
-        if reason == StopCountReason.MAX_FAILS:
-            logger.info(
-                f"Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
-            )
-            window_interaction_service.click_region(
-                window_title, regions["upgrade_button"]
-            )
-
-        elif reason == StopCountReason.UPGRADED:
-            n_attempts += 1
-            n_upgrades += 1
-            logger.info(f"Piece upgraded at {n_attempts} upgrade attempts.")
-
-        if continue_upgrade and n_upgrades == 1 and n_attempts < max_attempts:
-            upgrade = True
-            logger.info("Continue upgrade.")
-
-    logger.info(
-        f"Total upgrade attempts: {n_attempts}. There are {max_attempts - n_attempts} left."
-    )
+        logger.info(
+            f"Total upgrade attempts: {result['n_attempts']}. "
+            f"There are {result['n_remaining']} left."
+        )
+    except (ValueError, RuntimeError) as e:
+        logger.error(str(e))
+        sys.exit(1)
 
 
 @upgrade.group()

@@ -54,16 +54,43 @@ def autoraid(debug: bool):
         "container": container,
     }
 
-    # Set debug mode
-    ctx.obj["debug"] = debug
-    ctx.obj["debug_dir"] = None
+    # Configure logging based on debug mode
+    logger.remove()  # Remove default handler
     if debug:
+        # DEBUG mode: detailed logging with timestamps, save to file
         debug_dir = cache_dir / "debug"
         debug_dir.mkdir(exist_ok=True)
-        logger.debug(
-            f"Debug mode enabled. Saving screenshots and other information to {debug_dir}"
+
+        # Console output with timestamps
+        logger.add(
+            sink=lambda msg: click.echo(msg, err=True),
+            format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+            level="DEBUG",
+            colorize=True,
         )
+
+        # File output with full details
+        logger.add(
+            sink=debug_dir / "autoraid.log",
+            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
+            level="DEBUG",
+            rotation="10 MB",
+        )
+
+        logger.debug(f"Debug mode enabled. Logging to {debug_dir / 'autoraid.log'}")
         ctx.obj["debug_dir"] = debug_dir
+    else:
+        # INFO mode: clean output without timestamps
+        logger.add(
+            sink=lambda msg: click.echo(msg, err=True),
+            format="<level>{message}</level>",
+            level="INFO",
+            colorize=True,
+        )
+        ctx.obj["debug_dir"] = None
+
+    # Set debug mode in context
+    ctx.obj["debug"] = debug
 
 
 autoraid.add_command(upgrade)

@@ -308,24 +308,24 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T106 [US2] [US6] Add loguru logging configuration to src/autoraid/cli/cli.py in cli() function
-- [ ] T107 [US2] Configure INFO level logging for normal mode (format without timestamps)
-- [ ] T108 [US2] Configure DEBUG level logging for debug mode (format with timestamps, save to debug/ directory)
-- [ ] T109 [US6] Add @inject decorator import to src/autoraid/cli/upgrade_cli.py
-- [ ] T110 [US6] Add @inject decorator to count command in upgrade_cli.py
-- [ ] T111 [US6] Add orchestrator parameter with Provide[Container.upgrade_orchestrator] to count command
-- [ ] T112 [US6] Replace business logic in count command with orchestrator.count_workflow() call (target <20 lines)
-- [ ] T113 [US6] Update count command to handle orchestrator result and display output using rich
-- [ ] T114 [US6] Add @inject decorator to spend command in upgrade_cli.py
-- [ ] T115 [US6] Add orchestrator parameter with Provide[Container.upgrade_orchestrator] to spend command
-- [ ] T116 [US6] Replace business logic in spend command with orchestrator.spend_workflow() call (target <20 lines)
-- [ ] T117 [US6] Update spend command to handle orchestrator result and display output using rich
-- [ ] T118 [US6] Remove or deprecate business logic from CLI commands (move to orchestrator if not already done)
-- [ ] T119 [US2] [US6] Verify wiring configuration in Container class includes autoraid.cli.upgrade_cli module
-- [ ] T120 [US2] Run `uv run autoraid upgrade count --help` in normal mode and verify INFO logs show workflow milestones
-- [ ] T121 [US2] Run `uv run autoraid --debug upgrade count --help` and verify DEBUG logs show service entry/exit with [ServiceName] prefixes
-- [ ] T122 [US6] Measure LOC for count and spend commands (excluding imports/docstrings) and verify <20 lines each
-- [ ] T123 Run `uv run pytest` to ensure all tests still pass
+- [X] T106 [US2] [US6] Add loguru logging configuration to src/autoraid/cli/cli.py in cli() function
+- [X] T107 [US2] Configure INFO level logging for normal mode (format without timestamps)
+- [X] T108 [US2] Configure DEBUG level logging for debug mode (format with timestamps, save to debug/ directory)
+- [X] T109 [US6] Add @inject decorator import to src/autoraid/cli/upgrade_cli.py
+- [X] T110 [US6] Add @inject decorator to count command in upgrade_cli.py
+- [X] T111 [US6] Add orchestrator parameter with Provide[Container.upgrade_orchestrator] to count command
+- [X] T112 [US6] Replace business logic in count command with orchestrator.count_workflow() call (target <20 lines)
+- [X] T113 [US6] Update count command to handle orchestrator result and display output using rich
+- [X] T114 [US6] Add @inject decorator to spend command in upgrade_cli.py
+- [X] T115 [US6] Add orchestrator parameter with Provide[Container.upgrade_orchestrator] to spend command
+- [X] T116 [US6] Replace business logic in spend command with orchestrator.spend_workflow() call (target <20 lines)
+- [X] T117 [US6] Update spend command to handle orchestrator result and display output using rich
+- [X] T118 [US6] Remove or deprecate business logic from CLI commands (move to orchestrator if not already done)
+- [X] T119 [US2] [US6] Verify wiring configuration in Container class includes autoraid.cli.upgrade_cli module
+- [X] T120 [US2] Run `uv run autoraid upgrade count --help` in normal mode and verify INFO logs show workflow milestones
+- [X] T121 [US2] Run `uv run autoraid --debug upgrade count --help` and verify DEBUG logs show service entry/exit with [ServiceName] prefixes
+- [X] T122 [US6] Measure LOC for count and spend commands (excluding imports/docstrings) and verify <20 lines each
+- [X] T123 Run `uv run pytest` to ensure all tests still pass
 - [ ] T124 Run manual test: `uv run autoraid upgrade count -n 1` (requires live Raid window) to verify full workflow
 
 **Checkpoint**: US2 delivered (debug logging). US6 delivered (thin CLI). Clean separation achieved.
