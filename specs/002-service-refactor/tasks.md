@@ -91,29 +91,29 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T013 [US1] Create new file src/autoraid/autoupgrade/state_machine.py
-- [ ] T014 [US1] Define ProgressBarState enum (FAIL, PROGRESS, STANDBY, CONNECTION_ERROR, UNKNOWN) in state_machine.py
-- [ ] T015 [US1] Define StopCountReason enum (UPGRADED, CONNECTION_ERROR, MAX_ATTEMPTS_REACHED) in state_machine.py
-- [ ] T016 [US1] Create UpgradeStateMachine class with __init__(max_attempts: int) in state_machine.py
-- [ ] T017 [US1] Initialize deque with maxlen=4 for recent_states in UpgradeStateMachine.__init__
-- [ ] T018 [US1] Implement process_frame(roi_image: np.ndarray) -> tuple[int, StopCountReason | None] method
-- [ ] T019 [US1] Implement _detect_state(roi_image: np.ndarray) -> ProgressBarState method using existing progress_bar.detect_progressbar_state()
-- [ ] T020 [US1] Implement _check_stop_condition() -> StopCountReason | None method checking deque for 4 consecutive states
-- [ ] T021 [US1] Update process_frame to track fail_count, append states to deque, check stop conditions
-- [ ] T022 [US1] Add state_machine Factory provider to Container class in src/autoraid/container.py
-- [ ] T023 [US1] Create new file test/test_state_machine.py for smoke tests
-- [ ] T024 [US1] Add smoke test: test_state_machine_instantiates() verifying UpgradeStateMachine(max_attempts=10) creates instance
-- [ ] T025 [US1] Add smoke test: test_state_machine_counts_fails() feeding 3 fail images and asserting fail_count=3
-- [ ] T026 [US1] Add smoke test: test_state_machine_stops_on_upgraded() feeding 4 consecutive standby images and asserting stop_reason=UPGRADED
-- [ ] T027 [US1] Add smoke test: test_state_machine_stops_on_max_attempts() feeding 10 fail images with max_attempts=10 and asserting stop_reason=MAX_ATTEMPTS_REACHED
-- [ ] T028 [US1] Modify src/autoraid/autoupgrade/autoupgrade.py count_upgrade_fails() to create state_machine instance from container
-- [ ] T029 [US1] Update count_upgrade_fails() to use state_machine.process_frame() instead of inline state detection
-- [ ] T030 Run `uv run pytest test/test_state_machine.py` to verify state machine smoke tests pass
-- [ ] T031 Run `uv run pytest` to ensure all existing tests still pass
-- [ ] T031a [US1] Install pytest-cov if not already installed: `uv add --dev pytest-cov`
-- [ ] T031b [US1] Run `uv run pytest --cov=autoraid.autoupgrade.state_machine --cov-report=term-missing test/test_state_machine.py` to measure coverage
-- [ ] T031c [US1] Verify code coverage for state_machine.py is ≥90% (SC-006), add tests if needed to reach threshold
-- [ ] T032 Run `uv run autoraid upgrade count --help` to verify CLI still works
+- [X] T013 [US1] Create new file src/autoraid/autoupgrade/state_machine.py
+- [X] T014 [US1] Define ProgressBarState enum (FAIL, PROGRESS, STANDBY, CONNECTION_ERROR, UNKNOWN) in state_machine.py
+- [X] T015 [US1] Define StopCountReason enum (UPGRADED, CONNECTION_ERROR, MAX_ATTEMPTS_REACHED) in state_machine.py
+- [X] T016 [US1] Create UpgradeStateMachine class with __init__(max_attempts: int) in state_machine.py
+- [X] T017 [US1] Initialize deque with maxlen=4 for recent_states in UpgradeStateMachine.__init__
+- [X] T018 [US1] Implement process_frame(roi_image: np.ndarray) -> tuple[int, StopCountReason | None] method
+- [X] T019 [US1] Implement _detect_state(roi_image: np.ndarray) -> ProgressBarState method using existing progress_bar.detect_progressbar_state()
+- [X] T020 [US1] Implement _check_stop_condition() -> StopCountReason | None method checking deque for 4 consecutive states
+- [X] T021 [US1] Update process_frame to track fail_count, append states to deque, check stop conditions
+- [X] T022 [US1] Add state_machine Factory provider to Container class in src/autoraid/container.py
+- [X] T023 [US1] Create new file test/test_state_machine.py for smoke tests
+- [X] T024 [US1] Add smoke test: test_state_machine_instantiates() verifying UpgradeStateMachine(max_attempts=10) creates instance
+- [X] T025 [US1] Add smoke test: test_state_machine_counts_fails() feeding 3 fail images and asserting fail_count=3
+- [X] T026 [US1] Add smoke test: test_state_machine_stops_on_upgraded() feeding 4 consecutive standby images and asserting stop_reason=UPGRADED
+- [X] T027 [US1] Add smoke test: test_state_machine_stops_on_max_attempts() feeding 10 fail images with max_attempts=10 and asserting stop_reason=MAX_ATTEMPTS_REACHED
+- [X] T028 [US1] Modify src/autoraid/autoupgrade/autoupgrade.py count_upgrade_fails() to create state_machine instance from container
+- [X] T029 [US1] Update count_upgrade_fails() to use state_machine.process_frame() instead of inline state detection
+- [X] T030 Run `uv run pytest test/test_state_machine.py` to verify state machine smoke tests pass
+- [X] T031 Run `uv run pytest` to ensure all existing tests still pass
+- [X] T031a [US1] Install pytest-cov if not already installed: `uv add --dev pytest-cov`
+- [X] T031b [US1] Run `uv run pytest --cov=autoraid.autoupgrade.state_machine --cov-report=term-missing test/test_state_machine.py` to measure coverage
+- [X] T031c [US1] Verify code coverage for state_machine.py is ≥90% (SC-006), add tests if needed to reach threshold
+- [X] T032 Run `uv run autoraid upgrade count --help` to verify CLI still works
 
 **Checkpoint**: US1 delivered. State machine testable with fixture images. Existing workflows unchanged.
 

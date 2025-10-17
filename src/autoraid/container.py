@@ -3,6 +3,8 @@
 from dependency_injector import containers, providers
 import diskcache
 
+from autoraid.autoupgrade.state_machine import UpgradeStateMachine
+
 
 class Container(containers.DeclarativeContainer):
     """Application dependency injection container.
@@ -27,4 +29,10 @@ class Container(containers.DeclarativeContainer):
     disk_cache = providers.Singleton(
         diskcache.Cache,
         directory=config.cache_dir,
+    )
+
+    # Factory services (new instance per operation)
+    state_machine = providers.Factory(
+        UpgradeStateMachine,
+        max_attempts=config.max_attempts.as_(int),
     )
