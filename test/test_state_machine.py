@@ -56,21 +56,41 @@ def test_state_machine_rejects_invalid_max_attempts():
         UpgradeStateMachine(max_attempts=-5)
 
 
-def test_state_machine_counts_fails(fail_image):
+def test_state_machine_multiple_fails(fail_image):
     """Test that state machine correctly counts fail states."""
     state_machine = UpgradeStateMachine(max_attempts=10)
 
-    # Process 3 fail images
+    # Process 3 fail images, only one fail should be counted when multiple fails
+    # in a row occur
     fail_count_1, stop_reason_1 = state_machine.process_frame(fail_image)
     assert fail_count_1 == 1
     assert stop_reason_1 is None
 
     fail_count_2, stop_reason_2 = state_machine.process_frame(fail_image)
-    assert fail_count_2 == 2
+    assert fail_count_2 == 1
     assert stop_reason_2 is None
 
     fail_count_3, stop_reason_3 = state_machine.process_frame(fail_image)
-    assert fail_count_3 == 3
+    assert fail_count_3 == 1
+    assert stop_reason_3 is None
+
+
+def test_state_machine_upgrades(fail_image, standby_image):
+    """Test that state machine correctly counts fail states."""
+    state_machine = UpgradeStateMachine(max_attempts=10)
+
+    # Process 3 fail images, only one fail should be counted when multiple fails
+    # in a row occur
+    fail_count_1, stop_reason_1 = state_machine.process_frame(fail_image)
+    assert fail_count_1 == 1
+    assert stop_reason_1 is None
+
+    fail_count_2, stop_reason_2 = state_machine.process_frame(standby_image)
+    assert fail_count_2 == 1
+    assert stop_reason_2 is None
+
+    fail_count_3, stop_reason_3 = state_machine.process_frame(fail_image)
+    assert fail_count_3 == 2
     assert stop_reason_3 is None
 
 
@@ -93,21 +113,21 @@ def test_state_machine_stops_on_upgraded(standby_image):
     assert fail_count_4 == 0  # No fails detected
 
 
-def test_state_machine_stops_on_max_attempts(fail_image):
+def test_state_machine_stops_on_max_attempts(fail_image, standby_image):
     """Test that state machine stops when max attempts reached."""
-    state_machine = UpgradeStateMachine(max_attempts=3)
+    state_machine = UpgradeStateMachine(max_attempts=2)
 
     # Process 3 fail images (reaching max attempts)
     fail_count_1, stop_reason_1 = state_machine.process_frame(fail_image)
     assert fail_count_1 == 1
     assert stop_reason_1 is None
 
-    fail_count_2, stop_reason_2 = state_machine.process_frame(fail_image)
-    assert fail_count_2 == 2
+    fail_count_2, stop_reason_2 = state_machine.process_frame(standby_image)
+    assert fail_count_2 == 1
     assert stop_reason_2 is None
 
     fail_count_3, stop_reason_3 = state_machine.process_frame(fail_image)
-    assert fail_count_3 == 3
+    assert fail_count_3 == 2
     assert stop_reason_3 == StopCountReason.MAX_ATTEMPTS_REACHED
 
 
