@@ -199,21 +199,21 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T064 [P] [US4] Create new file src/autoraid/services/locate_region_service.py
-- [ ] T065 [P] [US4] Define LocateRegionService class with __init__(cache_service: CacheService, screenshot_service: ScreenshotService)
-- [ ] T066 [P] [US4] Implement get_regions(screenshot: np.ndarray, window_size: tuple[int, int], manual: bool = False) -> dict method
-- [ ] T067 [P] [US4] Implement _try_automatic_detection(screenshot: np.ndarray) -> dict | None method using locate_upgrade_region module
-- [ ] T068 [P] [US4] Implement _manual_selection(screenshot: np.ndarray) -> dict method using existing selection logic
-- [ ] T069 [P] [US4] Integrate cache checks in get_regions: check cache → auto-detect → manual fallback → cache result
-- [ ] T070 [P] [US4] Add locate_region_service Singleton provider to Container class in src/autoraid/container.py
-- [ ] T071 [P] [US4] Inject cache_service and screenshot_service dependencies in provider registration
-- [ ] T072 Create new file test/test_locate_region_service.py for smoke tests
-- [ ] T073 Add smoke test: test_locate_region_service_instantiates() verifying LocateRegionService(mock_cache, mock_screenshot) creates instance
-- [ ] T074 Add smoke test: test_locate_region_service_uses_cache() with mocked cache_service.get_regions returning regions
-- [ ] T075 Update src/autoraid/autoupgrade/autoupgrade.py to inject and use locate_region_service
-- [ ] T076 Update src/autoraid/cli/upgrade_cli.py to inject and use locate_region_service if needed
-- [ ] T077 Run `uv run pytest test/test_locate_region_service.py` to verify locate region service smoke tests pass
-- [ ] T078 Run `uv run pytest` to ensure all tests still pass
+- [X] T064 [P] [US4] Create new file src/autoraid/services/locate_region_service.py
+- [X] T065 [P] [US4] Define LocateRegionService class with __init__(cache_service: CacheService, screenshot_service: ScreenshotService)
+- [X] T066 [P] [US4] Implement get_regions(screenshot: np.ndarray, window_size: tuple[int, int], manual: bool = False) -> dict method
+- [X] T067 [P] [US4] Implement _try_automatic_detection(screenshot: np.ndarray) -> dict | None method using locate_upgrade_region module
+- [X] T068 [P] [US4] Implement _manual_selection(screenshot: np.ndarray) -> dict method using existing selection logic
+- [X] T069 [P] [US4] Integrate cache checks in get_regions: check cache → auto-detect → manual fallback → cache result
+- [X] T070 [P] [US4] Add locate_region_service Singleton provider to Container class in src/autoraid/container.py
+- [X] T071 [P] [US4] Inject cache_service and screenshot_service dependencies in provider registration
+- [X] T072 Create new file test/test_locate_region_service.py for smoke tests
+- [X] T073 Add smoke test: test_locate_region_service_instantiates() verifying LocateRegionService(mock_cache, mock_screenshot) creates instance
+- [X] T074 Add smoke test: test_locate_region_service_uses_cache() with mocked cache_service.get_regions returning regions
+- [X] T075 Update src/autoraid/autoupgrade/autoupgrade.py to inject and use locate_region_service
+- [X] T076 Update src/autoraid/cli/upgrade_cli.py to inject and use locate_region_service if needed
+- [X] T077 Run `uv run pytest test/test_locate_region_service.py` to verify locate region service smoke tests pass
+- [X] T078 Run `uv run pytest` to ensure all tests still pass
 
 **Checkpoint**: LocateRegionService extracted. Region management centralized and testable.
 

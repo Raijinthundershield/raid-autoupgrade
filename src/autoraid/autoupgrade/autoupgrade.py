@@ -12,17 +12,10 @@ from autoraid.autoupgrade.state_machine import (
     UpgradeStateMachine,
     StopCountReason as NewStopCountReason,
 )
-from autoraid.interaction import (
-    select_region_with_prompt,
-)
-from autoraid.autoupgrade.locate_upgrade_region import (
-    locate_upgrade_button,
-    locate_progress_bar,
-)
-from autoraid.locate import MissingRegionException
 from autoraid.utils import get_timestamp
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.services.locate_region_service import LocateRegionService
 
 
 # TODO: Look into screenshot and click of inactive window
@@ -158,46 +151,21 @@ def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
     Select regions for upgrade bar and button. Will by default try to find
     upgrade button automatically.
 
+    Deprecated: Use LocateRegionService.get_regions instead.
+    This function is kept for backward compatibility with CLI code.
+
     Args:
         screenshot (np.ndarray): Screenshot of the Raid upgrade window
         manual (bool, optional): If True, prompt user to select all regions. Defaults to False.
     Returns:
         dict: Dictionary containing the selected regions
     """
-    regions = {}
-    region_prompts = {
-        "upgrade_bar": "Click and drag to select upgrade bar",
-        "upgrade_button": "Click and drag to select upgrade button",
-        # "artifact_icon": "Click and drag to select artifact icon",
-        # "instant_upgrade_tickbox": "Click and drag to select instant upgrade tickbox",
-    }
-    locate_funcs = {
-        "upgrade_button": locate_upgrade_button,
-        "upgrade_bar": locate_progress_bar,
-        # "artifact_icon": locate_artifact_icon,
-        # "instant_upgrade_tickbox": locate_instant_upgrade_tickbox,
-    }
+    # Create temporary service instances (will be injected in Phase 6)
+    cache_service = CacheService(Cache("cache-raid-autoupgrade"))
+    screenshot_service = ScreenshotService()
+    locate_region_service = LocateRegionService(cache_service, screenshot_service)
 
-    logger.info("Selecting upgrade regions")
-
-    failed_prompts = {}
-    if not manual:
-        for name, prompt in region_prompts.items():
-            try:
-                logger.info(f"Automatic selection of {name}")
-                regions[name] = locate_funcs[name](screenshot)
-            except MissingRegionException:
-                logger.warning(f"Failed to locate {name}. Scheduling manual input.")
-                failed_prompts[name] = prompt
-
-    regions_to_get_manually = region_prompts if manual else failed_prompts
-    if manual or len(regions_to_get_manually) > 0:
-        logger.info(f"select {list(regions_to_get_manually.keys())} manually")
-        for name, prompt in regions_to_get_manually.items():
-            region = select_region_with_prompt(screenshot, prompt)
-            regions[name] = region
-
-    return regions
+    return locate_region_service.get_regions(screenshot, manual=manual)
 
 
 def create_cache_key_regions(window_size: tuple[int, int]) -> str:
@@ -241,6 +209,9 @@ def get_cached_screenshot(window_size: tuple[int, int], cache: Cache) -> np.ndar
 def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
     """Get cached regions for the current window size or prompt user to select new ones.
 
+    Deprecated: Use LocateRegionService.get_regions instead.
+    This function is kept for backward compatibility with CLI code.
+
     Args:
         screenshot (np.ndarray): Screenshot of the Raid window
         cache (Cache): Cache object to store/retrieve regions
@@ -248,16 +219,9 @@ def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
     Returns:
         dict: Dictionary containing the selected regions
     """
+    # Create temporary service instances (will be injected in Phase 6)
     cache_service = CacheService(cache)
-    window_size = (screenshot.shape[0], screenshot.shape[1])
+    screenshot_service = ScreenshotService()
+    locate_region_service = LocateRegionService(cache_service, screenshot_service)
 
-    # Try to get cached regions
-    regions = cache_service.get_regions(window_size)
-    if regions is None:
-        regions = select_upgrade_regions(screenshot)
-        cache_service.set_regions(window_size, regions)
-        cache_service.set_screenshot(window_size, screenshot)
-    else:
-        logger.info("Using cached regions")
-
-    return regions
+    return locate_region_service.get_regions(screenshot, manual=False)
