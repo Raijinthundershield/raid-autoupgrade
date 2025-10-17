@@ -2,22 +2,6 @@ import cv2
 import numpy as np
 
 
-def get_roi_from_screenshot(
-    screenshot: np.ndarray, region: tuple[int, int, int, int]
-) -> np.ndarray:
-    """Extract a region of interest (ROI) from a screenshot.
-
-    Args:
-        screenshot (np.ndarray): The full screenshot image
-        region (tuple): Region coordinates (left, top, width, height) relative to the screenshot
-
-    Returns:
-        np.ndarray: The extracted region of interest
-    """
-    left, top, width, height = region
-    return screenshot[top : top + height, left : left + width]
-
-
 def add_region_to_image(
     image: np.ndarray,
     region: tuple[int, int, int, int],

@@ -13,7 +13,6 @@ from autoraid.autoupgrade.state_machine import (
     StopCountReason as NewStopCountReason,
 )
 from autoraid.interaction import (
-    take_screenshot_of_window,
     select_region_with_prompt,
 )
 from autoraid.autoupgrade.locate_upgrade_region import (
@@ -24,10 +23,8 @@ from autoraid.autoupgrade.locate_upgrade_region import (
 )
 from autoraid.locate import MissingRegionException
 from autoraid.utils import get_timestamp
-from autoraid.visualization import (
-    get_roi_from_screenshot,
-)
 from autoraid.services.cache_service import CacheService
+from autoraid.services.screenshot_service import ScreenshotService
 
 
 # TODO: Look into screenshot and click of inactive window
@@ -91,10 +88,13 @@ def count_upgrade_fails(
     logger.info("Starting to monitor upgrade bar color changes...")
 
     # Count the number of fails until the max is reached or stop condition met
+    # Create temporary screenshot service instance (will be injected in Phase 6)
+    screenshot_service = ScreenshotService()
+
     stop_reason = None
     while stop_reason is None:
-        screenshot = take_screenshot_of_window(window_title)
-        upgrade_bar = get_roi_from_screenshot(screenshot, upgrade_bar_region)
+        screenshot = screenshot_service.take_screenshot(window_title)
+        upgrade_bar = screenshot_service.extract_roi(screenshot, upgrade_bar_region)
 
         # Process frame using state machine
         n_fails, stop_reason = state_machine.process_frame(upgrade_bar)

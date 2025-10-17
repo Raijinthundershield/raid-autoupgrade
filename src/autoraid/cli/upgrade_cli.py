@@ -8,9 +8,8 @@ from loguru import logger
 
 from autoraid.interaction import (
     click_region_center,
-    take_screenshot_of_window,
-    window_exists,
 )
+from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.network import NetworkManager
 from autoraid.autoupgrade.autoupgrade import (
     StopCountReason,
@@ -23,7 +22,7 @@ from autoraid.autoupgrade.autoupgrade import (
     select_upgrade_regions,
 )
 from autoraid.utils import get_timestamp
-from autoraid.visualization import get_roi_from_screenshot, show_regions_in_image
+from autoraid.visualization import show_regions_in_image
 
 
 @click.group()
@@ -72,8 +71,10 @@ def count(network_adapter_id: list[int], show_most_recent_gear: bool):
         sys.exit(0)
 
     # Check if we can find the Raid window
+    # Create temporary screenshot service instance (will be injected in Phase 6)
+    screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
-    if not window_exists(window_title):
+    if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
@@ -98,7 +99,7 @@ def count(network_adapter_id: list[int], show_most_recent_gear: bool):
         ctx = click.get_current_context()
 
         # Take screenshot
-        screenshot = take_screenshot_of_window(window_title)
+        screenshot = screenshot_service.take_screenshot(window_title)
         regions = get_regions(screenshot, ctx.obj["cache"])
 
         debug_dir = ctx.obj["debug_dir"]
@@ -155,8 +156,10 @@ def spend(max_attempts: int, continue_upgrade: bool):
     debug_dir = ctx.obj["debug_dir"]
 
     # Check if we can find the Raid window
+    # Create temporary screenshot service instance (will be injected in Phase 6)
+    screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
-    if not window_exists(window_title):
+    if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
@@ -167,7 +170,7 @@ def spend(max_attempts: int, continue_upgrade: bool):
         sys.exit(1)
 
     # Take screenshot
-    screenshot = take_screenshot_of_window(window_title)
+    screenshot = screenshot_service.take_screenshot(window_title)
     regions = get_regions(screenshot, ctx.obj["cache"])
 
     debug_dir = ctx.obj["debug_dir"]
@@ -247,8 +250,10 @@ def regions_show(output_dir: str):
     Use the -o flag to save the image and regions to a directory.
     """
     # Check if we can find the Raid window
+    # Create temporary screenshot service instance (will be injected in Phase 6)
+    screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
-    if not window_exists(window_title):
+    if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
@@ -256,7 +261,7 @@ def regions_show(output_dir: str):
     ctx = click.get_current_context()
     cache = ctx.obj["cache"]
 
-    current_screenshot = take_screenshot_of_window(window_title)
+    current_screenshot = screenshot_service.take_screenshot(window_title)
     regions = get_cached_regions(current_screenshot.shape, cache)
     screenshot = get_cached_screenshot(current_screenshot.shape, cache)
 
@@ -288,7 +293,7 @@ def regions_show(output_dir: str):
             / f"{timestamp}-{screenshot_cache_key}-screenshot_with_regions.png"
         )
         rois = {
-            name: get_roi_from_screenshot(screenshot, region)
+            name: screenshot_service.extract_roi(screenshot, region)
             for name, region in regions.items()
         }
         roi_paths = {
@@ -336,13 +341,15 @@ def regions_select(manual: bool):
     current window size. Use the -m flag to force manual selection regardless of cached regions.
     """
     # Check if we can find the Raid window
+    # Create temporary screenshot service instance (will be injected in Phase 6)
+    screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
-    if not window_exists(window_title):
+    if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
     # Select new regions
-    screenshot = take_screenshot_of_window(window_title)
+    screenshot = screenshot_service.take_screenshot(window_title)
     regions = select_upgrade_regions(screenshot, manual=manual)
 
     # Cache the regions and screenshot

@@ -6,28 +6,6 @@ import time
 from loguru import logger
 
 
-def take_screenshot_of_window(window_title: str) -> np.ndarray:
-    """Take a screenshot of the specified window.
-
-    Args:
-        window_title (str): Title of the window to capture
-
-    Returns:
-        np.ndarray: BGR image of the window
-    """
-    window = pygetwindow.getWindowsWithTitle(window_title)[0]
-    window.activate()
-    time.sleep(0.05)
-
-    screenshot = pyautogui.screenshot(
-        region=(window.left, window.top, window.width, window.height)
-    )
-    screenshot = np.array(screenshot)
-    screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
-
-    return screenshot
-
-
 def select_region_from_image(image: np.ndarray) -> tuple[int, int, int, int] | None:
     """Let user select a region by clicking and dragging on an image.
 
@@ -101,27 +79,6 @@ def select_region_with_prompt(
     region = select_region_from_image(image)
     logger.info(f"Region selected: {region}")
     return region
-
-
-def window_exists(window_title: str) -> bool:
-    """Check if a window with the given title exists.
-
-    Args:
-        window_title (str): The title of the window to check for
-
-    Returns:
-        bool: True if window exists, False otherwise
-    """
-    windows = pygetwindow.getAllWindows()
-
-    if not windows:
-        logger.warning("No active windows found!")
-
-    for window in pygetwindow.getAllWindows():
-        if window.title == window_title:
-            return True
-    else:
-        return False
 
 
 def click_region_center(window_title: str, region: tuple[int, int, int, int]) -> None:
