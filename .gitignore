@@ -6,6 +6,7 @@ ragions.json
 screenshot.png
 *.jpg
 *.jpeg
+*.png
 temp
 
 
@@ -16,6 +17,29 @@ build/
 dist/
 wheels/
 *.egg-info
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
 
 # Virtual environments
 .venv
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example

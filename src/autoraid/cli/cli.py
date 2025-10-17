@@ -5,6 +5,7 @@ from loguru import logger
 
 from autoraid.cli.upgrade_cli import upgrade
 from autoraid.cli.network_cli import network
+from autoraid.container import Container
 
 
 @click.group()
@@ -30,9 +31,28 @@ def autoraid(debug: bool):
     # Initialize cache
     cache = Cache(str(cache_dir))
 
-    # Store cache in context
+    # Create and configure DI container
+    container = Container()
+    container.config.from_dict(
+        {
+            "cache_dir": str(cache_dir),
+            "debug": debug,
+        }
+    )
+    container.wire(
+        modules=[
+            "autoraid.cli.upgrade_cli",
+            "autoraid.cli.network_cli",
+        ]
+    )
+
+    # Store cache and container in context
     ctx = click.get_current_context()
-    ctx.obj = {"cache": cache, "cache_dir": cache_dir}
+    ctx.obj = {
+        "cache": cache,
+        "cache_dir": cache_dir,
+        "container": container,
+    }
 
     # Set debug mode
     ctx.obj["debug"] = debug

@@ -1,4 +1,5 @@
 # Implementation Tasks: Service-Based Architecture Refactoring
+**Design Pattern**: Nested command groups
 
 **Branch**: `002-service-refactor` | **Date**: 2025-10-17
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)
@@ -59,18 +60,18 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T001 Add dependency-injector to pyproject.toml dependencies section
-- [ ] T002 Run `uv sync` to install dependency-injector library
-- [ ] T003 Create new file src/autoraid/container.py with DeclarativeContainer class
-- [ ] T004 Define wiring configuration in Container class for autoraid.cli.upgrade_cli and autoraid.cli.network_cli modules
-- [ ] T005 Add configuration provider to Container class (cache_dir, debug flags)
-- [ ] T006 Create disk_cache provider (Singleton) wrapping diskcache.Cache in Container class
-- [ ] T007 Modify src/autoraid/cli/cli.py to create Container instance in cli() function
-- [ ] T008 Configure container from Click context (cache_dir, debug flag) in cli() function
-- [ ] T009 Store container in Click context object (ctx.obj) for potential manual access
-- [ ] T010 Run `uv run autoraid --help` to verify CLI still works
-- [ ] T011 Run `uv run autoraid upgrade count --help` to verify upgrade commands accessible
-- [ ] T012 Run existing tests with `uv run pytest` to ensure no regressions
+- [X] T001 Add dependency-injector to pyproject.toml dependencies section
+- [X] T002 Run `uv sync` to install dependency-injector library
+- [X] T003 Create new file src/autoraid/container.py with DeclarativeContainer class
+- [X] T004 Define wiring configuration in Container class for autoraid.cli.upgrade_cli and autoraid.cli.network_cli modules
+- [X] T005 Add configuration provider to Container class (cache_dir, debug flags)
+- [X] T006 Create disk_cache provider (Singleton) wrapping diskcache.Cache in Container class
+- [X] T007 Modify src/autoraid/cli/cli.py to create Container instance in cli() function
+- [X] T008 Configure container from Click context (cache_dir, debug flag) in cli() function
+- [X] T009 Store container in Click context object (ctx.obj) for potential manual access
+- [X] T010 Run `uv run autoraid --help` to verify CLI still works
+- [X] T011 Run `uv run autoraid upgrade count --help` to verify upgrade commands accessible
+- [X] T012 Run existing tests with `uv run pytest` to ensure no regressions
 
 **Checkpoint**: DI infrastructure ready. Container created. Existing functionality unchanged.
 
