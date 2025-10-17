@@ -62,7 +62,7 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
    - **CacheService** (Singleton): Manages region/screenshot caching with diskcache
    - **ScreenshotService** (Singleton): Captures window screenshots and extracts ROIs
    - **LocateRegionService** (Singleton): Detects and caches UI regions (upgrade bar, button)
-   - **WindowInteractionService** (Singleton): Handles window activation and clicking
+   - **WindowInteractionService** (Singleton): Checks window existence, handles window activation and clicking
 
 3. **Core Domain Logic** ([src/autoraid/core/](autoraid/src/autoraid/core/))
    - **UpgradeStateMachine** (Factory): Pure logic for tracking upgrade attempts
@@ -120,7 +120,7 @@ Container (DeclarativeContainer)
 | **CacheService** | Singleton | Region/screenshot caching | disk_cache |
 | **ScreenshotService** | Singleton | Window screenshots, ROI extraction | None |
 | **LocateRegionService** | Singleton | Region detection (auto + manual) | cache_service, screenshot_service |
-| **WindowInteractionService** | Singleton | Window activation, clicking | None |
+| **WindowInteractionService** | Singleton | Window existence checking, activation, clicking | None |
 | **UpgradeStateMachine** | Factory | Frame processing, fail counting | None (pure logic) |
 | **UpgradeOrchestrator** | Factory | Workflow coordination | All services + state_machine.provider |
 
@@ -198,7 +198,8 @@ autoraid/
 │   │   └── services/             # Service tests
 │   │       ├── test_cache_service.py
 │   │       ├── test_screenshot_service.py
-│   │       └── test_locate_region_service.py
+│   │       ├── test_locate_region_service.py
+│   │       └── test_window_interaction_service.py
 │   ├── integration/              # Integration tests
 │   │   ├── test_upgrade_orchestrator.py # With mocked services
 │   │   ├── test_cli_integration.py # CLI behavior tests
@@ -242,6 +243,7 @@ AutoRaid uses **smoke tests** (not full TDD) to verify basic functionality:
      - [test/unit/services/test_cache_service.py](autoraid/test/unit/services/test_cache_service.py): Cache key generation and retrieval
      - [test/unit/services/test_screenshot_service.py](autoraid/test/unit/services/test_screenshot_service.py): ROI extraction
      - [test/unit/services/test_locate_region_service.py](autoraid/test/unit/services/test_locate_region_service.py): Region detection
+     - [test/unit/services/test_window_interaction_service.py](autoraid/test/unit/services/test_window_interaction_service.py): Window existence validation
 
 2. **Integration Tests** (with mocks):
    - [test/integration/test_upgrade_orchestrator.py](autoraid/test/integration/test_upgrade_orchestrator.py): Workflow coordination with mocked services
@@ -265,7 +267,7 @@ def test_orchestrator_with_mocks():
     mock_state_machine_provider = Mock()
 
     # Configure mock behavior
-    mock_screenshot.window_exists.return_value = True
+    mock_window.window_exists.return_value = True
     mock_screenshot.take_screenshot.return_value = fake_image
 
     # Instantiate orchestrator with mocks
@@ -281,7 +283,7 @@ def test_orchestrator_with_mocks():
     result = orchestrator.count_workflow(network_adapter_id=None, max_attempts=10)
 
     # Verify service interactions
-    mock_screenshot.window_exists.assert_called_once()
+    mock_window.window_exists.assert_called_once()
     mock_screenshot.take_screenshot.assert_called_once()
 ```
 

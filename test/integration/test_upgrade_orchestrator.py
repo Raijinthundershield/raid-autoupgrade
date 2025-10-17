@@ -52,7 +52,7 @@ class TestUpgradeOrchestrator:
     ):
         """Test that count workflow calls screenshot_service.take_screenshot."""
         # Setup mocks
-        mock_services["screenshot_service"].window_exists.return_value = True
+        mock_services["window_interaction_service"].window_exists.return_value = True
         mock_services["screenshot_service"].take_screenshot.return_value = np.zeros(
             (100, 100, 3), dtype=np.uint8
         )
@@ -112,7 +112,7 @@ class TestUpgradeOrchestrator:
     ):
         """Test that finally block re-enables network adapters even on exception."""
         # Setup mocks
-        mock_services["screenshot_service"].window_exists.return_value = True
+        mock_services["window_interaction_service"].window_exists.return_value = True
         mock_services["screenshot_service"].take_screenshot.side_effect = RuntimeError(
             "Test exception"
         )
@@ -154,7 +154,7 @@ class TestUpgradeOrchestrator:
     ):
         """Test that spend workflow executes successfully with mocked services."""
         # Setup mocks
-        mock_services["screenshot_service"].window_exists.return_value = True
+        mock_services["window_interaction_service"].window_exists.return_value = True
         mock_services["screenshot_service"].take_screenshot.return_value = np.zeros(
             (100, 100, 3), dtype=np.uint8
         )

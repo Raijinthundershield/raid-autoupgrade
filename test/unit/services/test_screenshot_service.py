@@ -86,15 +86,6 @@ def test_screenshot_service_extract_roi_validates_bounds():
         service.extract_roi(screenshot, (10, 90, 30, 40))  # 90 + 40 > 100
 
 
-def test_screenshot_service_window_exists_validates_input():
-    """Smoke test: Service validates window_title input."""
-    service = ScreenshotService()
-
-    # Test empty window title
-    with pytest.raises(ValueError, match="window_title cannot be empty"):
-        service.window_exists("")
-
-
 def test_screenshot_service_take_screenshot_validates_input():
     """Smoke test: Service validates window_title input for take_screenshot."""
     service = ScreenshotService()

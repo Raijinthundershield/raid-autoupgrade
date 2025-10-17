@@ -235,7 +235,6 @@ def regions_show(
 @inject
 def regions_select(
     manual: bool,
-    cache_service: CacheService = Provide[Container.cache_service],
     screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
     locate_region_service: LocateRegionService = Provide[
         Container.locate_region_service

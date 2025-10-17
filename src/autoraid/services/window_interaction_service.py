@@ -1,6 +1,7 @@
 """Window interaction service for clicking and activating windows.
 
 This service handles all window interaction operations including:
+- Checking window existence
 - Clicking regions within windows
 - Activating windows
 """
@@ -18,6 +19,7 @@ class WindowInteractionService:
     """Service for window interaction operations.
 
     Responsibilities:
+    - Check window existence
     - Click regions within windows
     - Activate windows
     """
@@ -25,6 +27,41 @@ class WindowInteractionService:
     def __init__(self) -> None:
         """Initialize WindowInteractionService with no dependencies."""
         logger.debug("[WindowInteractionService] Initializing")
+
+    def window_exists(self, window_title: str) -> bool:
+        """Check if a window with the given title exists.
+
+        Args:
+            window_title: Title of the window to check for
+
+        Returns:
+            True if window exists, False otherwise
+
+        Raises:
+            ValueError: If window_title is empty
+        """
+        logger.debug(
+            f'[WindowInteractionService] window_exists called with window_title="{window_title}"'
+        )
+
+        if not window_title:
+            raise ValueError("window_title cannot be empty")
+
+        windows = pygetwindow.getAllWindows()
+
+        if not windows:
+            logger.warning("[WindowInteractionService] No active windows found!")
+            return False
+
+        for window in windows:
+            if window.title == window_title:
+                logger.debug(
+                    f'[WindowInteractionService] Window "{window_title}" found'
+                )
+                return True
+
+        logger.debug(f'[WindowInteractionService] Window "{window_title}" not found')
+        return False
 
     def click_region(
         self, window_title: str, region: tuple[int, int, int, int]

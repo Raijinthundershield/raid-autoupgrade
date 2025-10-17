@@ -179,7 +179,7 @@ class UpgradeOrchestrator:
         window_title = "Raid: Shadow Legends"
 
         # Validate window exists
-        if not self._screenshot_service.window_exists(window_title):
+        if not self._window_interaction_service.window_exists(window_title):
             logger.error("[UpgradeOrchestrator] Raid window not found")
             raise WindowNotFoundException(
                 "Raid window not found. Check if Raid is running."
@@ -307,7 +307,7 @@ class UpgradeOrchestrator:
         window_title = "Raid: Shadow Legends"
 
         # Validate window exists
-        if not self._screenshot_service.window_exists(window_title):
+        if not self._window_interaction_service.window_exists(window_title):
             logger.error("[UpgradeOrchestrator] Raid window not found")
             raise WindowNotFoundException(
                 "Raid window not found. Check if Raid is running."

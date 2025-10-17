@@ -2,7 +2,6 @@
 
 This service handles all screenshot operations including:
 - Taking screenshots of windows
-- Checking window existence
 - Extracting regions of interest from screenshots
 """
 
@@ -22,7 +21,6 @@ class ScreenshotService:
 
     Responsibilities:
     - Capture window screenshots
-    - Check window existence
     - Extract regions of interest from screenshots
     """
 
@@ -84,39 +82,6 @@ class ScreenshotService:
         except Exception as e:
             logger.error(f"[ScreenshotService] Failed to capture screenshot: {e}")
             raise
-
-    def window_exists(self, window_title: str) -> bool:
-        """Check if a window with the given title exists.
-
-        Args:
-            window_title: Title of the window to check for
-
-        Returns:
-            True if window exists, False otherwise
-
-        Raises:
-            ValueError: If window_title is empty
-        """
-        logger.debug(
-            f'[ScreenshotService] window_exists called with window_title="{window_title}"'
-        )
-
-        if not window_title:
-            raise ValueError("window_title cannot be empty")
-
-        windows = pygetwindow.getAllWindows()
-
-        if not windows:
-            logger.warning("[ScreenshotService] No active windows found!")
-            return False
-
-        for window in windows:
-            if window.title == window_title:
-                logger.debug(f'[ScreenshotService] Window "{window_title}" found')
-                return True
-
-        logger.debug(f'[ScreenshotService] Window "{window_title}" not found')
-        return False
 
     def extract_roi(
         self, screenshot: np.ndarray, region: tuple[int, int, int, int]
