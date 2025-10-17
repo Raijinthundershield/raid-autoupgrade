@@ -9,6 +9,9 @@ screenshot.png
 *.png
 temp
 
+# Misc
+scripts/
+plans/
 
 # Python-generated files
 __pycache__/
