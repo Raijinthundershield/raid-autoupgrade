@@ -4,18 +4,14 @@ import time
 from enum import Enum
 
 import cv2
-import numpy as np
 from loguru import logger
-from diskcache import Cache
 
 from autoraid.autoupgrade.state_machine import (
     UpgradeStateMachine,
     StopCountReason as NewStopCountReason,
 )
 from autoraid.utils import get_timestamp
-from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.locate_region_service import LocateRegionService
 
 
 # TODO: Look into screenshot and click of inactive window
@@ -144,84 +140,3 @@ def _map_stop_reason(new_reason: NewStopCountReason) -> StopCountReason:
         NewStopCountReason.MAX_ATTEMPTS_REACHED: StopCountReason.MAX_FAILS,
     }
     return mapping.get(new_reason, StopCountReason.UNKNOWN)
-
-
-def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
-    """
-    Select regions for upgrade bar and button. Will by default try to find
-    upgrade button automatically.
-
-    Deprecated: Use LocateRegionService.get_regions instead.
-    This function is kept for backward compatibility with CLI code.
-
-    Args:
-        screenshot (np.ndarray): Screenshot of the Raid upgrade window
-        manual (bool, optional): If True, prompt user to select all regions. Defaults to False.
-    Returns:
-        dict: Dictionary containing the selected regions
-    """
-    # Create temporary service instances (will be injected in Phase 6)
-    cache_service = CacheService(Cache("cache-raid-autoupgrade"))
-    screenshot_service = ScreenshotService()
-    locate_region_service = LocateRegionService(cache_service, screenshot_service)
-
-    return locate_region_service.get_regions(screenshot, manual=manual)
-
-
-def create_cache_key_regions(window_size: tuple[int, int]) -> str:
-    """Create a cache key for the regions based on the window size.
-
-    Deprecated: Use CacheService.create_regions_key instead.
-    This function is kept for backward compatibility with CLI code.
-    """
-    return CacheService.create_regions_key(window_size)
-
-
-def create_cache_key_screenshot(window_size: tuple[int, int]) -> str:
-    """Create a cache key for the screenshot based on the window size.
-
-    Deprecated: Use CacheService.create_screenshot_key instead.
-    This function is kept for backward compatibility with CLI code.
-    """
-    return CacheService.create_screenshot_key(window_size)
-
-
-def get_cached_regions(window_size: tuple[int, int], cache: Cache) -> dict:
-    """Get cached regions for the current window size.
-
-    Deprecated: Use CacheService.get_regions instead.
-    This function is kept for backward compatibility with CLI code.
-    """
-    cache_service = CacheService(cache)
-    return cache_service.get_regions(window_size)
-
-
-def get_cached_screenshot(window_size: tuple[int, int], cache: Cache) -> np.ndarray:
-    """Get cached screenshot for the current window size.
-
-    Deprecated: Use CacheService.get_screenshot instead.
-    This function is kept for backward compatibility with CLI code.
-    """
-    cache_service = CacheService(cache)
-    return cache_service.get_screenshot(window_size)
-
-
-def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:
-    """Get cached regions for the current window size or prompt user to select new ones.
-
-    Deprecated: Use LocateRegionService.get_regions instead.
-    This function is kept for backward compatibility with CLI code.
-
-    Args:
-        screenshot (np.ndarray): Screenshot of the Raid window
-        cache (Cache): Cache object to store/retrieve regions
-
-    Returns:
-        dict: Dictionary containing the selected regions
-    """
-    # Create temporary service instances (will be injected in Phase 6)
-    cache_service = CacheService(cache)
-    screenshot_service = ScreenshotService()
-    locate_region_service = LocateRegionService(cache_service, screenshot_service)
-
-    return locate_region_service.get_regions(screenshot, manual=False)

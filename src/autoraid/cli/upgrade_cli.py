@@ -12,15 +12,10 @@ from autoraid.exceptions import (
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
+from autoraid.services.cache_service import CacheService
+from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
-from autoraid.autoupgrade.autoupgrade import (
-    create_cache_key_regions,
-    create_cache_key_screenshot,
-    get_cached_regions,
-    get_cached_screenshot,
-    select_upgrade_regions,
-)
 from autoraid.utils import get_timestamp
 from autoraid.visualization import show_regions_in_image
 
@@ -146,7 +141,12 @@ def region():
     default=None,
     help="Save image with regions to cache directory",
 )
-def regions_show(output_dir: str):
+@inject
+def regions_show(
+    output_dir: str,
+    cache_service: CacheService = Provide[Container.cache_service],
+    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+):
     """Show the currently cached regions within a screenshot of the current window.
 
     This command displays an image showing the currently cached regions for the upgrade bar
@@ -154,20 +154,18 @@ def regions_show(output_dir: str):
     Use the -o flag to save the image and regions to a directory.
     """
     # Check if we can find the Raid window
-    # Create temporary service instance (will be injected in Phase 6)
-    screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
     if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
-    # Get cache from context
-    ctx = click.get_current_context()
-    cache = ctx.obj["cache"]
-
+    # Take screenshot and get window size
     current_screenshot = screenshot_service.take_screenshot(window_title)
-    regions = get_cached_regions(current_screenshot.shape, cache)
-    screenshot = get_cached_screenshot(current_screenshot.shape, cache)
+    window_size = (current_screenshot.shape[0], current_screenshot.shape[1])
+
+    # Get cached regions and screenshot
+    regions = cache_service.get_regions(window_size)
+    screenshot = cache_service.get_screenshot(window_size)
 
     if regions is None:
         logger.error(
@@ -177,7 +175,6 @@ def regions_show(output_dir: str):
 
     logger.info("Showing cached regions")
 
-    ctx = click.get_current_context()
     screenshot_w_regions = show_regions_in_image(screenshot, regions)
 
     if output_dir:
@@ -185,8 +182,8 @@ def regions_show(output_dir: str):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = get_timestamp()
-        region_cache_key = create_cache_key_regions(screenshot.shape)
-        screenshot_cache_key = create_cache_key_screenshot(screenshot.shape)
+        region_cache_key = CacheService.create_regions_key(window_size)
+        screenshot_cache_key = CacheService.create_screenshot_key(window_size)
 
         json_path = output_dir / f"{timestamp}-{region_cache_key}-regions.json"
         screenshot_path = (
@@ -235,7 +232,15 @@ def regions_show(output_dir: str):
     default=False,
     help="Manually select the regions.",
 )
-def regions_select(manual: bool):
+@inject
+def regions_select(
+    manual: bool,
+    cache_service: CacheService = Provide[Container.cache_service],
+    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    locate_region_service: LocateRegionService = Provide[
+        Container.locate_region_service
+    ],
+):
     """Select and cache regions for upgrade bar and button.
 
     This command allows you to select the regions used for detecting the upgrade bar and button.
@@ -245,26 +250,14 @@ def regions_select(manual: bool):
     current window size. Use the -m flag to force manual selection regardless of cached regions.
     """
     # Check if we can find the Raid window
-    # Create temporary service instance (will be injected in Phase 6)
-    screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
     if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
         sys.exit(1)
 
-    # Select new regions
+    # Select and cache regions using locate_region_service
+    # Note: locate_region_service.get_regions() already handles caching internally
     screenshot = screenshot_service.take_screenshot(window_title)
-    regions = select_upgrade_regions(screenshot, manual=manual)
-
-    # Cache the regions and screenshot
-    ctx = click.get_current_context()
-    cache = ctx.obj["cache"]
-
-    window_size = [screenshot.shape[0], screenshot.shape[1]]
-    cache_key_regions = create_cache_key_regions(window_size)
-    cache_key_screenshot = create_cache_key_screenshot(window_size)
-
-    cache.set(cache_key_regions, regions)
-    cache.set(cache_key_screenshot, screenshot)
+    locate_region_service.get_regions(screenshot, manual=manual)
 
     logger.info("Regions selected and cached successfully")
