@@ -16,8 +16,8 @@ from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
-from autoraid.utils import get_timestamp
-from autoraid.visualization import show_regions_in_image
+from autoraid.utils.common import get_timestamp
+from autoraid.utils.visualization import show_regions_in_image
 
 
 @click.group()

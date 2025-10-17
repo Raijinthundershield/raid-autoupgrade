@@ -64,20 +64,25 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
    - **LocateRegionService** (Singleton): Detects and caches UI regions (upgrade bar, button)
    - **WindowInteractionService** (Singleton): Handles window activation and clicking
 
-3. **State Machine** ([src/autoraid/autoupgrade/state_machine.py](autoraid/src/autoraid/autoupgrade/state_machine.py))
+3. **Core Domain Logic** ([src/autoraid/core/](autoraid/src/autoraid/core/))
    - **UpgradeStateMachine** (Factory): Pure logic for tracking upgrade attempts
-   - Processes progress bar frames and counts fail states
-   - No I/O dependencies - testable with fixture images
-   - Tracks recent states in deque to detect stop conditions
+     - Processes progress bar frames and counts fail states
+     - No I/O dependencies - testable with fixture images
+     - Tracks recent states in deque to detect stop conditions
+   - **Progress Bar Detection**: Color-based state detection (fail/standby/progress/connection_error)
+   - **Region Location**: Automatic detection of UI regions using template matching
+   - **Artifact Icon**: OCR-based artifact level detection
 
-4. **Computer Vision** ([src/autoraid/autoupgrade/](autoraid/src/autoraid/autoupgrade/))
-   - [progress_bar.py](autoraid/src/autoraid/autoupgrade/progress_bar.py): Progress bar state detection (fail/standby/progress/connection_error)
-   - [locate_upgrade_region.py](autoraid/src/autoraid/autoupgrade/locate_upgrade_region.py): Automatic detection of UI regions
-   - [artifact_icon.py](autoraid/src/autoraid/autoupgrade/artifact_icon.py): Artifact icon handling
+4. **Utilities** ([src/autoraid/utils/](autoraid/src/autoraid/utils/))
+   - **Interaction**: Low-level region selection with OpenCV GUI
+   - **Visualization**: Image display and annotation for debugging
+   - **Common**: General utilities (timestamps, etc.)
 
-5. **Utilities**
-   - [interaction.py](autoraid/src/autoraid/interaction.py): Low-level region selection with OpenCV GUI
-   - [network.py](autoraid/src/autoraid/network.py): Windows WMI-based network adapter control
+5. **Platform-Specific** ([src/autoraid/platform/](autoraid/src/autoraid/platform/))
+   - **NetworkManager**: Windows WMI-based network adapter control
+   - Windows-only implementations for OS-specific operations
+
+6. **Infrastructure**
    - [exceptions.py](autoraid/src/autoraid/exceptions.py): Custom exception classes
    - [container.py](autoraid/src/autoraid/container.py): Dependency injection container configuration
 
@@ -131,7 +136,7 @@ Container (DeclarativeContainer)
 
 ### Progress Bar State Detection
 
-The core algorithm in [progress_bar.py](autoraid/src/autoraid/autoupgrade/progress_bar.py) uses average BGR color values to determine state:
+The core algorithm in [progress_bar.py](autoraid/src/autoraid/core/progress_bar.py) uses average BGR color values to determine state:
 - **fail**: Red (b<70, g<90, r>130)
 - **progress**: Yellow (b<70, abs(r-g)<50)
 - **standby**: Black (b<30, g<60, r<70)
@@ -171,25 +176,38 @@ autoraid/
 │   │   ├── locate_region_service.py # Region detection
 │   │   ├── window_interaction_service.py # Window clicking
 │   │   └── upgrade_orchestrator.py # Workflow coordination
-│   ├── autoupgrade/              # Core upgrade logic
+│   ├── core/                     # Core domain logic
 │   │   ├── state_machine.py      # Pure state machine (testable)
 │   │   ├── progress_bar.py       # Progress bar state detection
-│   │   ├── locate_upgrade_region.py # Automatic region detection
-│   │   └── autoupgrade.py        # Legacy/wrapper functions
+│   │   ├── locate_region.py      # Automatic region detection
+│   │   ├── artifact_icon.py      # Artifact icon OCR
+│   │   └── templates/            # CV templates for region detection
+│   ├── utils/                    # Utility modules
+│   │   ├── common.py             # General utilities (timestamps, etc.)
+│   │   ├── interaction.py        # Low-level region selection
+│   │   └── visualization.py      # Image display/annotation
+│   ├── platform/                 # Platform-specific code
+│   │   └── network.py            # Windows network adapter management
 │   ├── container.py              # DI container configuration
-│   ├── exceptions.py             # Custom exception classes
-│   ├── interaction.py            # Low-level region selection
-│   ├── network.py                # Network adapter management
-│   ├── visualization.py          # Image display/annotation
-│   └── utils.py                  # General utilities
-├── test/                         # Tests (smoke + integration)
-│   ├── test_state_machine.py    # State machine tests
-│   ├── test_cache_service.py    # Cache service tests
-│   ├── test_screenshot_service.py # Screenshot service tests
-│   ├── test_locate_region_service.py # Region service tests
-│   ├── test_upgrade_orchestrator.py # Orchestrator tests with mocks
-│   └── test_cli_integration.py  # CLI integration tests
+│   └── exceptions.py             # Custom exception classes
+├── test/                         # Tests organized by type
+│   ├── unit/                     # Unit tests
+│   │   ├── core/                 # Core logic tests
+│   │   │   ├── test_state_machine.py
+│   │   │   └── test_progressbar_state.py
+│   │   └── services/             # Service tests
+│   │       ├── test_cache_service.py
+│   │       ├── test_screenshot_service.py
+│   │       └── test_locate_region_service.py
+│   ├── integration/              # Integration tests
+│   │   ├── test_upgrade_orchestrator.py # With mocked services
+│   │   ├── test_cli_integration.py # CLI behavior tests
+│   │   └── test_locate.py        # Region detection tests
+│   └── fixtures/                 # Test fixtures and images
+│       └── images/               # Test images for CV
 ├── scripts/                      # Helper scripts
+│   ├── average_color.py          # Color analysis utility
+│   └── get_artifact_icons.py    # Artifact icon scraper
 ├── docs/                         # Documentation
 ├── pyproject.toml                # Project config & dependencies
 └── .pre-commit-config.yaml
@@ -216,19 +234,19 @@ Key libraries:
 
 AutoRaid uses **smoke tests** (not full TDD) to verify basic functionality:
 
-1. **Unit Tests** (services layer):
-   - [test_state_machine.py](autoraid/test/test_state_machine.py): State machine with fixture images
-   - [test_cache_service.py](autoraid/test/test_cache_service.py): Cache key generation and retrieval
-   - [test_screenshot_service.py](autoraid/test/test_screenshot_service.py): ROI extraction
-   - [test_locate_region_service.py](autoraid/test/test_locate_region_service.py): Region detection
+1. **Unit Tests** (core and services):
+   - Core logic tests:
+     - [test/unit/core/test_state_machine.py](autoraid/test/unit/core/test_state_machine.py): State machine with fixture images
+     - [test/unit/core/test_progressbar_state.py](autoraid/test/unit/core/test_progressbar_state.py): Progress bar color detection
+   - Service tests:
+     - [test/unit/services/test_cache_service.py](autoraid/test/unit/services/test_cache_service.py): Cache key generation and retrieval
+     - [test/unit/services/test_screenshot_service.py](autoraid/test/unit/services/test_screenshot_service.py): ROI extraction
+     - [test/unit/services/test_locate_region_service.py](autoraid/test/unit/services/test_locate_region_service.py): Region detection
 
 2. **Integration Tests** (with mocks):
-   - [test_upgrade_orchestrator.py](autoraid/test/test_upgrade_orchestrator.py): Workflow coordination with mocked services
-   - [test_cli_integration.py](autoraid/test/test_cli_integration.py): CLI behavior and backward compatibility
-
-3. **Legacy Tests**:
-   - [test_progressbar_state.py](autoraid/test/test_progressbar_state.py): Progress bar color detection
-   - [test_locate.py](autoraid/test/test_locate.py): Region location
+   - [test/integration/test_upgrade_orchestrator.py](autoraid/test/integration/test_upgrade_orchestrator.py): Workflow coordination with mocked services
+   - [test/integration/test_cli_integration.py](autoraid/test/integration/test_cli_integration.py): CLI behavior and backward compatibility
+   - [test/integration/test_locate.py](autoraid/test/integration/test_locate.py): Region location with test images
 
 ### Mock Testing Patterns
 
@@ -283,8 +301,14 @@ uv run pytest
 uv run pytest --cov=autoraid --cov-report=term-missing
 
 # Specific test file
-uv run pytest test/test_state_machine.py
+uv run pytest test/unit/core/test_state_machine.py
 
 # State machine coverage check
-uv run pytest --cov=autoraid.autoupgrade.state_machine --cov-report=term-missing test/test_state_machine.py
+uv run pytest --cov=autoraid.core.state_machine --cov-report=term-missing test/unit/core/test_state_machine.py
+
+# Run only unit tests
+uv run pytest test/unit/
+
+# Run only integration tests
+uv run pytest test/integration/
 ```

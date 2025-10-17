@@ -1,0 +1,14 @@
+Usage: autoraid upgrade count [OPTIONS]
+
+  Count the number of upgrade fails.
+
+  Use network adapter ids to enable automatically turning network off and on.
+  Use ids from the output of the `network list` command.
+
+Options:
+  -n, --network-adapter-id INTEGER
+                                  Network adapter ids to enable automatically
+                                  turning network off and on.
+  -s, --show-most-recent-gear     Show the most recent gear piece that was
+                                  counted.
+  --help                          Show this message and exit.

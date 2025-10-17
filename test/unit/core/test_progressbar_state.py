@@ -1,12 +1,14 @@
 import json
 from pathlib import Path
 import cv2
-from autoraid.autoupgrade.progress_bar import get_progress_bar_state
+from autoraid.core.progress_bar import get_progress_bar_state
 
 import pytest
 
 # Load annotations once
-IMAGE_DIR = Path(__file__).parent / Path("images/progress_bar_state")
+IMAGE_DIR = Path(__file__).parent.parent.parent / Path(
+    "fixtures/images/progress_bar_state"
+)
 ANNOTATION_PATH = IMAGE_DIR / "annotations_progress_bar_state.json"
 with open(ANNOTATION_PATH) as f:
     ANNOTATIONS = json.load(f)

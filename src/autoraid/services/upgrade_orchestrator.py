@@ -8,18 +8,18 @@ from collections.abc import Callable
 import cv2
 from loguru import logger
 
-from autoraid.autoupgrade.autoupgrade import StopCountReason, count_upgrade_fails
+from autoraid.core.state_machine import UpgradeStateMachine, StopCountReason
 from autoraid.exceptions import (
     WindowNotFoundException,
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
-from autoraid.network import NetworkManager
+from autoraid.platform.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.utils import get_timestamp
+from autoraid.utils.common import get_timestamp
 
 
 class UpgradeOrchestrator:
@@ -58,6 +58,89 @@ class UpgradeOrchestrator:
         self._locate_region_service = locate_region_service
         self._window_interaction_service = window_interaction_service
         self._state_machine_provider = state_machine_provider
+
+    def _count_upgrade_fails(
+        self,
+        window_title: str,
+        upgrade_bar_region: tuple[int, int, int, int],
+        max_attempts: int,
+        check_interval: float = 0.25,
+        debug_dir: Path | None = None,
+    ) -> tuple[int, StopCountReason]:
+        """Count upgrade fails using state machine.
+
+        Args:
+            window_title: Title of the Raid window
+            upgrade_bar_region: Region coordinates (left, top, width, height)
+            max_attempts: Maximum upgrade attempts
+            check_interval: Time between frame checks
+            debug_dir: Directory for debug artifacts
+
+        Returns:
+            Tuple of (fail_count, stop_reason)
+        """
+        state_machine: UpgradeStateMachine = self._state_machine_provider(
+            max_attempts=max_attempts
+        )
+
+        debug_metadata = {
+            "upgrade_bar_region": upgrade_bar_region,
+            "timestamp": [],
+            "current_state": {},
+            "n_fails": {},
+        }
+        debug_screenshots = {}
+        debug_upgrade_bar_rois = {}
+
+        logger.info("Starting to monitor upgrade bar color changes...")
+
+        stop_reason = None
+        while stop_reason is None:
+            screenshot = self._screenshot_service.take_screenshot(window_title)
+            upgrade_bar = self._screenshot_service.extract_roi(
+                screenshot, upgrade_bar_region
+            )
+
+            # Process frame using state machine
+            n_fails, stop_reason = state_machine.process_frame(upgrade_bar)
+
+            # Store debug information
+            if debug_dir is not None:
+                timestamp = get_timestamp()
+                debug_screenshots[timestamp] = screenshot
+                debug_upgrade_bar_rois[timestamp] = upgrade_bar
+                debug_metadata["timestamp"].append(timestamp)
+                debug_metadata["n_fails"][timestamp] = n_fails
+                if len(state_machine.recent_states) > 0:
+                    current_state = state_machine.recent_states[-1].value
+                    debug_metadata["current_state"][timestamp] = current_state
+
+            time.sleep(check_interval)
+
+        # Save debug data if debug_dir specified
+        if debug_dir is not None:
+            output_dir = debug_dir / "count_upgrade_fails"
+            output_dir.mkdir(exist_ok=True)
+            logger.debug(f"Saving count_upgrade_fails debug data to {output_dir}")
+            for timestamp in debug_metadata["timestamp"]:
+                current_state = debug_metadata["current_state"].get(
+                    timestamp, "unknown"
+                )
+                cv2.imwrite(
+                    str(output_dir / f"{timestamp}_{current_state}_screenshot.png"),
+                    debug_screenshots[timestamp],
+                )
+                cv2.imwrite(
+                    str(
+                        output_dir / f"{timestamp}_{current_state}_upgrade_bar_roi.png"
+                    ),
+                    debug_upgrade_bar_rois[timestamp],
+                )
+            with open(output_dir / "debug_metadata.json", "w") as f:
+                json.dump(debug_metadata, f)
+
+        logger.info(f"Finished counting. Detected {n_fails} fails.")
+        return n_fails, stop_reason
 
     def count_workflow(
         self,
@@ -159,7 +242,7 @@ class UpgradeOrchestrator:
 
             # Count upgrade fails
             logger.info("[UpgradeOrchestrator] Counting upgrade fails")
-            n_fails, reason = count_upgrade_fails(
+            n_fails, reason = self._count_upgrade_fails(
                 window_title=window_title,
                 upgrade_bar_region=regions["upgrade_bar"],
                 max_attempts=max_attempts,
@@ -272,7 +355,7 @@ class UpgradeOrchestrator:
             logger.debug(
                 f"[UpgradeOrchestrator] Counting upgrade fails (remaining: {max_attempts - n_attempts})"
             )
-            n_fails, reason = count_upgrade_fails(
+            n_fails, reason = self._count_upgrade_fails(
                 window_title=window_title,
                 upgrade_bar_region=regions["upgrade_bar"],
                 max_attempts=max_attempts - n_attempts,
@@ -281,7 +364,7 @@ class UpgradeOrchestrator:
             n_attempts += n_fails
             last_reason = reason
 
-            if reason == StopCountReason.MAX_FAILS:
+            if reason == StopCountReason.MAX_ATTEMPTS_REACHED:
                 logger.info(
                     f"[UpgradeOrchestrator] Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
                 )

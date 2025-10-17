@@ -6,7 +6,7 @@ These tests verify basic functionality of the state machine with fixture images.
 import cv2
 import pytest
 
-from autoraid.autoupgrade.state_machine import (
+from autoraid.core.state_machine import (
     ProgressBarState,
     StopCountReason,
     UpgradeStateMachine,
@@ -16,25 +16,25 @@ from autoraid.autoupgrade.state_machine import (
 @pytest.fixture
 def fail_image():
     """Load a fixture image showing fail state."""
-    return cv2.imread("test/images/progress_bar_state/fail.png")
+    return cv2.imread("test/fixtures/images/progress_bar_state/fail.png")
 
 
 @pytest.fixture
 def standby_image():
     """Load a fixture image showing standby state."""
-    return cv2.imread("test/images/progress_bar_state/standby.png")
+    return cv2.imread("test/fixtures/images/progress_bar_state/standby.png")
 
 
 @pytest.fixture
 def progress_image():
     """Load a fixture image showing progress state."""
-    return cv2.imread("test/images/progress_bar_state/progress.png")
+    return cv2.imread("test/fixtures/images/progress_bar_state/progress.png")
 
 
 @pytest.fixture
 def connection_error_image():
     """Load a fixture image showing connection error state."""
-    return cv2.imread("test/images/progress_bar_state/connection_error.png")
+    return cv2.imread("test/fixtures/images/progress_bar_state/connection_error.png")
 
 
 def test_state_machine_instantiates():

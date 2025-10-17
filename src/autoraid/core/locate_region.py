@@ -3,10 +3,49 @@ import importlib.resources
 
 import cv2
 import numpy as np
+from pyscreeze import Box, ImageNotFoundException, locate
 
-from autoraid.locate import MissingRegionException, locate_region
+template_dir = importlib.resources.files("autoraid") / "core" / "templates"
 
-template_dir = importlib.resources.files("autoraid") / "autoupgrade" / "templates"
+
+class MissingRegionException(Exception):
+    """Exception raised when a required region cannot be found in the screenshot."""
+
+    def __init__(self, region_name: str):
+        self.region_name = region_name
+        self.message = f"Could not find {region_name} region in the screenshot."
+        super().__init__(self.message)
+
+
+def locate_region(
+    screenshot: np.ndarray,
+    template: np.ndarray,
+    confidence: float = 0.8,
+    region_name: str = "",
+) -> tuple[int, int, int, int]:
+    """Locate a template region in the screenshot.
+
+    Args:
+        screenshot: Screenshot to search in
+        template: Template image to find
+        confidence: Confidence threshold (0-1)
+        region_name: Name of region for error messages
+
+    Returns:
+        Tuple of (left, top, width, height)
+
+    Raises:
+        MissingRegionException: If region cannot be found
+    """
+    try:
+        region: Box = locate(template, screenshot, confidence=confidence)
+    except ImageNotFoundException:
+        raise MissingRegionException(region_name)
+
+    # Convert from pyscreeze format (left, top, width, height)
+    left, top, width, height = region
+    return (int(left), int(top), int(width), int(height))
+
 
 upgrade_button_template = cv2.imread(template_dir / "upgrade_button.png")
 progress_bar_template = cv2.imread(template_dir / "progress_bar.png")

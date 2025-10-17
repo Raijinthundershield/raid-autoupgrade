@@ -6,7 +6,7 @@ from enum import Enum
 import numpy as np
 from loguru import logger
 
-from autoraid.autoupgrade import progress_bar
+from autoraid.core import progress_bar
 
 
 class ProgressBarState(Enum):

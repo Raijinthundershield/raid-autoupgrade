@@ -12,12 +12,12 @@ from loguru import logger
 
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.autoupgrade.locate_upgrade_region import (
+from autoraid.core.locate_region import (
     locate_upgrade_button,
     locate_progress_bar,
+    MissingRegionException,
 )
-from autoraid.locate import MissingRegionException
-from autoraid.interaction import select_region_with_prompt
+from autoraid.utils.interaction import select_region_with_prompt
 
 
 class LocateRegionService:

@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from autoraid.autoupgrade.locate_upgrade_region import (
+from autoraid.core.locate_region import (
     locate_progress_bar,
     locate_upgrade_button,
     upgrade_button_template,
@@ -14,7 +14,9 @@ from autoraid.autoupgrade.locate_upgrade_region import (
 
 
 # Load annotations once
-IMAGE_DIR = Path(__file__).parent / Path("images/locate_upgrade_regions")
+IMAGE_DIR = Path(__file__).parent.parent / Path(
+    "fixtures/images/locate_upgrade_regions"
+)
 ANNOTATION_PATH = IMAGE_DIR / "annotation.json"
 with open(ANNOTATION_PATH) as f:
     ANNOTATIONS = json.load(f)
@@ -22,7 +24,7 @@ with open(ANNOTATION_PATH) as f:
 
 @pytest.fixture()
 def image_dir():
-    return Path(__file__).parent / Path("images/locate_upgrade_regions")
+    return Path(__file__).parent.parent / Path("fixtures/images/locate_upgrade_regions")
 
 
 @pytest.mark.parametrize("template", [upgrade_button_template, progress_bar_template])
