@@ -262,29 +262,29 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T087 [P] [US3] [US4] Create new file src/autoraid/services/upgrade_orchestrator.py
-- [ ] T088 [P] [US3] [US4] Define UpgradeOrchestrator class with __init__ accepting all service dependencies
-- [ ] T089 [P] [US3] [US4] Add constructor parameters: cache_service, screenshot_service, locate_region_service, window_interaction_service, state_machine (factory/provider)
-- [ ] T090 [US3] [US4] Implement count_workflow(network_adapter_id: list[int] | None, max_attempts: int) -> tuple[int, StopCountReason] method
-- [ ] T091 [US3] [US4] Move orchestration logic from CLI count command to count_workflow method
-- [ ] T092 [US3] [US4] Add network disable/enable with finally block in count_workflow ensuring adapters re-enabled
-- [ ] T093 [US3] [US4] Add INFO-level logging for workflow milestones: "Starting count workflow", "Captured screenshot", etc.
-- [ ] T094 [US3] [US4] Add DEBUG-level logging for service entry/exit with [UpgradeOrchestrator] prefix
-- [ ] T095 [US3] [US4] Implement spend_workflow(fail_count: int, max_attempts: int, continue_upgrade: bool) -> dict method
-- [ ] T096 [US3] [US4] Move orchestration logic from CLI spend command to spend_workflow method
-- [ ] T097 [US3] [US4] Add upgrade_orchestrator Factory provider to Container class in src/autoraid/container.py
-- [ ] T098 [US3] [US4] Inject all service dependencies and state_machine.provider in orchestrator provider registration
-- [ ] T099 [US3] Create new file test/test_upgrade_orchestrator.py for smoke tests
-- [ ] T100 [US3] Create TestContainer class with mocked service providers in test_upgrade_orchestrator.py
-- [ ] T101 [US3] Add smoke test: test_orchestrator_instantiates() verifying UpgradeOrchestrator creates with mocked dependencies
-- [ ] T102 [US3] Add smoke test: test_orchestrator_count_workflow_calls_services() verifying orchestrator calls screenshot_service.take_screenshot
-- [ ] T103 [US3] Add smoke test: test_orchestrator_count_workflow_re_enables_network() verifying finally block executes on exception
-- [ ] T104 Run `uv run pytest test/test_upgrade_orchestrator.py` to verify orchestrator smoke tests pass
-- [ ] T105 Run `uv run pytest` to ensure all tests still pass
-- [ ] T105a [US4] Create integration test baseline by running `uv run autoraid upgrade count --help` and `uv run autoraid upgrade count -n 1 --dry-run` (if available) and capturing output to test/integration_baseline.txt
-- [ ] T105b [US4] Create new file test/test_cli_integration.py with test_count_command_help_unchanged() comparing current help output to baseline
-- [ ] T105c [US4] Add integration test test_cached_regions_load_successfully() verifying pre-refactor cached regions load without errors
-- [ ] T105d [US4] Run `uv run pytest test/test_cli_integration.py` to verify US4 acceptance scenarios pass
+- [X] T087 [P] [US3] [US4] Create new file src/autoraid/services/upgrade_orchestrator.py
+- [X] T088 [P] [US3] [US4] Define UpgradeOrchestrator class with __init__ accepting all service dependencies
+- [X] T089 [P] [US3] [US4] Add constructor parameters: cache_service, screenshot_service, locate_region_service, window_interaction_service, state_machine (factory/provider)
+- [X] T090 [US3] [US4] Implement count_workflow(network_adapter_id: list[int] | None, max_attempts: int) -> tuple[int, StopCountReason] method
+- [X] T091 [US3] [US4] Move orchestration logic from CLI count command to count_workflow method
+- [X] T092 [US3] [US4] Add network disable/enable with finally block in count_workflow ensuring adapters re-enabled
+- [X] T093 [US3] [US4] Add INFO-level logging for workflow milestones: "Starting count workflow", "Captured screenshot", etc.
+- [X] T094 [US3] [US4] Add DEBUG-level logging for service entry/exit with [UpgradeOrchestrator] prefix
+- [X] T095 [US3] [US4] Implement spend_workflow(fail_count: int, max_attempts: int, continue_upgrade: bool) -> dict method
+- [X] T096 [US3] [US4] Move orchestration logic from CLI spend command to spend_workflow method
+- [X] T097 [US3] [US4] Add upgrade_orchestrator Factory provider to Container class in src/autoraid/container.py
+- [X] T098 [US3] [US4] Inject all service dependencies and state_machine.provider in orchestrator provider registration
+- [X] T099 [US3] Create new file test/test_upgrade_orchestrator.py for smoke tests
+- [X] T100 [US3] Create TestContainer class with mocked service providers in test_upgrade_orchestrator.py
+- [X] T101 [US3] Add smoke test: test_orchestrator_instantiates() verifying UpgradeOrchestrator creates with mocked dependencies
+- [X] T102 [US3] Add smoke test: test_orchestrator_count_workflow_calls_services() verifying orchestrator calls screenshot_service.take_screenshot
+- [X] T103 [US3] Add smoke test: test_orchestrator_count_workflow_re_enables_network() verifying finally block executes on exception
+- [X] T104 Run `uv run pytest test/test_upgrade_orchestrator.py` to verify orchestrator smoke tests pass
+- [X] T105 Run `uv run pytest` to ensure all tests still pass
+- [X] T105a [US4] Create integration test baseline by running `uv run autoraid upgrade count --help` and `uv run autoraid upgrade count -n 1 --dry-run` (if available) and capturing output to test/integration_baseline.txt
+- [X] T105b [US4] Create new file test/test_cli_integration.py with test_count_command_help_unchanged() comparing current help output to baseline
+- [X] T105c [US4] Add integration test test_cached_regions_load_successfully() verifying pre-refactor cached regions load without errors
+- [X] T105d [US4] Run `uv run pytest test/test_cli_integration.py` to verify US4 acceptance scenarios pass
 
 **Checkpoint**: US3 delivered (mocked testing possible). US4 validated (integration tests pass - CLI behavior unchanged). Business logic separated from CLI.
 

@@ -8,6 +8,7 @@ from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 
 
 class Container(containers.DeclarativeContainer):
@@ -59,4 +60,13 @@ class Container(containers.DeclarativeContainer):
     state_machine = providers.Factory(
         UpgradeStateMachine,
         max_attempts=config.max_attempts.as_(int),
+    )
+
+    upgrade_orchestrator = providers.Factory(
+        UpgradeOrchestrator,
+        cache_service=cache_service,
+        screenshot_service=screenshot_service,
+        locate_region_service=locate_region_service,
+        window_interaction_service=window_interaction_service,
+        state_machine_provider=state_machine.provider,
     )
