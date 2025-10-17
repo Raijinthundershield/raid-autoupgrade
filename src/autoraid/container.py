@@ -7,6 +7,7 @@ from autoraid.autoupgrade.state_machine import UpgradeStateMachine
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
+from autoraid.services.window_interaction_service import WindowInteractionService
 
 
 class Container(containers.DeclarativeContainer):
@@ -48,6 +49,10 @@ class Container(containers.DeclarativeContainer):
         LocateRegionService,
         cache_service=cache_service,
         screenshot_service=screenshot_service,
+    )
+
+    window_interaction_service = providers.Singleton(
+        WindowInteractionService,
     )
 
     # Factory services (new instance per operation)

@@ -6,10 +6,8 @@ import sys
 import cv2
 from loguru import logger
 
-from autoraid.interaction import (
-    click_region_center,
-)
 from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.network import NetworkManager
 from autoraid.autoupgrade.autoupgrade import (
     StopCountReason,
@@ -71,8 +69,9 @@ def count(network_adapter_id: list[int], show_most_recent_gear: bool):
         sys.exit(0)
 
     # Check if we can find the Raid window
-    # Create temporary screenshot service instance (will be injected in Phase 6)
+    # Create temporary service instances (will be injected in Phase 6)
     screenshot_service = ScreenshotService()
+    window_interaction_service = WindowInteractionService()
     window_title = "Raid: Shadow Legends"
     if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
@@ -114,7 +113,7 @@ def count(network_adapter_id: list[int], show_most_recent_gear: bool):
 
         # Click the upgrade level to start upgrading
         logger.info("Clicking upgrade button")
-        click_region_center(window_title, regions["upgrade_button"])
+        window_interaction_service.click_region(window_title, regions["upgrade_button"])
 
         # Count upgrades until levelup or fails have been reaced
         n_fails, reason = count_upgrade_fails(
@@ -156,8 +155,9 @@ def spend(max_attempts: int, continue_upgrade: bool):
     debug_dir = ctx.obj["debug_dir"]
 
     # Check if we can find the Raid window
-    # Create temporary screenshot service instance (will be injected in Phase 6)
+    # Create temporary service instances (will be injected in Phase 6)
     screenshot_service = ScreenshotService()
+    window_interaction_service = WindowInteractionService()
     window_title = "Raid: Shadow Legends"
     if not screenshot_service.window_exists(window_title):
         logger.warning("Raid window not found. Check if Raid is running.")
@@ -191,7 +191,7 @@ def spend(max_attempts: int, continue_upgrade: bool):
         upgrade = False
 
         logger.info("Clicking upgrade button")
-        click_region_center(window_title, regions["upgrade_button"])
+        window_interaction_service.click_region(window_title, regions["upgrade_button"])
 
         # Count upgrades until levelup or fails have been reaced
         n_fails, reason = count_upgrade_fails(
@@ -206,7 +206,9 @@ def spend(max_attempts: int, continue_upgrade: bool):
             logger.info(
                 f"Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
             )
-            click_region_center(window_title, regions["upgrade_button"])
+            window_interaction_service.click_region(
+                window_title, regions["upgrade_button"]
+            )
 
         elif reason == StopCountReason.UPGRADED:
             n_attempts += 1
@@ -250,7 +252,7 @@ def regions_show(output_dir: str):
     Use the -o flag to save the image and regions to a directory.
     """
     # Check if we can find the Raid window
-    # Create temporary screenshot service instance (will be injected in Phase 6)
+    # Create temporary service instance (will be injected in Phase 6)
     screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
     if not screenshot_service.window_exists(window_title):
@@ -341,7 +343,7 @@ def regions_select(manual: bool):
     current window size. Use the -m flag to force manual selection regardless of cached regions.
     """
     # Check if we can find the Raid window
-    # Create temporary screenshot service instance (will be injected in Phase 6)
+    # Create temporary service instance (will be injected in Phase 6)
     screenshot_service = ScreenshotService()
     window_title = "Raid: Shadow Legends"
     if not screenshot_service.window_exists(window_title):

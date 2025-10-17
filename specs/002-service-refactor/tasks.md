@@ -232,14 +232,14 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T079 [P] [US4] Create new file src/autoraid/services/window_interaction_service.py
-- [ ] T080 [P] [US4] Define WindowInteractionService class with __init__() (no dependencies)
-- [ ] T081 [P] [US4] Move click_region_center logic from interaction.py to WindowInteractionService.click_region(window_title: str, region: tuple) -> None
-- [ ] T082 [P] [US4] Implement activate_window(window_title: str) -> None method if not already in ScreenshotService
-- [ ] T083 [P] [US4] Add window_interaction_service Singleton provider to Container class in src/autoraid/container.py
-- [ ] T084 Update src/autoraid/cli/upgrade_cli.py to inject and use window_interaction_service
-- [ ] T085 Run `uv run pytest` to ensure all tests still pass
-- [ ] T086 Run manual test: `uv run autoraid upgrade count -n 1` (requires live Raid window) to verify clicking still works
+- [X] T079 [P] [US4] Create new file src/autoraid/services/window_interaction_service.py
+- [X] T080 [P] [US4] Define WindowInteractionService class with __init__() (no dependencies)
+- [X] T081 [P] [US4] Move click_region_center logic from interaction.py to WindowInteractionService.click_region(window_title: str, region: tuple) -> None
+- [X] T082 [P] [US4] Implement activate_window(window_title: str) -> None method if not already in ScreenshotService
+- [X] T083 [P] [US4] Add window_interaction_service Singleton provider to Container class in src/autoraid/container.py
+- [X] T084 Update src/autoraid/cli/upgrade_cli.py to inject and use window_interaction_service
+- [X] T085 Run `uv run pytest` to ensure all tests still pass
+- [X] T086 Run manual test: `uv run autoraid upgrade count -n 1` (requires live Raid window) to verify clicking still works
 
 **Checkpoint**: WindowInteractionService extracted. All GUI interactions centralized.
 
