@@ -168,19 +168,19 @@ Phase 8 (Cleanup) → Completes US5 (Phased Rollout)
 
 ### Tasks
 
-- [ ] T051 [P] [US4] Create new file src/autoraid/services/screenshot_service.py
-- [ ] T052 [P] [US4] Define ScreenshotService class with __init__() (no dependencies) in screenshot_service.py
-- [ ] T053 [P] [US4] Move take_screenshot logic from interaction.py to ScreenshotService.take_screenshot(window_title: str) -> np.ndarray
-- [ ] T054 [P] [US4] Move window_exists logic from interaction.py to ScreenshotService.window_exists(window_title: str) -> bool
-- [ ] T055 [P] [US4] Implement extract_roi(screenshot: np.ndarray, region: tuple[int, int, int, int]) -> np.ndarray method
-- [ ] T056 [P] [US4] Add screenshot_service Singleton provider to Container class in src/autoraid/container.py
-- [ ] T057 Create new file test/test_screenshot_service.py for smoke tests
-- [ ] T058 Add smoke test: test_screenshot_service_instantiates() verifying ScreenshotService() creates instance
-- [ ] T059 Add smoke test: test_screenshot_service_extracts_roi() with fake numpy array verifying ROI extraction works
-- [ ] T060 Update src/autoraid/autoupgrade/autoupgrade.py to inject and use screenshot_service
-- [ ] T061 Update src/autoraid/cli/upgrade_cli.py to inject and use screenshot_service if needed
-- [ ] T062 Run `uv run pytest test/test_screenshot_service.py` to verify screenshot service smoke tests pass
-- [ ] T063 Run `uv run pytest` to ensure all tests still pass
+- [X] T051 [P] [US4] Create new file src/autoraid/services/screenshot_service.py
+- [X] T052 [P] [US4] Define ScreenshotService class with __init__() (no dependencies) in screenshot_service.py
+- [X] T053 [P] [US4] Move take_screenshot logic from interaction.py to ScreenshotService.take_screenshot(window_title: str) -> np.ndarray
+- [X] T054 [P] [US4] Move window_exists logic from interaction.py to ScreenshotService.window_exists(window_title: str) -> bool
+- [X] T055 [P] [US4] Implement extract_roi(screenshot: np.ndarray, region: tuple[int, int, int, int]) -> np.ndarray method
+- [X] T056 [P] [US4] Add screenshot_service Singleton provider to Container class in src/autoraid/container.py
+- [X] T057 Create new file test/test_screenshot_service.py for smoke tests
+- [X] T058 Add smoke test: test_screenshot_service_instantiates() verifying ScreenshotService() creates instance
+- [X] T059 Add smoke test: test_screenshot_service_extracts_roi() with fake numpy array verifying ROI extraction works
+- [X] T060 Update src/autoraid/autoupgrade/autoupgrade.py to inject and use screenshot_service
+- [X] T061 Update src/autoraid/cli/upgrade_cli.py to inject and use screenshot_service if needed
+- [X] T062 Run `uv run pytest test/test_screenshot_service.py` to verify screenshot service smoke tests pass
+- [X] T063 Run `uv run pytest` to ensure all tests still pass
 
 **Checkpoint**: ScreenshotService extracted. Window operations centralized.
 

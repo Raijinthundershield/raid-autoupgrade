@@ -5,6 +5,7 @@ import diskcache
 
 from autoraid.autoupgrade.state_machine import UpgradeStateMachine
 from autoraid.services.cache_service import CacheService
+from autoraid.services.screenshot_service import ScreenshotService
 
 
 class Container(containers.DeclarativeContainer):
@@ -36,6 +37,10 @@ class Container(containers.DeclarativeContainer):
     cache_service = providers.Singleton(
         CacheService,
         cache=disk_cache,
+    )
+
+    screenshot_service = providers.Singleton(
+        ScreenshotService,
     )
 
     # Factory services (new instance per operation)
