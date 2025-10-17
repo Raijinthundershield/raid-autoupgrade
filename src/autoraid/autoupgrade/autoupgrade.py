@@ -192,9 +192,10 @@ def select_upgrade_regions(screenshot: np.ndarray, manual: bool = False):
                 logger.warning(f"Failed to locate {name}. Scheduling manual input.")
                 failed_prompts[name] = prompt
 
-    if manual or len(failed_prompts) > 0:
-        logger.info(f"select {list(failed_prompts.keys())} manually")
-        for name, prompt in failed_prompts.items():
+    regions_to_get_manually = region_prompts if manual else failed_prompts
+    if manual or len(regions_to_get_manually) > 0:
+        logger.info(f"select {list(regions_to_get_manually.keys())} manually")
+        for name, prompt in regions_to_get_manually.items():
             region = select_region_with_prompt(screenshot, prompt)
             regions[name] = region
 
@@ -207,8 +208,7 @@ def create_cache_key_regions(window_size: tuple[int, int]) -> str:
     Deprecated: Use CacheService.create_regions_key instead.
     This function is kept for backward compatibility with CLI code.
     """
-    cache_service = CacheService(cache=None)  # Temporary for method access
-    return cache_service.create_regions_key(tuple(window_size))
+    return CacheService.create_regions_key(window_size)
 
 
 def create_cache_key_screenshot(window_size: tuple[int, int]) -> str:
@@ -217,8 +217,7 @@ def create_cache_key_screenshot(window_size: tuple[int, int]) -> str:
     Deprecated: Use CacheService.create_screenshot_key instead.
     This function is kept for backward compatibility with CLI code.
     """
-    cache_service = CacheService(cache=None)  # Temporary for method access
-    return cache_service.create_screenshot_key(tuple(window_size))
+    return CacheService.create_screenshot_key(window_size)
 
 
 def get_cached_regions(window_size: tuple[int, int], cache: Cache) -> dict:
@@ -228,7 +227,7 @@ def get_cached_regions(window_size: tuple[int, int], cache: Cache) -> dict:
     This function is kept for backward compatibility with CLI code.
     """
     cache_service = CacheService(cache)
-    return cache_service.get_regions(tuple(window_size))
+    return cache_service.get_regions(window_size)
 
 
 def get_cached_screenshot(window_size: tuple[int, int], cache: Cache) -> np.ndarray:
@@ -238,7 +237,7 @@ def get_cached_screenshot(window_size: tuple[int, int], cache: Cache) -> np.ndar
     This function is kept for backward compatibility with CLI code.
     """
     cache_service = CacheService(cache)
-    return cache_service.get_screenshot(tuple(window_size))
+    return cache_service.get_screenshot(window_size)
 
 
 def get_regions(screenshot: np.ndarray, cache: Cache) -> dict:

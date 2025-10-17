@@ -23,7 +23,8 @@ class CacheService:
             "[CacheService] Initialized with cache directory: {}", cache.directory
         )
 
-    def create_regions_key(self, window_size: tuple[int, int]) -> str:
+    @staticmethod
+    def create_regions_key(window_size: tuple[int, int]) -> str:
         """Generate cache key for regions based on window size.
 
         Args:
@@ -34,7 +35,8 @@ class CacheService:
         """
         return f"regions_{window_size[0]}_{window_size[1]}"
 
-    def create_screenshot_key(self, window_size: tuple[int, int]) -> str:
+    @staticmethod
+    def create_screenshot_key(window_size: tuple[int, int]) -> str:
         """Generate cache key for screenshots based on window size.
 
         Args:

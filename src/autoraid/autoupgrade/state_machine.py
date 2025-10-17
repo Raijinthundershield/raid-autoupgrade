@@ -66,6 +66,7 @@ class UpgradeStateMachine:
             raise ValueError("roi_image must be a valid numpy array")
 
         # Detect current state
+        previous_state = self.recent_states[-1] if self.recent_states else None
         state = self._detect_state(roi_image)
         logger.debug(f"[UpgradeStateMachine] Detected state: {state.value}")
 
@@ -73,7 +74,7 @@ class UpgradeStateMachine:
         self.recent_states.append(state)
 
         # Count fail states
-        if state == ProgressBarState.FAIL:
+        if state == ProgressBarState.FAIL and previous_state != ProgressBarState.FAIL:
             self.fail_count += 1
             logger.debug(
                 f"[UpgradeStateMachine] Fail detected, count now: {self.fail_count}"
