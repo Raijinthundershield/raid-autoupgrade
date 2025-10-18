@@ -105,3 +105,15 @@ def autoraid(debug: bool):
 
 autoraid.add_command(upgrade)
 autoraid.add_command(network)
+
+
+@autoraid.command()
+def gui():
+    """Launch the native desktop GUI interface.
+
+    Opens a native desktop window with a graphical interface for managing
+    upgrade workflows, network adapters, and UI regions.
+    """
+    from autoraid.gui.app import main
+
+    main()

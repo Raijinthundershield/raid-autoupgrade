@@ -81,12 +81,12 @@ Phase 7: Documentation
 
 ### Tasks
 
-- [ ] T001 Add nicegui[native]>=2.10.0 dependency in pyproject.toml
-- [ ] T002 Run `uv sync` to install NiceGUI with native mode support
-- [ ] T003 [P] Create src/autoraid/gui/__init__.py (empty module file)
-- [ ] T004 [P] Create src/autoraid/gui/app.py with minimal NiceGUI native window showing "AutoRaid Web Interface" title
-- [ ] T005 Add `gui` command to src/autoraid/cli/cli.py that launches GUI via app.main()
-- [ ] T006 Manual test: Run `uv run autoraid gui` and verify native window launches (not browser), displays title, is resizable/closable
+- [X] T001 Add nicegui[native]>=2.10.0 dependency in pyproject.toml
+- [X] T002 Run `uv sync` to install NiceGUI with native mode support
+- [X] T003 [P] Create src/autoraid/gui/__init__.py (empty module file)
+- [X] T004 [P] Create src/autoraid/gui/app.py with minimal NiceGUI native window showing "AutoRaid Web Interface" title
+- [X] T005 Add `gui` command to src/autoraid/cli/cli.py that launches GUI via app.main()
+- [X] T006 Manual test: Run `uv run autoraid gui` and verify native window launches (not browser), displays title, is resizable/closable
 
 ### Acceptance Criteria (Phase 1)
 
