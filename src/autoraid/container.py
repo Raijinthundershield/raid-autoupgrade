@@ -24,6 +24,8 @@ class Container(containers.DeclarativeContainer):
         modules=[
             "autoraid.cli.upgrade_cli",
             "autoraid.cli.network_cli",
+            "autoraid.gui.components.network_panel",
+            "autoraid.gui.components.region_panel",
         ]
     )
 
@@ -42,18 +44,20 @@ class Container(containers.DeclarativeContainer):
         cache=disk_cache,
     )
 
+    window_interaction_service = providers.Singleton(
+        WindowInteractionService,
+        use_minimize_trick=config.use_minimize_trick.as_(bool),
+    )
+
     screenshot_service = providers.Singleton(
         ScreenshotService,
+        window_interaction_service=window_interaction_service,
     )
 
     locate_region_service = providers.Singleton(
         LocateRegionService,
         cache_service=cache_service,
         screenshot_service=screenshot_service,
-    )
-
-    window_interaction_service = providers.Singleton(
-        WindowInteractionService,
     )
 
     # Factory services (new instance per operation)

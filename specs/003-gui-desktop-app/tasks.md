@@ -178,16 +178,16 @@ Delivers value: Enables all upgrade detection workflows
 
 ### Tasks
 
-- [ ] T016 [P] [US3] Create src/autoraid/gui/components/region_panel.py with RegionPanel component
-- [ ] T017 [US3] Add status display showing current window size (width x height) via screenshot_service.get_window_size()
-- [ ] T018 [US3] Add cached region status display showing found regions (upgrade_bar, upgrade_button, artifact_icon)
-- [ ] T019 [US3] Add "Show Regions" button that opens OpenCV window with annotated screenshot (asyncio.to_thread)
-- [ ] T020 [US3] Add "Select Regions (Auto)" button calling locate_region_service.get_regions(manual=False) with manual fallback
-- [ ] T021 [US3] Add "Select Regions (Manual)" button calling locate_region_service.get_regions(manual=True) for manual ROI selection
-- [ ] T022 [US3] Add ui.timer() to check window size every 5 seconds, show warning banner if size changed (invalidates regions)
-- [ ] T023 [US3] Wire RegionPanel to LocateRegionService, ScreenshotService, CacheService via DI in src/autoraid/gui/app.py
-- [ ] T024 [P] [US3] Create test/unit/gui/test_region_panel.py with smoke test for component instantiation and DI wiring
-- [ ] T025 [US3] Manual test: Click "Select Regions (Auto)", verify automatic detection or manual fallback, check status updates
+- [X] T016 [P] [US3] Create src/autoraid/gui/components/region_panel.py with RegionPanel component
+- [X] T017 [US3] Add status display showing current window size (width x height) via screenshot_service.get_window_size()
+- [X] T018 [US3] Add cached region status display showing found regions (upgrade_bar, upgrade_button, artifact_icon)
+- [X] T019 [US3] Add "Show Regions" button that opens OpenCV window with annotated screenshot (asyncio.to_thread)
+- [X] T020 [US3] Add "Select Regions (Auto)" button calling locate_region_service.get_regions(manual=False) with manual fallback
+- [X] T021 [US3] Add "Select Regions (Manual)" button calling locate_region_service.get_regions(manual=True) for manual ROI selection
+- [X] T022 [US3] Add ui.timer() to check window size every 5 seconds, show warning banner if size changed (invalidates regions)
+- [X] T023 [US3] Wire RegionPanel to LocateRegionService, ScreenshotService, CacheService via DI in src/autoraid/gui/app.py
+- [X] T024 [P] [US3] Create test/unit/gui/test_region_panel.py with smoke test for component instantiation and DI wiring
+- [X] T025 [US3] Manual test: Click "Select Regions (Auto)", verify automatic detection or manual fallback, check status updates
 
 ### Acceptance Criteria (US3)
 

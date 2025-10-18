@@ -5,8 +5,6 @@ This service handles all screenshot operations including:
 - Extracting regions of interest from screenshots
 """
 
-import time
-
 import cv2
 import numpy as np
 import pyautogui
@@ -14,6 +12,7 @@ import pygetwindow
 from loguru import logger
 
 from autoraid.exceptions import WindowNotFoundException
+from autoraid.services.window_interaction_service import WindowInteractionService
 
 
 class ScreenshotService:
@@ -24,9 +23,14 @@ class ScreenshotService:
     - Extract regions of interest from screenshots
     """
 
-    def __init__(self) -> None:
-        """Initialize ScreenshotService with no dependencies."""
+    def __init__(self, window_interaction_service: WindowInteractionService) -> None:
+        """Initialize ScreenshotService with window interaction service dependency.
+
+        Args:
+            window_interaction_service: Service for window activation and interaction
+        """
         logger.debug("Initializing")
+        self._window_interaction_service = window_interaction_service
 
     def take_screenshot(self, window_title: str) -> np.ndarray:
         """Take a screenshot of the specified window.
@@ -48,7 +52,9 @@ class ScreenshotService:
             raise ValueError("window_title cannot be empty")
 
         try:
-            # Get window and activate it
+            self._window_interaction_service.activate_window(window_title)
+
+            # Get window reference for coordinates
             windows = pygetwindow.getWindowsWithTitle(window_title)
             if not windows:
                 raise WindowNotFoundException(
@@ -57,8 +63,6 @@ class ScreenshotService:
                 )
 
             window = windows[0]
-            window.activate()
-            time.sleep(0.05)  # Give window time to activate
 
             # Capture screenshot of window region
             screenshot = pyautogui.screenshot(
