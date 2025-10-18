@@ -128,15 +128,15 @@ Delivers value: Simplifies network control without leaving app
 
 ### Tasks
 
-- [ ] T007 [P] [US4] Create src/autoraid/gui/components/__init__.py (empty module file)
-- [ ] T008 [P] [US4] Create src/autoraid/gui/utils.py with state management helpers
-- [ ] T009 [US4] Create src/autoraid/gui/components/network_panel.py with NetworkPanel component showing adapter table (ID, Name, Status columns)
-- [ ] T010 [US4] Add checkbox per adapter row for multi-select, persist selected IDs in app.storage.user['selected_adapters']
-- [ ] T011 [US4] Add "Refresh" button to reload adapter table with updated status
-- [ ] T012 [US4] Add internet status indicator (green=online, red=offline) with ui.timer() polling every 5 seconds
-- [ ] T013 [US4] Wire container in src/autoraid/gui/app.py, add NetworkPanel to main page
-- [ ] T014 [US4] Manual test: Select 2 adapters, restart app, verify checkboxes remain checked (FR-031 persistence)
-- [ ] T015 [P] [US4] Create test/unit/gui/test_network_panel.py with smoke test verifying component instantiation
+- [X] T007 [P] [US4] Create src/autoraid/gui/components/__init__.py (empty module file)
+- [X] T008 [P] [US4] Create src/autoraid/gui/utils.py with state management helpers
+- [X] T009 [US4] Create src/autoraid/gui/components/network_panel.py with NetworkPanel component showing adapter table (ID, Name, Status columns)
+- [X] T010 [US4] Add checkbox per adapter row for multi-select, persist selected IDs in app.storage.user['selected_adapters']
+- [X] T011 [US4] Add "Refresh" button to reload adapter table with updated status
+- [X] T012 [US4] Add internet status indicator (green=online, red=offline) with ui.timer() polling every 5 seconds
+- [X] T013 [US4] Wire container in src/autoraid/gui/app.py, add NetworkPanel to main page
+- [X] T014 [US4] Manual test: Select 2 adapters, restart app, verify checkboxes remain checked (FR-031 persistence)
+- [X] T015 [P] [US4] Create test/unit/gui/test_network_panel.py with smoke test verifying component instantiation
 
 ### Acceptance Criteria (US4)
 
