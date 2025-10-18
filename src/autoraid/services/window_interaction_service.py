@@ -126,6 +126,48 @@ class WindowInteractionService:
             logger.error(f"Failed to click region: {e}")
             raise
 
+    def get_window_size(self, window_title: str) -> tuple[int, int]:
+        """Get the size of the specified window.
+
+        Args:
+            window_title: Title of the window to get size for
+
+        Returns:
+            Tuple of (width, height) in pixels
+
+        Raises:
+            WindowNotFoundException: If window not found
+            ValueError: If window_title is empty
+        """
+        logger.debug(f'get_window_size called with window_title="{window_title}"')
+
+        if not window_title:
+            raise ValueError("window_title cannot be empty")
+
+        try:
+            windows = pygetwindow.getWindowsWithTitle(window_title)
+            if not windows:
+                raise WindowNotFoundException(
+                    f'Window "{window_title}" not found. '
+                    f"Ensure the application is running."
+                )
+
+            window = windows[0]
+            size = (window.width, window.height)
+
+            logger.debug(f"get_window_size returned size {size[0]}x{size[1]}")
+
+            return size
+
+        except IndexError:
+            logger.error(f'Window "{window_title}" not found')
+            raise WindowNotFoundException(
+                f'Window "{window_title}" not found. Ensure the application is running.'
+            )
+        except Exception as e:
+            logger.error(f"Failed to get window size: {e}")
+            raise
+
     def activate_window(self, window_title: str) -> None:
         """Activate (bring to foreground) the specified window.
 

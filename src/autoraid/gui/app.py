@@ -3,6 +3,7 @@
 from nicegui import ui
 
 from autoraid.gui.components.network_panel import create_network_panel
+from autoraid.gui.components.region_panel import create_region_panel
 
 
 def main() -> None:
@@ -14,7 +15,12 @@ def main() -> None:
 
         ui.separator()
 
-        # Network Adapters section
+        # Region Management section (middle)
+        create_region_panel()
+
+        ui.separator()
+
+        # Network Adapters section (bottom)
         create_network_panel()
 
     ui.run(
