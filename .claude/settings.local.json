@@ -8,7 +8,11 @@
       "Bash(git rev-parse:*)",
       "Bash(uv run pytest:*)",
       "Bash(uv run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/create-new-feature.ps1 -Json \"GUI desktop application with upgrade workflows\" -ShortName \"gui-desktop-app\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/setup-plan.ps1 -Json)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType claude)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json)"
     ],
     "deny": [],
     "ask": []
