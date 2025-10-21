@@ -4,7 +4,6 @@ Provides Count and Spend upgrade workflow UI with real-time progress display.
 """
 
 import asyncio
-from pathlib import Path
 
 from dependency_injector.wiring import Provide, inject
 from loguru import logger
@@ -16,18 +15,20 @@ from autoraid.exceptions import (
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
-from autoraid.gui.utils import set_log_element, setup_log_streaming, clear_logs
+from autoraid.logging_config import add_logger_sink
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 
 
 @inject
 def create_upgrade_panel(
     orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
+    debug: bool = False,
 ) -> None:
     """Create the upgrade workflows panel (Count + Spend).
 
     Args:
         orchestrator: Injected UpgradeOrchestrator service for workflow execution
+        debug: Enable debug logging (DEBUG level vs INFO level)
     """
     # Workflow state
     current_count_value = 0
@@ -105,7 +106,7 @@ def create_upgrade_panel(
                     selected_adapters = app.storage.user.get("selected_adapters", [])
 
                     # Clear logs when starting new workflow
-                    clear_logs()
+                    log_element.clear()
 
                     current_count_value = 0
                     show_current_count.refresh()
@@ -116,17 +117,13 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting count workflow from GUI")
 
-                        debug_dir = None
-                        if app.storage.user.get("debug_enabled", False):
-                            debug_dir = Path("cache-raid-autoupgrade/debug")
-
                         n_fails, reason = await asyncio.to_thread(
                             orchestrator.count_workflow,
                             network_adapter_id=selected_adapters
                             if selected_adapters
                             else None,
                             max_attempts=99,
-                            debug_dir=debug_dir,
+                            debug_dir=None,
                         )
 
                         current_count_value = n_fails
@@ -255,7 +252,7 @@ def create_upgrade_panel(
                     continue_upgrade = continue_upgrade_checkbox.value
 
                     # Clear logs when starting new workflow
-                    clear_logs()
+                    log_element.clear()
 
                     current_spent_value = 0
                     show_current_spent.refresh()
@@ -266,15 +263,11 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting spend workflow from GUI")
 
-                        debug_dir = None
-                        if app.storage.user.get("debug_enabled", False):
-                            debug_dir = Path("cache-raid-autoupgrade/debug")
-
                         n_upgrades, n_attempts, n_remaining = await asyncio.to_thread(
                             orchestrator.spend_workflow,
                             max_attempts=max_attempts,
                             continue_upgrade=continue_upgrade,
-                            debug_dir=debug_dir,
+                            debug_dir=None,
                         )
 
                         current_spent_value = n_attempts
@@ -341,10 +334,13 @@ def create_upgrade_panel(
 
         # Shared log section (bottom) for both workflows
         with ui.card().classes("w-full"):
-            ui.label("Workflow Logs").classes("text-lg font-semibold")
+            ui.label("Logs").classes("text-lg font-semibold")
             ui.space()
-            log_element = ui.log(max_lines=1000).classes("w-full h-64")
+            log_element = ui.log(max_lines=1000).classes(
+                "w-full h-64 bg-gray-900 text-white"
+            )
 
-            # Set up log streaming to this element
-            set_log_element(log_element)
-            setup_log_streaming()
+            def gui_sink(msg):
+                log_element.push(msg)
+
+            add_logger_sink(debug, gui_sink, colorize=False)

@@ -77,8 +77,12 @@ def create_header(
         )
 
 
-def main() -> None:
-    """Launch the AutoRaid GUI in native desktop window mode."""
+def main(debug: bool = False) -> None:
+    """Launch the AutoRaid GUI in native desktop window mode.
+
+    Args:
+        debug: Enable debug logging (same as --debug flag in CLI)
+    """
 
     @ui.page("/")
     def index():
@@ -86,7 +90,7 @@ def main() -> None:
         with ui.column().classes("w-full"):
             create_header()
             ui.separator()
-            create_upgrade_panel()
+            create_upgrade_panel(debug=debug)
             ui.separator()
             create_region_panel()
             ui.separator()
