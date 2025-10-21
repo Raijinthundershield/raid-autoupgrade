@@ -16,6 +16,7 @@ from autoraid.exceptions import (
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
+from autoraid.gui.utils import set_log_element, setup_log_streaming, clear_logs
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 
 
@@ -30,7 +31,9 @@ def create_upgrade_panel(
     """
     # Workflow state
     current_count_value = 0
-    is_running = False
+    current_spent_value = 0
+    is_count_running = False
+    is_spend_running = False
 
     with ui.column().classes("w-full"):
         # Section header
@@ -38,9 +41,11 @@ def create_upgrade_panel(
 
         ui.space()
 
-        # Count section
-        with ui.card().classes("w-full"):
-            ui.label("Count Upgrade Fails").classes("text-lg font-semibold")
+        # Count and Spend sections side-by-side
+        with ui.row().classes("w-full gap-4"):
+            # Count section (left)
+            with ui.card().classes("flex-1"):
+                ui.label("Count Upgrade Fails").classes("text-lg font-semibold")
 
             # Display selected network adapters (read-only)
             @ui.refreshable
@@ -77,19 +82,22 @@ def create_upgrade_panel(
 
             async def start_count_workflow():
                 """Start count workflow asynchronously."""
-                nonlocal current_count_value, is_running
+                nonlocal current_count_value, is_count_running
 
-                if is_running:
+                if is_count_running or is_spend_running:
                     ui.notify("Workflow already running", type="warning")
                     return
 
                 selected_adapters = app.storage.user.get("selected_adapters", [])
 
+                # Clear logs when starting new workflow
+                clear_logs()
+
                 current_count_value = 0
                 show_current_count.refresh()
 
                 start_button.props("disabled")
-                is_running = True
+                is_count_running = True
 
                 try:
                     logger.info("Starting count workflow from GUI")
@@ -161,7 +169,151 @@ def create_upgrade_panel(
                 finally:
                     # Re-enable start button
                     start_button.props(remove="disabled")
-                    is_running = False
+                    is_count_running = False
 
             # Wire button handler
             start_button.on_click(lambda: asyncio.create_task(start_count_workflow()))
+
+            # Spend section (right)
+            with ui.card().classes("flex-1"):
+                ui.label("Spend Counted Attempts").classes("text-lg font-semibold")
+
+                ui.space()
+
+                # Max attempts input with auto-populate from last count
+                last_count = app.storage.user.get("last_count_result")
+                max_attempts_input = ui.number(
+                    label="Max Attempts",
+                    value=last_count if last_count is not None else 1,
+                    min=1,
+                    step=1,
+                ).classes("w-full")
+
+                ui.space()
+
+                # Continue upgrade checkbox
+                continue_upgrade_checkbox = ui.checkbox(
+                    "Continue Upgrade (level 10+ gear)"
+                ).props("dense")
+
+                ui.space()
+
+                # Current spent display (refreshable for real-time updates)
+                @ui.refreshable
+                def show_current_spent():
+                    """Display current spent value during workflow."""
+                    ui.label(f"Current Spent: {current_spent_value}").classes(
+                        "text-lg font-bold"
+                    )
+
+                show_current_spent()
+
+                ui.space()
+
+                spend_button = ui.button("Start Spend", color="secondary")
+
+                async def start_spend_workflow():
+                    """Start spend workflow asynchronously."""
+                    nonlocal current_spent_value, is_spend_running
+
+                    if is_count_running or is_spend_running:
+                        ui.notify("Workflow already running", type="warning")
+                        return
+
+                    max_attempts = int(max_attempts_input.value or 1)
+                    continue_upgrade = continue_upgrade_checkbox.value
+
+                    # Clear logs when starting new workflow
+                    clear_logs()
+
+                    current_spent_value = 0
+                    show_current_spent.refresh()
+
+                    spend_button.props("disabled")
+                    is_spend_running = True
+
+                    try:
+                        logger.info("Starting spend workflow from GUI")
+
+                        debug_dir = None
+                        if app.storage.user.get("debug_enabled", False):
+                            debug_dir = Path("cache-raid-autoupgrade/debug")
+
+                        n_upgrades, n_attempts, n_remaining = await asyncio.to_thread(
+                            orchestrator.spend_workflow,
+                            max_attempts=max_attempts,
+                            continue_upgrade=continue_upgrade,
+                            debug_dir=debug_dir,
+                        )
+
+                        current_spent_value = n_attempts
+                        show_current_spent.refresh()
+
+                        ui.notify(
+                            f"Spend completed: {n_upgrades} upgrades, {n_attempts} attempts, {n_remaining} remaining",
+                            type="positive",
+                        )
+                        logger.info(
+                            f"Spend workflow completed: {n_upgrades} upgrades, {n_attempts} attempts"
+                        )
+
+                    except WindowNotFoundException as e:
+                        logger.error(f"Window not found: {e}")
+                        ui.notify(
+                            "Raid window not found. Please ensure Raid is running.",
+                            type="negative",
+                        )
+
+                    except UpgradeWorkflowError as e:
+                        logger.error(f"Workflow error: {e}")
+                        ui.notify(
+                            f"Workflow error: {e}",
+                            type="negative",
+                        )
+
+                    except ValueError as e:
+                        logger.error(f"Region error: {e}")
+                        ui.notify(
+                            "No regions cached. Please select regions first.",
+                            type="negative",
+                        )
+
+                    except ConnectionError as e:
+                        logger.error(f"No internet access: {e}")
+                        ui.notify(
+                            "No internet access. Please check your connection and try again.",
+                            type="negative",
+                        )
+
+                    except asyncio.CancelledError:
+                        logger.warning("Spend workflow cancelled by user")
+                        ui.notify("Spend workflow cancelled", type="warning")
+
+                    except Exception as e:
+                        logger.exception(f"Unexpected error in spend workflow: {e}")
+                        ui.notify(
+                            f"Unexpected error: {e}",
+                            type="negative",
+                        )
+
+                    finally:
+                        # Re-enable spend button
+                        spend_button.props(remove="disabled")
+                        is_spend_running = False
+
+                # Wire button handler
+                spend_button.on_click(
+                    lambda: asyncio.create_task(start_spend_workflow())
+                )
+
+        ui.space()
+
+        # Shared log section (bottom) for both workflows
+        with ui.card().classes("w-full"):
+            ui.label("Workflow Logs").classes("text-lg font-semibold")
+            ui.space()
+            log_element = ui.log(max_lines=1000).classes("w-full h-64")
+
+            # Set up log streaming to this element
+            set_log_element(log_element)
+            setup_log_streaming()

@@ -294,16 +294,16 @@ Delivers value: Transparency and troubleshooting
 
 ### Tasks
 
-- [ ] T036 [P] [US2] Add Spend section (right) in src/autoraid/gui/components/upgrade_panel.py: Max attempts input (ui.number, min=1)
-- [ ] T037 [US2] Auto-populate "Max Attempts" field with app.storage.user['last_count_result'] on component mount
-- [ ] T038 [US2] Add "Continue Upgrade" checkbox and "Start Spend" button with async handler calling orchestrator.spend_workflow()
-- [ ] T039 [US2] Add "Current Spent" display with ui.refreshable() for real-time n_attempts updates
-- [ ] T040 [US2] Add error handling: Toast for no internet access (FR-049), WindowNotFoundException
-- [ ] T041 [P] [US5] Add shared log section (bottom) in upgrade_panel.py: ui.log(max_lines=1000) with auto-scroll
-- [ ] T042 [US5] Set up loguru sink in src/autoraid/gui/utils.py to capture logs and push to ui.log() element
-- [ ] T043 [US5] Configure log color coding: INFO=green, DEBUG=blue, WARNING=yellow, ERROR=red (FR-036)
-- [ ] T044 [US5] Clear log area when new workflow starts (FR-038)
-- [ ] T045 [US2] [US5] Manual test: Complete Count workflow, verify Max Attempts auto-filled, run Spend workflow, verify logs stream in real-time
+- [X] T036 [P] [US2] Add Spend section (right) in src/autoraid/gui/components/upgrade_panel.py: Max attempts input (ui.number, min=1)
+- [X] T037 [US2] Auto-populate "Max Attempts" field with app.storage.user['last_count_result'] on component mount
+- [X] T038 [US2] Add "Continue Upgrade" checkbox and "Start Spend" button with async handler calling orchestrator.spend_workflow()
+- [X] T039 [US2] Add "Current Spent" display with ui.refreshable() for real-time n_attempts updates
+- [X] T040 [US2] Add error handling: Toast for no internet access (FR-049), WindowNotFoundException
+- [X] T041 [P] [US5] Add shared log section (bottom) in upgrade_panel.py: ui.log(max_lines=1000) with auto-scroll
+- [X] T042 [US5] Set up loguru sink in src/autoraid/gui/utils.py to capture logs and push to ui.log() element
+- [X] T043 [US5] Configure log color coding: INFO=green, DEBUG=blue, WARNING=yellow, ERROR=red (FR-036)
+- [X] T044 [US5] Clear log area when new workflow starts (FR-038)
+- [X] T045 [US2] [US5] Manual test: Complete Count workflow, verify Max Attempts auto-filled, run Spend workflow, verify logs stream in real-time
 
 ### Acceptance Criteria (US2 + US5)
 
