@@ -26,8 +26,8 @@ class WindowInteractionService:
 
     def __init__(self, use_minimize_trick: bool = True) -> None:
         """Initialize WindowInteractionService with no dependencies."""
-        logger.debug("Initializing")
         self._use_minimize_trick = use_minimize_trick
+        logger.debug(f"Initializing. {use_minimize_trick=}")
 
     def window_exists(self, window_title: str) -> bool:
         """Check if a window with the given title exists.

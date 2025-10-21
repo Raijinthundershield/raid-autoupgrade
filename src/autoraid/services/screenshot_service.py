@@ -45,7 +45,6 @@ class ScreenshotService:
             WindowNotFoundException: If window not found
             ValueError: If window_title is empty
         """
-        logger.info("Capturing screenshot")
         logger.debug(f'take_screenshot called with window_title="{window_title}"')
 
         if not window_title:

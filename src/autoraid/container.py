@@ -46,7 +46,6 @@ class Container(containers.DeclarativeContainer):
 
     window_interaction_service = providers.Singleton(
         WindowInteractionService,
-        use_minimize_trick=config.use_minimize_trick.as_(bool),
     )
 
     screenshot_service = providers.Singleton(
