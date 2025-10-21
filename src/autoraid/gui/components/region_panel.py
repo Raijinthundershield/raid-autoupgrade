@@ -250,11 +250,12 @@ def create_region_panel(
                 'tooltip="Display annotated screenshot with cached regions highlighted"'
             ).bind_enabled_from(state, "cached_regions", backward=lambda x: len(x) > 0)
 
-            ui.button(
-                "Select Regions (Auto)", on_click=async_select_regions_auto
-            ).props(
-                'tooltip="Attempt automatic region detection. Falls back to manual selection if fails."'
-            )
+            # NOTE: Automatic detection currently broken. Enable when fixed.
+            # ui.button(
+            #     "Select Regions (Auto)", on_click=async_select_regions_auto
+            # ).props(
+            #     'tooltip="Attempt automatic region detection. Falls back to manual selection if fails."'
+            # )
 
             ui.button(
                 "Select Regions (Manual)", on_click=async_select_regions_manual

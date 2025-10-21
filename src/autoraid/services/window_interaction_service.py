@@ -155,7 +155,7 @@ class WindowInteractionService:
                 )
 
             window = windows[0]
-            size = (window.width, window.height)
+            size = (window.height, window.width)
 
             logger.debug(f"get_window_size returned size {size[0]}x{size[1]}")
 
