@@ -56,7 +56,14 @@ class LocateRegionService:
         Returns:
             Dictionary mapping region names to (left, top, width, height) tuples
         """
+
         logger.info("Getting regions")
+        if not manual:
+            logger.warning(
+                "Automatic detection is currently not working. Forcing manual selection."
+            )
+            manual = True
+
         window_size = (screenshot.shape[0], screenshot.shape[1])
 
         # Try to get cached regions
@@ -108,6 +115,7 @@ class LocateRegionService:
         failed_regions = []
 
         for name, prompt in region_prompts.items():
+            logger.debug(f"Locating region: {name}")
             try:
                 logger.info(f"Automatic selection of {name}")
                 regions[name] = locate_funcs[name](screenshot)
