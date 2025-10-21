@@ -133,6 +133,7 @@ def create_upgrade_panel(
                         show_current_count.refresh()
 
                         app.storage.user["last_count_result"] = n_fails
+                        show_max_attempts_input.refresh()
 
                         reason_text = reason.name if reason else "unknown"
                         ui.notify(
@@ -193,18 +194,26 @@ def create_upgrade_panel(
                 ui.space()
 
                 # Max attempts input with auto-populate from last count
-                last_count = app.storage.user.get("last_count_result")
-                max_attempts_input = ui.number(
-                    label="Max Attempts",
-                    value=last_count if last_count is not None else 1,
-                    min=1,
-                    step=1,
-                ).classes("w-full")
-                # Add tooltip
-                with max_attempts_input:
-                    ui.tooltip(
-                        "Number of upgrade attempts to spend (auto-populated from Count workflow)"
-                    )
+                max_attempts_input = None
+
+                @ui.refreshable
+                def show_max_attempts_input():
+                    """Display max attempts input field (refreshable for auto-update)."""
+                    nonlocal max_attempts_input
+                    last_count = app.storage.user.get("last_count_result")
+                    max_attempts_input = ui.number(
+                        label="Max Attempts",
+                        value=last_count if last_count is not None else 1,
+                        min=1,
+                        step=1,
+                    ).classes("w-full")
+                    # Add tooltip
+                    with max_attempts_input:
+                        ui.tooltip(
+                            "Number of upgrade attempts to spend (auto-populated from Count workflow)"
+                        )
+
+                show_max_attempts_input()
 
                 ui.space()
 
