@@ -70,7 +70,7 @@ def create_upgrade_panel(
                 @ui.refreshable
                 def show_current_count():
                     """Display current count value during workflow."""
-                    ui.label(f"Current Count: {current_count_value}").classes(
+                    ui.label(f"Count: {current_count_value}").classes(
                         "text-lg font-bold"
                     )
 
@@ -79,6 +79,20 @@ def create_upgrade_panel(
                 ui.space()
 
                 start_button = ui.button("Start Count", color="primary")
+
+                def validate_and_start_count():
+                    """Validate inputs and start count workflow."""
+                    # Validate network adapter selection before starting async task
+                    selected_adapters = app.storage.user.get("selected_adapters", [])
+                    if not selected_adapters:
+                        ui.notify(
+                            "Please select at least one network adapter before starting Count workflow",
+                            type="warning",
+                        )
+                        return
+
+                    # Validation passed, create async task
+                    asyncio.create_task(start_count_workflow())
 
                 async def start_count_workflow():
                     """Start count workflow asynchronously."""
@@ -170,9 +184,7 @@ def create_upgrade_panel(
                         start_button.props(remove="disabled")
                         is_count_running = False
 
-                start_button.on_click(
-                    lambda: asyncio.create_task(start_count_workflow())
-                )
+                start_button.on_click(validate_and_start_count)
 
             # Spend section (right)
             with ui.card().classes("flex-1"):
