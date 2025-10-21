@@ -230,16 +230,16 @@ Delivers value: Shows exact number of fails needed (primary feature)
 
 ### Tasks
 
-- [ ] T026 [P] [US1] Create src/autoraid/gui/components/upgrade_panel.py with UpgradePanel component structure
-- [ ] T027 [US1] Add Count section (left): Display selected network adapters from app.storage.user (read-only field)
-- [ ] T028 [US1] Add "Start Count" button with async handler calling orchestrator.count_workflow() via asyncio.to_thread()
-- [ ] T029 [US1] Add "Current Count" display with ui.refreshable() for real-time n_fails updates during workflow
-- [ ] T030 [US1] Implement workflow cancellation: "Stop" button calling task.cancel() and re-enabling network in finally block
-- [ ] T031 [US1] Add error handling: Show toast notifications for WindowNotFoundException, NetworkAdapterError, no regions (FR-045 to FR-047)
-- [ ] T032 [US1] Store last count result in app.storage.user['last_count_result'] after workflow completion (for Spend auto-populate)
-- [ ] T033 [US1] Wire UpgradePanel to UpgradeOrchestrator via DI in src/autoraid/gui/app.py (add to container.wire modules)
-- [ ] T034 [P] [US1] Create test/unit/gui/test_upgrade_panel.py with smoke test for Count workflow component instantiation
-- [ ] T035 [US1] Manual test: Select adapters (US4), click "Start Count", verify network disables, count increments, network re-enables on completion/cancel
+- [X] T026 [P] [US1] Create src/autoraid/gui/components/upgrade_panel.py with UpgradePanel component structure
+- [X] T027 [US1] Add Count section (left): Display selected network adapters from app.storage.user (read-only field)
+- [X] T028 [US1] Add "Start Count" button with async handler calling orchestrator.count_workflow() via asyncio.to_thread()
+- [X] T029 [US1] Add "Current Count" display with ui.refreshable() for real-time n_fails updates during workflow
+- [-] T030 [US1] (decided not to implement) Implement workflow cancellation: "Stop" button calling task.cancel() and re-enabling network in finally block
+- [X] T031 [US1] Add error handling: Show toast notifications for WindowNotFoundException, NetworkAdapterError, no regions (FR-045 to FR-047)
+- [X] T032 [US1] Store last count result in app.storage.user['last_count_result'] after workflow completion (for Spend auto-populate)
+- [X] T033 [US1] Wire UpgradePanel to UpgradeOrchestrator via DI in src/autoraid/gui/app.py (add to container.wire modules)
+- [X] T034 [P] [US1] Create test/unit/gui/test_upgrade_panel.py with smoke test for Count workflow component instantiation
+- [X] T035 [US1] Manual test: Select adapters (US4), click "Start Count", verify network disables, count increments, network re-enables on completion/cancel
 
 ### Acceptance Criteria (US1)
 

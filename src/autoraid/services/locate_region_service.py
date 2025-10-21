@@ -43,7 +43,7 @@ class LocateRegionService:
         self._screenshot_service = screenshot_service
 
     def get_regions(
-        self, screenshot: np.ndarray, manual: bool = False
+        self, screenshot: np.ndarray, manual: bool = False, override_cache: bool = False
     ) -> dict[str, tuple[int, int, int, int]]:
         """Get regions for upgrade UI elements.
 
@@ -67,24 +67,21 @@ class LocateRegionService:
         window_size = (screenshot.shape[0], screenshot.shape[1])
 
         # Try to get cached regions
-        if not manual:
-            cached_regions = self._cache_service.get_regions(window_size)
-            if cached_regions is not None:
-                logger.info("Using cached regions")
-                return cached_regions
-
-        # Try automatic detection if not manual mode
         regions = None
-        if not manual:
-            regions = self._try_automatic_detection(screenshot)
+        if not override_cache:
+            regions = self._cache_service.get_regions(window_size)
 
-        # Fall back to manual selection if automatic detection failed or manual mode
+        # If cache is not found, proceed with detection/selection
         if regions is None:
-            regions = self._manual_selection(screenshot)
+            if not manual:
+                regions = self._try_automatic_detection(screenshot)
 
-        # Cache the regions and screenshot
-        self._cache_service.set_regions(window_size, regions)
-        self._cache_service.set_screenshot(window_size, screenshot)
+            # Fall back to manual selection if automatic detection failed or if we are in manual mode
+            if regions is None:
+                regions = self._manual_selection(screenshot)
+
+            self._cache_service.set_regions(window_size, regions)
+            self._cache_service.set_screenshot(window_size, screenshot)
 
         return regions
 

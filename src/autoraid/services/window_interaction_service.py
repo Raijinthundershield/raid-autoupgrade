@@ -25,7 +25,15 @@ class WindowInteractionService:
     """
 
     def __init__(self, use_minimize_trick: bool = True) -> None:
-        """Initialize WindowInteractionService with no dependencies."""
+        """Initialize WindowInteractionService.
+
+        Args:
+            use_minimize_trick: If True, use minimize-restore-activate sequence to force
+                activation. This is more reliable for bringing background windows to
+                foreground, especially when the application is running as admin.
+                If False, use simple activation. Default: True.
+
+        """
         self._use_minimize_trick = use_minimize_trick
         logger.debug(f"Initializing. {use_minimize_trick=}")
 
@@ -175,10 +183,6 @@ class WindowInteractionService:
 
         Args:
             window_title: Title of the window to activate
-            use_minimize_trick: If True, use minimize-restore-activate sequence to force
-                activation. This is more reliable for bringing background windows to
-                foreground, especially when the application is running as admin.
-                If False, use simple activation. Default: True.
 
         Raises:
             WindowNotFoundException: If window not found
@@ -201,17 +205,21 @@ class WindowInteractionService:
                 )
 
             window = windows[0]
+            is_active = window.isActive and not window.isMinimized
 
-            if self._use_minimize_trick:
+            logger.debug(
+                f"{window.isMinimized=} {window.isActive=} {self._use_minimize_trick=}"
+            )
+            if self._use_minimize_trick and not is_active:
                 logger.debug("Using minimize trick for activation")
                 window.minimize()
                 window.restore()
                 window.activate()
+                time.sleep(0.2)
             else:
                 logger.debug("Using simple activation")
                 window.activate()
-
-            time.sleep(0.05)  # Give window time to activate
+                time.sleep(0.1)
 
             logger.debug(f'Window "{window_title}" activated successfully')
 

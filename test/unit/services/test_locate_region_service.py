@@ -25,7 +25,7 @@ def test_locate_region_service_instantiates():
     assert service._screenshot_service is screenshot_service
 
 
-@pytest.skip(
+@pytest.mark.skip(
     "Automatic detection currently not working, and this hence need a popup for selection"
 )
 def test_locate_region_service_uses_cache():

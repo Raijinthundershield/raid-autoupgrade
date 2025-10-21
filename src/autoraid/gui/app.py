@@ -4,6 +4,7 @@ from nicegui import ui
 
 from autoraid.gui.components.network_panel import create_network_panel
 from autoraid.gui.components.region_panel import create_region_panel
+from autoraid.gui.components.upgrade_panel import create_upgrade_panel
 
 
 def main() -> None:
@@ -12,6 +13,11 @@ def main() -> None:
     @ui.page("/")
     def index():
         ui.label("AutoRaid Web Interface").classes("text-2xl font-bold")
+
+        ui.separator()
+
+        # Upgrade Workflows section (top)
+        create_upgrade_panel()
 
         ui.separator()
 

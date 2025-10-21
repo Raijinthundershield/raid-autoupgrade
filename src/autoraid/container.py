@@ -26,6 +26,7 @@ class Container(containers.DeclarativeContainer):
             "autoraid.cli.network_cli",
             "autoraid.gui.components.network_panel",
             "autoraid.gui.components.region_panel",
+            "autoraid.gui.components.upgrade_panel",
         ]
     )
 

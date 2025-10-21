@@ -215,7 +215,9 @@ def create_region_panel(
 
             # Run manual selection in thread (OpenCV blocks)
             def select_regions():
-                return locate_region_service.get_regions(screenshot, manual=True)
+                return locate_region_service.get_regions(
+                    screenshot, manual=True, override_cache=True
+                )
 
             await asyncio.to_thread(select_regions)
 
