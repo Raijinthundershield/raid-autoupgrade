@@ -337,7 +337,7 @@ feat(gui): implement Spend workflow and real-time log streaming
 ## Phase 6: US6, US7 (P3) - Polish, Debug Mode, Status Display
 
 **User Stories**:
-- US6: Enable Debug Mode for Troubleshooting (Priority P3)
+- US6: Enable Debug Mode for Troubleshooting (Priority P3) [skip]
 - US7: View Cached Region Status (Priority P3)
 
 **Goal**: Single-page layout, debug mode, status indicators, UX polish
@@ -364,16 +364,16 @@ Delivers value: Visual confirmation of cached regions
 
 ### Tasks
 
-- [ ] T046 [P] [US6] Add header in src/autoraid/gui/app.py: Application title, status indicators (Raid window green/red, Network online/offline)
-- [ ] T047 [US6] Add debug mode checkbox in header, persist state in app.storage.user['debug_enabled']
-- [ ] T048 [US6] Pass debug_dir parameter to orchestrator workflows when debug enabled: Path('cache-raid-autoupgrade/debug')
-- [ ] T049 Reorganize app.py for single-page scrollable layout: Upgrade Workflows (top) → Region Management (middle) → Network Adapters (bottom)
-- [ ] T050 [P] Add visual section dividers using ui.separator() between functional areas
-- [ ] T051 [P] Add tooltips (ui.tooltip) for all input fields: "Max Attempts", "Continue Upgrade", network adapter selection (FR-051, FR-052)
-- [ ] T052 [P] Add keyboard shortcuts: Esc to cancel workflow, Enter to submit forms (FR-053, FR-054)
-- [ ] T053 [P] Style improvements: Colors, spacing, scrollable container with ui.column().classes('w-full')
-- [ ] T054 Manual test: Enable debug, run Count, verify artifacts saved; verify single-page layout scrolls smoothly; verify tooltips appear on hover
-- [ ] T055 Run existing pytest suite to ensure no regressions: `uv run pytest`
+- [X] T046 [P] [US6] Add header in src/autoraid/gui/app.py: Application title, status indicators (Raid window green/red, Network online/offline)
+- [-] T047 [US6] [skip]Add debug mode checkbox in header, persist state in app.storage.user['debug_enabled']
+- [-] T048 [US6] [skip]Pass debug_dir parameter to orchestrator workflows when debug enabled: Path('cache-raid-autoupgrade/debug')
+- [X] T049 Reorganize app.py for single-page scrollable layout: Upgrade Workflows (top) → Region Management (middle) → Network Adapters (bottom)
+- [X] T050 [P] Add visual section dividers using ui.separator() between functional areas
+- [X] T051 [P] Add tooltips (ui.tooltip) for all input fields: "Max Attempts", "Continue Upgrade", network adapter selection (FR-051, FR-052)
+- [-] T052 [P] [Skip] Add keyboard shortcuts: Esc to cancel workflow, Enter to submit forms (FR-053, FR-054)
+- [X] T053 [P] Style improvements: Colors, spacing, scrollable container with ui.column().classes('w-full')
+- [X] T054 Manual test: Enable debug, run Count, verify artifacts saved; verify single-page layout scrolls smoothly; verify tooltips appear on hover
+- [X] T055 Run existing pytest suite to ensure no regressions: `uv run pytest`
 
 ### Acceptance Criteria (US6 + US7 + Polish)
 

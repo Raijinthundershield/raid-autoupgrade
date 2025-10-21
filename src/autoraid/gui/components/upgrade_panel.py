@@ -188,6 +188,11 @@ def create_upgrade_panel(
                     min=1,
                     step=1,
                 ).classes("w-full")
+                # Add tooltip
+                with max_attempts_input:
+                    ui.tooltip(
+                        "Number of upgrade attempts to spend (auto-populated from Count workflow)"
+                    )
 
                 ui.space()
 
@@ -195,6 +200,11 @@ def create_upgrade_panel(
                 continue_upgrade_checkbox = ui.checkbox(
                     "Continue Upgrade (level 10+ gear)"
                 ).props("dense")
+                # Add tooltip
+                with continue_upgrade_checkbox:
+                    ui.tooltip(
+                        "Enable for artifacts level 10+, which continue to next upgrade level after successful upgrade"
+                    )
 
                 ui.space()
 
