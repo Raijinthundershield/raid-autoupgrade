@@ -419,9 +419,9 @@ feat(gui): add single-page layout, debug mode, and UI polish
 
 ### Tasks
 
-- [ ] T056 [P] Update README.md with "GUI Usage" section explaining `uv run autoraid gui` command
-- [ ] T057 [P] Update CLAUDE.md with GUI architecture notes (thin layer over orchestrator, DI wiring, component structure)
-- [ ] T058 [P] Update CLAUDE.md project structure section to include gui/ module
+- [X] T056 [P] Update README.md with "GUI Usage" section explaining `uv run autoraid gui` command
+- [X] T057 [P] Update CLAUDE.md with GUI architecture notes (thin layer over orchestrator, DI wiring, component structure)
+- [X] T058 [P] Update CLAUDE.md project structure section to include gui/ module
 - [ ] T059 Create docs/gui-testing-checklist.md with manual testing scenarios for all workflows (Count, Spend, Region selection, Network management)
 - [ ] T060 Manual end-to-end test: Run through complete user journey (select adapters → select regions → count → spend → verify debug mode)
 

@@ -21,7 +21,8 @@ uv sync  # Install dependencies and create virtual environment
 ### Running the Tool
 ```bash
 cd autoraid
-uv run autoraid --help
+uv run autoraid --help    # View all CLI commands
+uv run autoraid gui       # Launch native desktop GUI
 ```
 
 ### Testing
@@ -57,7 +58,15 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
    - [network_cli.py](autoraid/src/autoraid/cli/network_cli.py): Commands for network adapter management
    - Uses Click for CLI framework with dependency injection via `dependency-injector`
 
-2. **Service Layer** ([src/autoraid/services/](autoraid/src/autoraid/services/))
+2. **GUI Layer** ([src/autoraid/gui/](autoraid/src/autoraid/gui/))
+   - [app.py](autoraid/src/autoraid/gui/app.py): Main NiceGUI application with single-page scrollable layout
+   - [components/upgrade_panel.py](autoraid/src/autoraid/gui/components/upgrade_panel.py): Count/Spend workflows with real-time updates
+   - [components/region_panel.py](autoraid/src/autoraid/gui/components/region_panel.py): Region selection and status display
+   - [components/network_panel.py](autoraid/src/autoraid/gui/components/network_panel.py): Network adapter management table
+   - Uses NiceGUI native mode for desktop application window
+   - Zero business logic duplication - all workflows use existing orchestrator and services via DI
+
+3. **Service Layer** ([src/autoraid/services/](autoraid/src/autoraid/services/))
    - **UpgradeOrchestrator** (Factory): Coordinates all services for upgrade workflows
    - **CacheService** (Singleton): Manages region/screenshot caching with diskcache
    - **ScreenshotService** (Singleton): Captures window screenshots and extracts ROIs
@@ -107,11 +116,51 @@ Container (DeclarativeContainer)
     └── upgrade_orchestrator: UpgradeOrchestrator(all services + state_machine.provider)
 ```
 
-**Wiring**: CLI modules (`autoraid.cli.upgrade_cli`, `autoraid.cli.network_cli`) are wired to enable `@inject` decorator.
+**Wiring**: CLI modules (`autoraid.cli.upgrade_cli`, `autoraid.cli.network_cli`) and GUI modules (`autoraid.gui.components.upgrade_panel`, `autoraid.gui.components.region_panel`, `autoraid.gui.components.network_panel`) are wired to enable `@inject` decorator.
 
 **Lifecycle**:
 - **Singleton**: One instance per container (services with no per-request state)
 - **Factory**: New instance per call (state machine, orchestrator with per-workflow state)
+
+### GUI Architecture
+
+The GUI layer is a **thin presentation layer** that provides a native desktop interface without duplicating business logic:
+
+**Design Principles**:
+- **Zero Logic Duplication**: GUI components inject and call the same services used by CLI
+- **Async Threading**: Blocking operations (workflows, region selection) run via `asyncio.to_thread()` to keep UI responsive
+- **State Persistence**: User preferences (selected adapters, last count result) persist via `app.storage.user`
+- **External OpenCV**: Region selection popups remain external windows (not embedded in GUI)
+- **Real-time Updates**: Log streaming and progress updates use NiceGUI's reactive UI elements (`ui.refreshable()`, `ui.log()`)
+
+**Component Structure**:
+- **UpgradePanel** (`upgrade_panel.py`): Count and Spend workflows with real-time progress displays
+  - Injects `UpgradeOrchestrator` to run workflows
+  - Uses `ui.refreshable()` for live count/spent updates
+  - Displays error toasts for exceptions (WindowNotFoundException, NetworkAdapterError, etc.)
+  - Shared log section with color-coded streaming via loguru sink
+
+- **RegionPanel** (`region_panel.py`): Region viewing and selection
+  - Injects `LocateRegionService`, `ScreenshotService`, `CacheService`
+  - "Show Regions" button opens OpenCV window with annotated screenshot
+  - "Select Regions (Auto/Manual)" buttons call service methods in background threads
+  - Window size monitoring with warnings if Raid window resizes
+
+- **NetworkPanel** (`network_panel.py`): Network adapter management
+  - Injects `NetworkManager` via platform layer
+  - Table displays adapters with multi-select checkboxes
+  - Selected adapter IDs stored in `app.storage.user['selected_adapters']`
+  - Internet status indicator polls every 5 seconds
+
+**State Management**:
+- `app.storage.user['selected_adapters']`: Network adapter IDs for Count workflow
+- `app.storage.user['last_count_result']`: Auto-populates Spend workflow max attempts
+- Region cache uses existing diskcache (same as CLI)
+
+**Layout**: Single-page vertical scrollable interface with three sections:
+1. **Upgrade Workflows** (top): Count, Spend, Live Logs
+2. **Region Management** (middle): Window size, cached regions, show/select buttons
+3. **Network Adapters** (bottom): Adapter table with multi-select
 
 ### Service Responsibilities
 
@@ -170,6 +219,14 @@ autoraid/
 │   │   ├── cli.py                # Main entry point, DI container creation
 │   │   ├── upgrade_cli.py        # Upgrade commands with @inject
 │   │   └── network_cli.py        # Network adapter commands
+│   ├── gui/                      # GUI layer (native desktop interface)
+│   │   ├── __init__.py
+│   │   ├── app.py                # Main NiceGUI application & layout
+│   │   └── components/           # UI components
+│   │       ├── __init__.py
+│   │       ├── upgrade_panel.py  # Count/Spend workflows + Live Logs
+│   │       ├── region_panel.py   # Region show/select (OpenCV integration)
+│   │       └── network_panel.py  # Network adapter table & management
 │   ├── services/                 # Service layer (business logic)
 │   │   ├── cache_service.py      # Region/screenshot caching
 │   │   ├── screenshot_service.py # Window screenshot capture
@@ -195,11 +252,15 @@ autoraid/
 │   │   ├── core/                 # Core logic tests
 │   │   │   ├── test_state_machine.py
 │   │   │   └── test_progressbar_state.py
-│   │   └── services/             # Service tests
-│   │       ├── test_cache_service.py
-│   │       ├── test_screenshot_service.py
-│   │       ├── test_locate_region_service.py
-│   │       └── test_window_interaction_service.py
+│   │   ├── services/             # Service tests
+│   │   │   ├── test_cache_service.py
+│   │   │   ├── test_screenshot_service.py
+│   │   │   ├── test_locate_region_service.py
+│   │   │   └── test_window_interaction_service.py
+│   │   └── gui/                  # GUI smoke tests
+│   │       ├── test_network_panel.py
+│   │       ├── test_region_panel.py
+│   │       └── test_upgrade_panel.py
 │   ├── integration/              # Integration tests
 │   │   ├── test_upgrade_orchestrator.py # With mocked services
 │   │   ├── test_cli_integration.py # CLI behavior tests
@@ -221,6 +282,7 @@ Key libraries:
 - **pyautogui**: GUI automation (clicking, screenshots)
 - **pygetwindow**: Window management
 - **click**: CLI framework
+- **nicegui[native]**: Native desktop GUI framework with reactive UI components
 - **dependency-injector**: Dependency injection container
 - **diskcache**: Persistent caching
 - **wmi**: Windows network adapter control
