@@ -188,14 +188,14 @@ class TestUpgradeOrchestrator:
         assert mock_services["window_interaction_service"].click_region.called
         assert mock_state_machine.process_frame.called
 
-        # Verify result structure
-        assert "n_upgrades" in result
-        assert "n_attempts" in result
-        assert "n_remaining" in result
-        assert "last_reason" in result
+        # Verify result structure (SpendResult dataclass)
+        assert hasattr(result, "upgrade_count")
+        assert hasattr(result, "attempt_count")
+        assert hasattr(result, "remaining_attempts")
+        assert hasattr(result, "last_reason")
 
         # Verify result values
-        assert result["n_upgrades"] == 1
-        assert result["n_attempts"] == 4  # 3 fails + 1 success
-        assert result["n_remaining"] == 6  # 10 - 4
-        assert result["last_reason"] == StopCountReason.UPGRADED
+        assert result.upgrade_count == 1
+        assert result.attempt_count == 4  # 3 fails + 1 success
+        assert result.remaining_attempts == 6  # 10 - 4
+        assert result.last_reason == StopCountReason.UPGRADED
