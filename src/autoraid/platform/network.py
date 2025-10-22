@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import warnings
 import socket
+import time
 from dataclasses import dataclass
 from enum import StrEnum
 from urllib import request
@@ -8,6 +9,8 @@ from urllib.error import URLError
 
 import wmi
 from loguru import logger
+
+from autoraid.exceptions import NetworkAdapterError
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
 
@@ -45,28 +48,28 @@ class NetworkManager:
     def __init__(self) -> None:
         self.wmi_obj = wmi.WMI()
 
-    def check_network_access(self, timeout: float = 5.0) -> bool:
+    def check_network_access(self, timeout: float = 5.0) -> NetworkState:
         """Check if there is internet connectivity.
 
         Args:
             timeout (float): Timeout in seconds for the connection test
 
         Returns:
-            bool: True if internet is accessible, False otherwise
+            NetworkState: ONLINE if internet is accessible, OFFLINE otherwise
         """
         try:
             socket.create_connection(("8.8.8.8", 53), timeout=timeout)
             logger.debug("Network status: ONLINE")
-            return True
+            return NetworkState.ONLINE
         except OSError:
             try:
                 # Fallback to HTTP request
                 request.urlopen("http://www.google.com", timeout=timeout)
                 logger.debug("Network status: ONLINE")
-                return True
+                return NetworkState.ONLINE
             except (URLError, TimeoutError):
                 logger.debug("Network status: OFFLINE")
-                return False
+                return NetworkState.OFFLINE
 
     def wait_for_network_state(
         self, target_state: NetworkState, timeout: float
@@ -80,12 +83,9 @@ class NetworkManager:
         Raises:
             NetworkAdapterError: If timeout exceeded before reaching expected state
         """
-        import time
-        from autoraid.exceptions import NetworkAdapterError
 
         start_time = time.time()
         last_log_time = start_time
-        expected_online = target_state == NetworkState.ONLINE
 
         logger.info(
             f"Waiting for network to be {target_state.value} (timeout: {timeout}s)..."
@@ -99,9 +99,9 @@ class NetworkManager:
                     f"Timeout waiting for network to be {target_state.value} after {timeout}s"
                 )
 
-            is_online = self.check_network_access()
+            current_state = self.check_network_access()
 
-            if is_online == expected_online:
+            if current_state == target_state:
                 logger.info(f"Network confirmed {target_state.value}")
                 return
 
@@ -208,7 +208,10 @@ class NetworkManager:
             self.wait_for_network_state(target_state, timeout)
 
             # Check for "internet still accessible" condition after disable
-            if target_state == NetworkState.OFFLINE and self.check_network_access():
+            if (
+                target_state == NetworkState.OFFLINE
+                and self.check_network_access() == NetworkState.ONLINE
+            ):
                 logger.warning(
                     "Internet still accessible via other network paths after disabling adapters"
                 )

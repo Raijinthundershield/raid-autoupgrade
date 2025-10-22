@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 sys.modules["nicegui.native"] = MagicMock()
 
 from autoraid.gui.components.network_panel import create_network_panel  # noqa: E402
+from autoraid.platform.network import NetworkState  # noqa: E402
 
 
 def test_create_network_panel_smoke():
@@ -26,7 +27,7 @@ def test_create_network_panel_smoke():
 
         # Setup mock network manager instance
         mock_nm = Mock()
-        mock_nm.check_network_access.return_value = True
+        mock_nm.check_network_access.return_value = NetworkState.ONLINE
         mock_nm.get_adapters.return_value = []
 
         # Setup mock UI components

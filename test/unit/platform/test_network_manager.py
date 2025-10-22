@@ -74,7 +74,9 @@ class TestToggleAdaptersWithWait:
                     network_manager, "wait_for_network_state"
                 ) as mock_wait:
                     with patch.object(
-                        network_manager, "check_network_access", return_value=False
+                        network_manager,
+                        "check_network_access",
+                        return_value=NetworkState.OFFLINE,
                     ):
                         # Act
                         result = network_manager.toggle_adapters(
@@ -103,7 +105,9 @@ class TestToggleAdaptersTimeout:
                     network_manager, "wait_for_network_state"
                 ) as mock_wait:
                     with patch.object(
-                        network_manager, "check_network_access", return_value=False
+                        network_manager,
+                        "check_network_access",
+                        return_value=NetworkState.OFFLINE,
                     ):
                         # Act
                         network_manager.toggle_adapters(
@@ -142,9 +146,9 @@ class TestWaitForNetworkState:
 
     def test_wait_for_network_state_immediate_success(self, network_manager):
         """Verify return when state matches expected."""
-        # Mock check_network_access to return False (offline) consistently
+        # Mock check_network_access to return OFFLINE consistently
         with patch.object(
-            network_manager, "check_network_access", return_value=False
+            network_manager, "check_network_access", return_value=NetworkState.OFFLINE
         ) as mock_check:
             with patch("time.sleep"):  # Skip actual sleeping
                 # Act: Wait for offline state
@@ -158,7 +162,9 @@ class TestWaitForNetworkState:
     def test_wait_for_network_state_timeout(self, network_manager):
         """Verify NetworkAdapterError raised on timeout."""
         # Mock check_network_access to always return wrong state (online when expecting offline)
-        with patch.object(network_manager, "check_network_access", return_value=True):
+        with patch.object(
+            network_manager, "check_network_access", return_value=NetworkState.ONLINE
+        ):
             # Use a callable that simulates time passing to trigger timeout
             call_count = [0]
 
@@ -238,9 +244,11 @@ class TestInternetStillAccessibleWarning:
         with patch.object(network_manager, "get_adapters", return_value=mock_adapters):
             with patch.object(network_manager, "toggle_adapter", return_value=True):
                 with patch.object(network_manager, "wait_for_network_state"):
-                    # Mock check_network_access to return True (internet still accessible)
+                    # Mock check_network_access to return ONLINE (internet still accessible)
                     with patch.object(
-                        network_manager, "check_network_access", return_value=True
+                        network_manager,
+                        "check_network_access",
+                        return_value=NetworkState.ONLINE,
                     ):
                         # Act - the warning should be logged (verified by manual inspection or loguru handler)
                         network_manager.toggle_adapters(

@@ -39,10 +39,13 @@ def create_network_panel(
         def show_internet_status():
             """Display internet connection status with color coding."""
             try:
-                online = network_manager.check_network_access(timeout=2.0)
-                icon = "🟢" if online else "🔴"
-                color = "text-green-600" if online else "text-red-600"
-                status_text = "Online" if online else "Offline"
+                from autoraid.platform.network import NetworkState
+
+                state = network_manager.check_network_access(timeout=2.0)
+                is_online = state == NetworkState.ONLINE
+                icon = "🟢" if is_online else "🔴"
+                color = "text-green-600" if is_online else "text-red-600"
+                status_text = "Online" if is_online else "Offline"
                 ui.label(f"{icon} Internet: {status_text}").classes(color)
             except Exception as e:
                 logger.error(f"Failed to check internet status: {e}")

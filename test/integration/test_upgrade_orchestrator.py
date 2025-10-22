@@ -78,7 +78,9 @@ class TestUpgradeOrchestrator:
 
         # Setup network manager mock
         network_manager_instance = mock_network_manager.return_value
-        network_manager_instance.check_network_access.return_value = False
+        network_manager_instance.check_network_access.return_value = (
+            NetworkState.OFFLINE
+        )
 
         # Execute workflow (no network adapters to avoid network toggle logic)
         n_fails, reason = orchestrator.count_workflow(
@@ -123,8 +125,12 @@ class TestUpgradeOrchestrator:
         }
 
         # Setup network manager mock
+        from autoraid.platform.network import NetworkState
+
         network_manager_instance = mock_network_manager.return_value
-        network_manager_instance.check_network_access.return_value = False
+        network_manager_instance.check_network_access.return_value = (
+            NetworkState.OFFLINE
+        )
 
         # Execute workflow with network adapter ID
         network_adapter_id = [1, 2]
@@ -177,8 +183,10 @@ class TestUpgradeOrchestrator:
         mock_services["state_machine_provider"].return_value = mock_state_machine
 
         # Setup network manager mock
+        from autoraid.platform.network import NetworkState
+
         network_manager_instance = mock_network_manager.return_value
-        network_manager_instance.check_network_access.return_value = True
+        network_manager_instance.check_network_access.return_value = NetworkState.ONLINE
 
         # Execute workflow
         result = orchestrator.spend_workflow(max_attempts=10, continue_upgrade=False)

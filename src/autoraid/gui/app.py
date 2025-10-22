@@ -58,8 +58,10 @@ def create_header(
                 def show_network_status():
                     """Display network connection status indicator."""
                     try:
-                        online = network_manager.check_network_access(timeout=2.0)
-                        if online:
+                        from autoraid.platform.network import NetworkState
+
+                        state = network_manager.check_network_access(timeout=2.0)
+                        if state == NetworkState.ONLINE:
                             ui.label("🟢 Network").classes(
                                 "text-green-600 font-semibold"
                             )

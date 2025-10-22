@@ -200,7 +200,10 @@ class UpgradeOrchestrator:
         manager = NetworkManager()
 
         # Check network access and disable if needed
-        if manager.check_network_access() and not network_adapter_id:
+        if (
+            manager.check_network_access() == NetworkState.ONLINE
+            and not network_adapter_id
+        ):
             logger.warning("Internet access detected but no network adapter specified")
             raise UpgradeWorkflowError(
                 "Internet access detected and network id not specified. This will upgrade the piece. Aborting."
@@ -306,7 +309,7 @@ class UpgradeOrchestrator:
 
         # Validate network access
         manager = NetworkManager()
-        if not manager.check_network_access():
+        if manager.check_network_access() == NetworkState.OFFLINE:
             logger.error("No internet access detected")
             raise NetworkAdapterError("No internet access detected. Aborting.")
 
