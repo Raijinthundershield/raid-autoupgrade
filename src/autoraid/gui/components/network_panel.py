@@ -1,12 +1,17 @@
 """Network adapter management panel for AutoRaid GUI."""
 
+from dependency_injector.wiring import inject, Provide
 from nicegui import app, ui
 from loguru import logger
 
+from autoraid.container import Container
 from autoraid.platform.network import NetworkManager
 
 
-def create_network_panel() -> None:
+@inject
+def create_network_panel(
+    network_manager: NetworkManager = Provide[Container.network_manager],
+) -> None:
     """Create network adapter management UI section.
 
     Displays:
@@ -16,8 +21,10 @@ def create_network_panel() -> None:
 
     State:
     - Selected adapter IDs persist in app.storage.user['selected_adapters']
+
+    Args:
+        network_manager: Injected NetworkManager singleton service
     """
-    network_manager = NetworkManager()
 
     # Initialize storage for selected adapters
     if "selected_adapters" not in app.storage.user:

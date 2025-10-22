@@ -13,6 +13,8 @@ temp
 # Misc
 scripts/
 plans/
+.claude/agents
+.claude/settings.local.json
 
 # Python-generated files
 __pycache__/
@@ -35,7 +37,6 @@ env/
 # IDE
 .vscode/
 .idea/
-.claude/settings.local.json
 *.swp
 *.swo
 *~

@@ -4,6 +4,7 @@ from dependency_injector import containers, providers
 import diskcache
 
 from autoraid.core.state_machine import UpgradeStateMachine
+from autoraid.platform.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
@@ -59,6 +60,10 @@ class Container(containers.DeclarativeContainer):
         LocateRegionService,
         cache_service=cache_service,
         screenshot_service=screenshot_service,
+    )
+
+    network_manager = providers.Singleton(
+        NetworkManager,
     )
 
     # Factory services (new instance per operation)

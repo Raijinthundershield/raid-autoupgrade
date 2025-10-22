@@ -1,40 +1,41 @@
 #!/usr/bin/env python3
 import warnings
 import socket
+from dataclasses import dataclass
 from urllib import request
 from urllib.error import URLError
 
 import wmi
 from loguru import logger
-from rich.console import Console
-from rich.table import Table
-from rich.prompt import Prompt, Confirm
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
 
 
+@dataclass
 class NetworkAdapter:
-    def __init__(
-        self,
-        name: str,
-        id: str,
-        enabled: bool,
-        mac: str,
-        adapter_type: str,
-        speed: str | None,
-    ) -> None:
-        self.name = name
-        self.id = id
-        self.enabled = enabled
-        self.mac = mac
-        self.adapter_type = adapter_type
-        self.speed = int(speed) if speed and speed.isdigit() else None
+    """Represents a network adapter with its properties."""
+
+    name: str
+    id: str
+    enabled: bool
+    mac: str
+    adapter_type: str
+    speed: str | None
+
+    def __post_init__(self) -> None:
+        """Convert speed from string to int after initialization."""
+        if isinstance(self.speed, str) and self.speed.isdigit():
+            self.speed = int(self.speed)
+        elif isinstance(self.speed, str):
+            self.speed = None
 
 
 class NetworkManager:
+    DEFAULT_TIMEOUT: float = 10.0
+    CHECK_INTERVAL: float = 0.5
+
     def __init__(self) -> None:
         self.wmi_obj = wmi.WMI()
-        self.console = Console()
 
     def check_network_access(self, timeout: float = 5.0) -> bool:
         """Check if there is internet connectivity.
@@ -60,6 +61,53 @@ class NetworkManager:
                 logger.debug("Network status: OFFLINE")
                 return False
 
+    def wait_for_network_state(self, expected_online: bool, timeout: float) -> None:
+        """Wait for network to reach expected state.
+
+        Args:
+            expected_online (bool): True to wait for online state, False for offline
+            timeout (float): Maximum seconds to wait
+
+        Raises:
+            NetworkAdapterError: If timeout exceeded before reaching expected state
+        """
+        import time
+        from autoraid.exceptions import NetworkAdapterError
+
+        start_time = time.time()
+        last_log_time = start_time
+
+        state_name = "online" if expected_online else "offline"
+        logger.info(f"Waiting for network to be {state_name} (timeout: {timeout}s)...")
+
+        while True:
+            elapsed = time.time() - start_time
+
+            # Check for timeout
+            if elapsed >= timeout:
+                raise NetworkAdapterError(
+                    f"Timeout waiting for network to be {state_name} after {timeout}s"
+                )
+
+            # Check current network state
+            is_online = self.check_network_access()
+
+            # Check if state matches expected
+            if is_online == expected_online:
+                logger.info(f"Network confirmed {state_name}")
+                return
+
+            # Log progress every 2 seconds
+            if time.time() - last_log_time >= 2.0:
+                logger.info(
+                    f"Still waiting for network to be {state_name} "
+                    f"({elapsed:.1f}s / {timeout}s)..."
+                )
+                last_log_time = time.time()
+
+            # Wait before next check
+            time.sleep(self.CHECK_INTERVAL)
+
     def get_adapters(self) -> list[NetworkAdapter]:
         """Get all physical network adapters"""
         adapters: list[NetworkAdapter] = []
@@ -76,84 +124,6 @@ class NetworkManager:
             )
         return adapters
 
-    def display_adapters(self, adapters: list[NetworkAdapter]) -> None:
-        """Display adapters in a nice table format"""
-        table = Table(title="Network Adapters")
-        table.add_column("ID", style="cyan")
-        table.add_column("Name", style="green")
-        table.add_column("Status", style="yellow")
-        table.add_column("Type", style="blue")
-        table.add_column("Speed", style="magenta")
-
-        for adapter in adapters:
-            status = "✅ Enabled" if adapter.enabled else "❌ Disabled"
-            speed = (
-                f"{adapter.speed / 1000000:.0f} Mbps"
-                if adapter.speed is not None
-                else "Unknown"
-            )
-            table.add_row(adapter.id, adapter.name, status, adapter.adapter_type, speed)
-
-        self.console.print(table)
-
-    def find_adapter(
-        self, adapters: list[NetworkAdapter], query: str
-    ) -> NetworkAdapter | None:
-        """Find an adapter by ID or name with fuzzy matching"""
-        # Try exact ID match first
-        for adapter in adapters:
-            if adapter.id == query:
-                return adapter
-
-        # Try exact name match
-        for adapter in adapters:
-            if adapter.name.lower() == query.lower():
-                return adapter
-
-        # Try partial name matches
-        partial_matches = []
-        query_lower = query.lower()
-        for adapter in adapters:
-            if query_lower in adapter.name.lower():
-                partial_matches.append(adapter)
-
-        # If we have exactly one partial match, return it
-        if len(partial_matches) == 1:
-            return partial_matches[0]
-
-        return None
-
-    def select_adapters(self) -> list[str]:
-        """Let user select which adapters to toggle"""
-        adapters = self.get_adapters()
-        self.display_adapters(adapters)
-
-        selected_ids: list[str] = []
-        while True:
-            query = Prompt.ask(
-                "\nEnter adapter ID or name (or 'done' to finish)", default="done"
-            )
-
-            if query.lower() == "done":
-                break
-
-            # Try to find the adapter
-            adapter = self.find_adapter(adapters, query)
-            if not adapter:
-                self.console.print(f"[red]No adapter found matching: {query}[/red]")
-                continue
-
-            if adapter.id in selected_ids:
-                self.console.print(
-                    f"[yellow]Adapter {adapter.name} already selected[/yellow]"
-                )
-                continue
-
-            selected_ids.append(adapter.id)
-            self.console.print(f"[green]Selected adapter: {adapter.name}[/green]")
-
-        return selected_ids
-
     def toggle_adapter(self, adapter_id: str, enable: bool) -> bool:
         """Toggle a specific adapter"""
         try:
@@ -169,33 +139,73 @@ class NetworkManager:
             logger.error(f"Failed to toggle adapter {adapter_id}: {str(e)}")
             return False
 
-    def toggle_adapters(self, adapter_ids: list[str], enable: bool) -> bool:
+    def toggle_adapters(
+        self,
+        adapter_ids: list[str],
+        enable: bool,
+        wait: bool = False,
+        timeout: float | None = None,
+    ) -> bool:
+        """Toggle multiple network adapters with optional state waiting.
+
+        Args:
+            adapter_ids (list[str]): List of WMI device IDs to toggle
+            enable (bool): True to enable adapters, False to disable
+            wait (bool): If True, block until network state changes. Default: False
+            timeout (float | None): Custom timeout in seconds. None uses default
+
+        Returns:
+            bool: True if at least one adapter toggled successfully, False otherwise
+
+        Raises:
+            NetworkAdapterError: If wait=True and timeout exceeded
+        """
         logger.debug(
-            f"toggle_adapters called with {len(adapter_ids)} adapters, enable={enable}"
+            f"toggle_adapters called with {len(adapter_ids)} adapters, "
+            f"enable={enable}, wait={wait}, timeout={timeout}"
         )
 
-        success_count = 0
+        if not adapter_ids:
+            logger.info("No adapters to toggle (empty list)")
+            return True
+
+        # Validate adapter IDs and filter out invalid ones (T004)
+        valid_adapter_ids = []
+        all_adapters = self.get_adapters()
+        valid_ids_set = {adapter.id for adapter in all_adapters}
+
         for adapter_id in adapter_ids:
+            if adapter_id in valid_ids_set:
+                valid_adapter_ids.append(adapter_id)
+            else:
+                logger.warning(f"Invalid adapter ID: {adapter_id}")
+
+        # If all IDs were invalid, return False
+        if not valid_adapter_ids:
+            logger.error("All adapter IDs were invalid")
+            return False
+
+        # Toggle each valid adapter
+        success_count = 0
+        for adapter_id in valid_adapter_ids:
             if self.toggle_adapter(adapter_id, enable):
                 success_count += 1
 
-        return success_count > 0
+        # If no adapters were successfully toggled, return False
+        if success_count == 0:
+            return False
 
-    def toggle_selected_adapters(self, enable: bool) -> None:
-        """Toggle selected adapters"""
-        selected_ids = self.select_adapters()
+        # If wait=True, wait for network state change (T003)
+        if wait:
+            timeout = self.DEFAULT_TIMEOUT if timeout is None else timeout
 
-        if not selected_ids:
-            logger.warning("No adapters selected")
-            return
+            expected_online = enable
+            self.wait_for_network_state(expected_online, timeout)
 
-        if not Confirm.ask(
-            f"\nAre you sure you want to {'enable' if enable else 'disable'} these adapters?"
-        ):
-            logger.info("Operation cancelled")
-            return
+            # Check for "internet still accessible" condition after disable
+            if not enable and self.check_network_access():
+                logger.warning(
+                    "Internet still accessible via other network paths after disabling adapters"
+                )
 
-        if self.toggle_adapters(selected_ids, enable):
-            logger.info("Successfully toggled adapters")
-        else:
-            logger.warning("Failed to toggle some adapters")
+        return True

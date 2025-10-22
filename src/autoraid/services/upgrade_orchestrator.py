@@ -206,21 +206,10 @@ class UpgradeOrchestrator:
                 "Internet access detected and network id not specified. This will upgrade the piece. Aborting."
             )
 
-        # Disable network adapters
+        # Disable network adapters with automatic waiting
         if network_adapter_id:
             logger.info(f"Disabling network adapters: {network_adapter_id}")
-            manager.toggle_adapters(network_adapter_id, enable=False)
-
-            # Wait for network to turn off (max 3 seconds)
-            logger.info("Waiting for network to turn off...")
-            for _ in range(10):
-                time.sleep(0.5)
-                if not manager.check_network_access():
-                    logger.info("Network disabled successfully")
-                    break
-            else:
-                logger.error("Failed to disable network")
-                raise NetworkAdapterError("Failed to turn off network. Aborting.")
+            manager.toggle_adapters(network_adapter_id, enable=False, wait=True)
 
         try:
             # Capture screenshot
@@ -262,10 +251,10 @@ class UpgradeOrchestrator:
             return fail_count, reason
 
         finally:
-            # Always re-enable network adapters
+            # Always re-enable network adapters (non-blocking for fast cleanup)
             if network_adapter_id:
                 logger.info(f"Re-enabling network adapters: {network_adapter_id}")
-                manager.toggle_adapters(network_adapter_id, enable=True)
+                manager.toggle_adapters(network_adapter_id, enable=True, wait=False)
                 logger.debug("Network adapters re-enabled")
 
     def spend_workflow(

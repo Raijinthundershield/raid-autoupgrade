@@ -1,8 +1,12 @@
 """Smoke tests for network panel component."""
 
-from unittest.mock import Mock, patch
+import sys
+from unittest.mock import MagicMock, Mock, patch
 
-from autoraid.gui.components.network_panel import create_network_panel
+# Mock nicegui.native before importing any GUI components
+sys.modules["nicegui.native"] = MagicMock()
+
+from autoraid.gui.components.network_panel import create_network_panel  # noqa: E402
 
 
 def test_create_network_panel_smoke():
@@ -10,23 +14,20 @@ def test_create_network_panel_smoke():
 
     This smoke test verifies:
     - Component instantiates without exceptions
-    - NetworkManager is instantiated correctly
+    - NetworkManager dependency is used correctly
     - No runtime errors during setup
     """
     # Mock NiceGUI components to avoid requiring a running UI
     with patch("autoraid.gui.components.network_panel.ui") as mock_ui, patch(
         "autoraid.gui.components.network_panel.app"
-    ) as mock_app, patch(
-        "autoraid.gui.components.network_panel.NetworkManager"
-    ) as mock_nm:
+    ) as mock_app:
         # Setup mock storage
         mock_app.storage.user = {}
 
-        # Setup mock network manager
-        mock_nm_instance = Mock()
-        mock_nm_instance.check_network_access.return_value = True
-        mock_nm_instance.get_adapters.return_value = []
-        mock_nm.return_value = mock_nm_instance
+        # Setup mock network manager instance
+        mock_nm = Mock()
+        mock_nm.check_network_access.return_value = True
+        mock_nm.get_adapters.return_value = []
 
         # Setup mock UI components
         mock_ui.column.return_value.__enter__ = Mock()
@@ -34,11 +35,8 @@ def test_create_network_panel_smoke():
         mock_ui.row.return_value.__enter__ = Mock()
         mock_ui.row.return_value.__exit__ = Mock(return_value=False)
 
-        # Should not raise any exceptions
-        create_network_panel()
-
-        # Verify NetworkManager was instantiated
-        mock_nm.assert_called_once()
+        # Call with explicit network_manager to bypass DI
+        create_network_panel(network_manager=mock_nm)
 
         # Verify storage was initialized
         assert "selected_adapters" in mock_app.storage.user
