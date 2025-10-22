@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch
 
-from autoraid.platform.network import NetworkManager, NetworkAdapter
+from autoraid.platform.network import NetworkManager, NetworkAdapter, NetworkState
 from autoraid.exceptions import NetworkAdapterError
 
 
@@ -53,7 +53,7 @@ class TestToggleAdaptersWithoutWait:
                 ) as mock_wait:
                     # Act
                     result = network_manager.toggle_adapters(
-                        ["0", "1"], enable=False, wait=False
+                        ["0", "1"], NetworkState.OFFLINE, wait=False
                     )
 
                     # Assert
@@ -78,7 +78,7 @@ class TestToggleAdaptersWithWait:
                     ):
                         # Act
                         result = network_manager.toggle_adapters(
-                            ["0"], enable=False, wait=True
+                            ["0"], NetworkState.OFFLINE, wait=True
                         )
 
                         # Assert
@@ -86,7 +86,7 @@ class TestToggleAdaptersWithWait:
                         # Check positional args (the method is called with positional args)
                         assert mock_wait.call_count == 1
                         call_args = mock_wait.call_args[0]
-                        assert call_args[0] is False  # expected_online
+                        assert call_args[0] == NetworkState.OFFLINE  # target_state
                         assert call_args[1] == 10.0  # timeout (DEFAULT_TIMEOUT)
 
 
@@ -106,12 +106,14 @@ class TestToggleAdaptersTimeout:
                         network_manager, "check_network_access", return_value=False
                     ):
                         # Act
-                        network_manager.toggle_adapters(["0"], enable=False, wait=True)
+                        network_manager.toggle_adapters(
+                            ["0"], NetworkState.OFFLINE, wait=True
+                        )
 
                         # Assert: DEFAULT_TIMEOUT (10.0s) used
                         assert mock_wait.call_count == 1
                         call_args = mock_wait.call_args[0]
-                        assert call_args[0] is False  # expected_online
+                        assert call_args[0] == NetworkState.OFFLINE  # target_state
                         assert call_args[1] == 10.0  # timeout
 
     def test_toggle_adapters_uses_default_timeout_enable(
@@ -124,12 +126,14 @@ class TestToggleAdaptersTimeout:
                     network_manager, "wait_for_network_state"
                 ) as mock_wait:
                     # Act
-                    network_manager.toggle_adapters(["0"], enable=True, wait=True)
+                    network_manager.toggle_adapters(
+                        ["0"], NetworkState.ONLINE, wait=True
+                    )
 
                     # Assert: DEFAULT_TIMEOUT (10.0s) used
                     assert mock_wait.call_count == 1
                     call_args = mock_wait.call_args[0]
-                    assert call_args[0] is True  # expected_online
+                    assert call_args[0] == NetworkState.ONLINE  # target_state
                     assert call_args[1] == 10.0  # timeout
 
 
@@ -145,7 +149,7 @@ class TestWaitForNetworkState:
             with patch("time.sleep"):  # Skip actual sleeping
                 # Act: Wait for offline state
                 network_manager.wait_for_network_state(
-                    expected_online=False, timeout=5.0
+                    NetworkState.OFFLINE, timeout=5.0
                 )
 
                 # Assert: Should check at least once
@@ -169,7 +173,7 @@ class TestWaitForNetworkState:
                 # Act & Assert: Should raise NetworkAdapterError
                 with pytest.raises(NetworkAdapterError) as exc_info:
                     network_manager.wait_for_network_state(
-                        expected_online=False, timeout=5.0
+                        NetworkState.OFFLINE, timeout=5.0
                     )
 
                 assert "Timeout waiting for network to be offline after 5.0s" in str(
@@ -189,7 +193,7 @@ class TestInvalidAdapterHandling:
             ) as mock_toggle:
                 # Act: Try to toggle mix of invalid and valid IDs
                 result = network_manager.toggle_adapters(
-                    ["invalid-id", "0", "999"], enable=False, wait=False
+                    ["invalid-id", "0", "999"], NetworkState.OFFLINE, wait=False
                 )
 
                 # Assert:
@@ -198,14 +202,14 @@ class TestInvalidAdapterHandling:
 
                 # 2. Should only toggle valid adapter "0"
                 assert mock_toggle.call_count == 1
-                mock_toggle.assert_called_with("0", False)
+                mock_toggle.assert_called_with("0", NetworkState.OFFLINE)
 
     def test_toggle_adapters_all_invalid_ids(self, network_manager, mock_adapters):
         """Verify return False when all adapter IDs are invalid."""
         with patch.object(network_manager, "get_adapters", return_value=mock_adapters):
             # Act: All IDs are invalid
             result = network_manager.toggle_adapters(
-                ["invalid-1", "invalid-2"], enable=False, wait=False
+                ["invalid-1", "invalid-2"], NetworkState.OFFLINE, wait=False
             )
 
             # Assert: Should return False
@@ -218,7 +222,7 @@ class TestEmptyAdapterList:
     def test_toggle_adapters_empty_list(self, network_manager):
         """Verify success with empty adapter list (no-op)."""
         # Act
-        result = network_manager.toggle_adapters([], enable=False, wait=False)
+        result = network_manager.toggle_adapters([], NetworkState.OFFLINE, wait=False)
 
         # Assert: Should return True (no-op is success)
         assert result is True
@@ -239,7 +243,9 @@ class TestInternetStillAccessibleWarning:
                         network_manager, "check_network_access", return_value=True
                     ):
                         # Act - the warning should be logged (verified by manual inspection or loguru handler)
-                        network_manager.toggle_adapters(["0"], enable=False, wait=True)
+                        network_manager.toggle_adapters(
+                            ["0"], NetworkState.OFFLINE, wait=True
+                        )
 
                         # Note: We can't easily test loguru output with caplog
                         # The important thing is that this doesn't raise an exception

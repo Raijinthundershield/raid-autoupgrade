@@ -2,6 +2,7 @@
 import warnings
 import socket
 from dataclasses import dataclass
+from enum import StrEnum
 from urllib import request
 from urllib.error import URLError
 
@@ -9,6 +10,13 @@ import wmi
 from loguru import logger
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
+
+
+class NetworkState(StrEnum):
+    """Network state enum for adapter operations."""
+
+    ONLINE = "online"
+    OFFLINE = "offline"
 
 
 @dataclass
@@ -61,12 +69,14 @@ class NetworkManager:
                 logger.debug("Network status: OFFLINE")
                 return False
 
-    def wait_for_network_state(self, expected_online: bool, timeout: float) -> None:
+    def wait_for_network_state(
+        self, target_state: NetworkState, timeout: float
+    ) -> None:
         """Wait for network to reach expected state.
 
         Args:
-            expected_online (bool): True to wait for online state, False for offline
-            timeout (float): Maximum seconds to wait
+            target_state: Target network state (NetworkState.ONLINE or NetworkState.OFFLINE)
+            timeout: Maximum seconds to wait
 
         Raises:
             NetworkAdapterError: If timeout exceeded before reaching expected state
@@ -77,8 +87,9 @@ class NetworkManager:
         start_time = time.time()
         last_log_time = start_time
 
-        state_name = "online" if expected_online else "offline"
-        logger.info(f"Waiting for network to be {state_name} (timeout: {timeout}s)...")
+        logger.info(
+            f"Waiting for network to be {target_state.value} (timeout: {timeout}s)..."
+        )
 
         while True:
             elapsed = time.time() - start_time
@@ -86,21 +97,22 @@ class NetworkManager:
             # Check for timeout
             if elapsed >= timeout:
                 raise NetworkAdapterError(
-                    f"Timeout waiting for network to be {state_name} after {timeout}s"
+                    f"Timeout waiting for network to be {target_state.value} after {timeout}s"
                 )
 
             # Check current network state
             is_online = self.check_network_access()
+            expected_online = target_state == NetworkState.ONLINE
 
             # Check if state matches expected
             if is_online == expected_online:
-                logger.info(f"Network confirmed {state_name}")
+                logger.info(f"Network confirmed {target_state.value}")
                 return
 
             # Log progress every 2 seconds
             if time.time() - last_log_time >= 2.0:
                 logger.info(
-                    f"Still waiting for network to be {state_name} "
+                    f"Still waiting for network to be {target_state.value} "
                     f"({elapsed:.1f}s / {timeout}s)..."
                 )
                 last_log_time = time.time()
@@ -124,11 +136,11 @@ class NetworkManager:
             )
         return adapters
 
-    def toggle_adapter(self, adapter_id: str, enable: bool) -> bool:
+    def toggle_adapter(self, adapter_id: str, target_state: NetworkState) -> bool:
         """Toggle a specific adapter"""
         try:
             adapter = self.wmi_obj.Win32_NetworkAdapter(DeviceID=adapter_id)[0]
-            if enable:
+            if target_state == NetworkState.ONLINE:
                 adapter.Enable()
                 logger.info(f"Enabled adapter: {adapter.Name}")
             else:
@@ -142,27 +154,27 @@ class NetworkManager:
     def toggle_adapters(
         self,
         adapter_ids: list[str],
-        enable: bool,
+        target_state: NetworkState,
         wait: bool = False,
         timeout: float | None = None,
     ) -> bool:
         """Toggle multiple network adapters with optional state waiting.
 
         Args:
-            adapter_ids (list[str]): List of WMI device IDs to toggle
-            enable (bool): True to enable adapters, False to disable
-            wait (bool): If True, block until network state changes. Default: False
-            timeout (float | None): Custom timeout in seconds. None uses default
+            adapter_ids: List of WMI device IDs to toggle
+            target_state: Target network state (NetworkState.ONLINE or NetworkState.OFFLINE)
+            wait: If True, block until network state changes. Default: False
+            timeout: Custom timeout in seconds. None uses default
 
         Returns:
-            bool: True if at least one adapter toggled successfully, False otherwise
+            True if at least one adapter toggled successfully, False otherwise
 
         Raises:
             NetworkAdapterError: If wait=True and timeout exceeded
         """
         logger.debug(
             f"toggle_adapters called with {len(adapter_ids)} adapters, "
-            f"enable={enable}, wait={wait}, timeout={timeout}"
+            f"target_state={target_state.value}, wait={wait}, timeout={timeout}"
         )
 
         if not adapter_ids:
@@ -188,7 +200,7 @@ class NetworkManager:
         # Toggle each valid adapter
         success_count = 0
         for adapter_id in valid_adapter_ids:
-            if self.toggle_adapter(adapter_id, enable):
+            if self.toggle_adapter(adapter_id, target_state):
                 success_count += 1
 
         # If no adapters were successfully toggled, return False
@@ -199,11 +211,10 @@ class NetworkManager:
         if wait:
             timeout = self.DEFAULT_TIMEOUT if timeout is None else timeout
 
-            expected_online = enable
-            self.wait_for_network_state(expected_online, timeout)
+            self.wait_for_network_state(target_state, timeout)
 
             # Check for "internet still accessible" condition after disable
-            if not enable and self.check_network_access():
+            if target_state == NetworkState.OFFLINE and self.check_network_access():
                 logger.warning(
                     "Internet still accessible via other network paths after disabling adapters"
                 )

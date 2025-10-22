@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 
 from autoraid.container import Container
-from autoraid.platform.network import NetworkManager, NetworkAdapter
+from autoraid.platform.network import NetworkManager, NetworkAdapter, NetworkState
 
 
 @click.group()
@@ -135,7 +135,7 @@ def disable(
         if not found_adapter:
             logger.error(f"No adapter found matching: {adapter}")
             sys.exit(1)
-        if network_manager.toggle_adapter(found_adapter.id, False):
+        if network_manager.toggle_adapter(found_adapter.id, NetworkState.OFFLINE):
             logger.info(f"Successfully disabled adapter: {found_adapter.name}")
         else:
             logger.error(f"Failed to disable adapter: {found_adapter.name}")
@@ -151,7 +151,7 @@ def disable(
             logger.info("Operation cancelled")
             return
 
-        if network_manager.toggle_adapters(selected_ids, enable=False):
+        if network_manager.toggle_adapters(selected_ids, NetworkState.OFFLINE):
             logger.info("Successfully toggled adapters")
         else:
             logger.warning("Failed to toggle some adapters")
@@ -182,7 +182,7 @@ def enable(
         if not found_adapter:
             logger.error(f"No adapter found matching: {adapter}")
             sys.exit(1)
-        if network_manager.toggle_adapter(found_adapter.id, True):
+        if network_manager.toggle_adapter(found_adapter.id, NetworkState.ONLINE):
             logger.info(f"Successfully enabled adapter: {found_adapter.name}")
         else:
             logger.error(f"Failed to enable adapter: {found_adapter.name}")
@@ -198,7 +198,7 @@ def enable(
             logger.info("Operation cancelled")
             return
 
-        if network_manager.toggle_adapters(selected_ids, enable=True):
+        if network_manager.toggle_adapters(selected_ids, NetworkState.ONLINE):
             logger.info("Successfully toggled adapters")
         else:
             logger.warning("Failed to toggle some adapters")

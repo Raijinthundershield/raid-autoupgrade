@@ -15,7 +15,7 @@ from autoraid.exceptions import (
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
-from autoraid.platform.network import NetworkManager
+from autoraid.platform.network import NetworkManager, NetworkState
 from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
@@ -209,7 +209,7 @@ class UpgradeOrchestrator:
         # Disable network adapters with automatic waiting
         if network_adapter_id:
             logger.info(f"Disabling network adapters: {network_adapter_id}")
-            manager.toggle_adapters(network_adapter_id, enable=False, wait=True)
+            manager.toggle_adapters(network_adapter_id, NetworkState.OFFLINE, wait=True)
 
         try:
             # Capture screenshot
@@ -254,7 +254,9 @@ class UpgradeOrchestrator:
             # Always re-enable network adapters (non-blocking for fast cleanup)
             if network_adapter_id:
                 logger.info(f"Re-enabling network adapters: {network_adapter_id}")
-                manager.toggle_adapters(network_adapter_id, enable=True, wait=False)
+                manager.toggle_adapters(
+                    network_adapter_id, NetworkState.ONLINE, wait=False
+                )
                 logger.debug("Network adapters re-enabled")
 
     def spend_workflow(

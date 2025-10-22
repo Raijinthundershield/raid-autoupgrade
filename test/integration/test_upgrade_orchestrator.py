@@ -9,6 +9,7 @@ import numpy as np
 
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 from autoraid.core.state_machine import StopCountReason
+from autoraid.platform.network import NetworkState
 
 
 class TestUpgradeOrchestrator:
@@ -136,12 +137,12 @@ class TestUpgradeOrchestrator:
         assert network_manager_instance.toggle_adapters.call_count >= 1
         first_call = network_manager_instance.toggle_adapters.call_args_list[0]
         assert first_call[0][0] == network_adapter_id
-        assert first_call[1]["enable"] is False
+        assert first_call[0][1] == NetworkState.OFFLINE
 
         # Verify network was re-enabled in finally block (last call)
         last_call = network_manager_instance.toggle_adapters.call_args_list[-1]
         assert last_call[0][0] == network_adapter_id
-        assert last_call[1]["enable"] is True
+        assert last_call[0][1] == NetworkState.ONLINE
 
     @patch("autoraid.services.upgrade_orchestrator.NetworkManager")
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
