@@ -4,6 +4,7 @@ Provides Count and Spend upgrade workflow UI with real-time progress display.
 """
 
 import asyncio
+from dataclasses import dataclass
 
 from dependency_injector.wiring import Provide, inject
 from loguru import logger
@@ -24,6 +25,35 @@ MAX_COUNT_ATTEMPTS = 99
 MAX_LOG_LINES = 1000
 
 DEFAULT_MAX_ATTEMPTS = 1
+
+
+@dataclass
+class WorkflowState:
+    """Manages workflow state for Count and Spend workflows."""
+
+    count_value: int = 0
+    spent_value: int = 0
+    is_count_running: bool = False
+    is_spend_running: bool = False
+
+    def is_any_running(self) -> bool:
+        return self.is_count_running or self.is_spend_running
+
+    def start_count(self) -> None:
+        self.count_value = 0
+        self.is_count_running = True
+
+    def finish_count(self, final_count: int) -> None:
+        self.count_value = final_count
+        self.is_count_running = False
+
+    def start_spend(self) -> None:
+        self.spent_value = 0
+        self.is_spend_running = True
+
+    def finish_spend(self, final_spent: int) -> None:
+        self.spent_value = final_spent
+        self.is_spend_running = False
 
 
 def handle_workflow_error(
@@ -97,10 +127,7 @@ def create_upgrade_panel(
         debug: Enable debug logging (DEBUG level vs INFO level)
     """
     # Workflow state
-    current_count_value = 0
-    current_spent_value = 0
-    is_count_running = False
-    is_spend_running = False
+    state = WorkflowState()
 
     with ui.column().classes("w-full"):
         # Section header
@@ -137,9 +164,7 @@ def create_upgrade_panel(
                 @ui.refreshable
                 def show_current_count():
                     """Display current count value during workflow."""
-                    ui.label(f"Count: {current_count_value}").classes(
-                        "text-lg font-bold"
-                    )
+                    ui.label(f"Count: {state.count_value}").classes("text-lg font-bold")
 
                 show_current_count()
 
@@ -149,7 +174,6 @@ def create_upgrade_panel(
 
                 async def start_count_workflow():
                     """Start count workflow asynchronously."""
-                    nonlocal current_count_value, is_count_running
 
                     # Validate network adapter selection
                     selected_adapters = app.storage.user.get("selected_adapters", [])
@@ -160,18 +184,17 @@ def create_upgrade_panel(
                         )
                         return
 
-                    if is_count_running or is_spend_running:
+                    if state.is_any_running():
                         ui.notify("Workflow already running", type="warning")
                         return
 
                     # Clear logs when starting new workflow
                     log_element.clear()
 
-                    current_count_value = 0
+                    state.start_count()
                     show_current_count.refresh()
 
                     start_button.props("disabled")
-                    is_count_running = True
 
                     try:
                         logger.info("Starting count workflow from GUI")
@@ -185,7 +208,7 @@ def create_upgrade_panel(
                             debug_dir=None,
                         )
 
-                        current_count_value = fail_count
+                        state.finish_count(fail_count)
                         show_current_count.refresh()
 
                         app.storage.user["last_count_result"] = fail_count
@@ -203,7 +226,7 @@ def create_upgrade_panel(
 
                     finally:
                         start_button.props(remove="disabled")
-                        is_count_running = False
+                        state.is_count_running = False
 
                 start_button.on_click(start_count_workflow)
 
@@ -255,7 +278,7 @@ def create_upgrade_panel(
                 @ui.refreshable
                 def show_current_spent():
                     """Display current spent value during workflow."""
-                    ui.label(f"Current Spent: {current_spent_value}").classes(
+                    ui.label(f"Current Spent: {state.spent_value}").classes(
                         "text-lg font-bold"
                     )
 
@@ -267,9 +290,8 @@ def create_upgrade_panel(
 
                 async def start_spend_workflow():
                     """Start spend workflow asynchronously."""
-                    nonlocal current_spent_value, is_spend_running
 
-                    if is_count_running or is_spend_running:
+                    if state.is_any_running():
                         ui.notify("Workflow already running", type="warning")
                         return
 
@@ -279,11 +301,10 @@ def create_upgrade_panel(
                     # Clear logs when starting new workflow
                     log_element.clear()
 
-                    current_spent_value = 0
+                    state.start_spend()
                     show_current_spent.refresh()
 
                     spend_button.props("disabled")
-                    is_spend_running = True
 
                     try:
                         logger.info("Starting spend workflow from GUI")
@@ -295,7 +316,7 @@ def create_upgrade_panel(
                             debug_dir=None,
                         )
 
-                        current_spent_value = spend_result.attempt_count
+                        state.finish_spend(spend_result.attempt_count)
                         show_current_spent.refresh()
 
                         ui.notify(
@@ -312,7 +333,7 @@ def create_upgrade_panel(
                     finally:
                         # Re-enable spend button
                         spend_button.props(remove="disabled")
-                        is_spend_running = False
+                        state.is_spend_running = False
 
                 # Wire button handler
                 spend_button.on_click(start_spend_workflow)
