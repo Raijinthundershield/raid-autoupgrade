@@ -19,6 +19,72 @@ from autoraid.logging_config import add_logger_sink
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 
 
+MAX_COUNT_ATTEMPTS = 99
+
+MAX_LOG_LINES = 1000
+
+DEFAULT_MAX_ATTEMPTS = 1
+
+
+def handle_workflow_error(
+    error: Exception,
+    workflow_name: str,
+    logger_instance,
+) -> None:
+    """Centralized error handling for workflows.
+
+    This function provides consistent error handling and user notifications
+    for all exceptions that can occur during Count and Spend workflows.
+
+    Args:
+        error: The exception that was raised during workflow execution
+        workflow_name: "Count" or "Spend" for logging context
+        logger_instance: Logger instance to use for error logging
+    """
+    if isinstance(error, WindowNotFoundException):
+        logger_instance.error(f"Window not found: {error}")
+        ui.notify(
+            "Raid window not found. Please ensure Raid is running.",
+            type="negative",
+        )
+        return
+
+    if isinstance(error, NetworkAdapterError):
+        logger_instance.error(f"Network adapter error: {error}")
+        ui.notify(f"Network adapter error: {error}", type="negative")
+        return
+
+    if isinstance(error, ConnectionError):
+        logger_instance.error(f"No internet access: {error}")
+        ui.notify(
+            "No internet access. Please check your connection and try again.",
+            type="negative",
+        )
+        return
+
+    if isinstance(error, UpgradeWorkflowError):
+        logger_instance.error(f"Workflow error: {error}")
+        ui.notify(f"Workflow error: {error}", type="negative")
+        return
+
+    if isinstance(error, ValueError):
+        logger_instance.error(f"Region error: {error}")
+        ui.notify(
+            "No regions cached. Please select regions first.",
+            type="negative",
+        )
+        return
+
+    if isinstance(error, asyncio.CancelledError):
+        logger_instance.warning(f"{workflow_name} workflow cancelled by user")
+        ui.notify(f"{workflow_name} workflow cancelled", type="warning")
+        return
+
+    # Unexpected errors
+    logger_instance.exception(f"Unexpected error in {workflow_name} workflow: {error}")
+    ui.notify(f"Unexpected error: {error}", type="negative")
+
+
 @inject
 def create_upgrade_panel(
     orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
@@ -132,44 +198,8 @@ def create_upgrade_panel(
                         )
                         logger.info(f"Count workflow completed: {n_fails} fails")
 
-                    except WindowNotFoundException as e:
-                        logger.error(f"Window not found: {e}")
-                        ui.notify(
-                            "Raid window not found. Please ensure Raid is running.",
-                            type="negative",
-                        )
-
-                    except NetworkAdapterError as e:
-                        logger.error(f"Network adapter error: {e}")
-                        ui.notify(
-                            f"Network adapter error: {e}",
-                            type="negative",
-                        )
-
-                    except UpgradeWorkflowError as e:
-                        logger.error(f"Workflow error: {e}")
-                        ui.notify(
-                            f"Workflow error: {e}",
-                            type="negative",
-                        )
-
-                    except ValueError as e:
-                        logger.error(f"Region error: {e}")
-                        ui.notify(
-                            "No regions cached. Please select regions first.",
-                            type="negative",
-                        )
-
-                    except asyncio.CancelledError:
-                        logger.warning("Count workflow cancelled by user")
-                        ui.notify("Count workflow cancelled", type="warning")
-
                     except Exception as e:
-                        logger.exception(f"Unexpected error in count workflow: {e}")
-                        ui.notify(
-                            f"Unexpected error: {e}",
-                            type="negative",
-                        )
+                        handle_workflow_error(e, "Count", logger)
 
                     finally:
                         start_button.props(remove="disabled")
@@ -274,44 +304,8 @@ def create_upgrade_panel(
                             f"Spend workflow completed: {n_upgrades} upgrades, {n_attempts} attempts"
                         )
 
-                    except WindowNotFoundException as e:
-                        logger.error(f"Window not found: {e}")
-                        ui.notify(
-                            "Raid window not found. Please ensure Raid is running.",
-                            type="negative",
-                        )
-
-                    except UpgradeWorkflowError as e:
-                        logger.error(f"Workflow error: {e}")
-                        ui.notify(
-                            f"Workflow error: {e}",
-                            type="negative",
-                        )
-
-                    except ValueError as e:
-                        logger.error(f"Region error: {e}")
-                        ui.notify(
-                            "No regions cached. Please select regions first.",
-                            type="negative",
-                        )
-
-                    except ConnectionError as e:
-                        logger.error(f"No internet access: {e}")
-                        ui.notify(
-                            "No internet access. Please check your connection and try again.",
-                            type="negative",
-                        )
-
-                    except asyncio.CancelledError:
-                        logger.warning("Spend workflow cancelled by user")
-                        ui.notify("Spend workflow cancelled", type="warning")
-
                     except Exception as e:
-                        logger.exception(f"Unexpected error in spend workflow: {e}")
-                        ui.notify(
-                            f"Unexpected error: {e}",
-                            type="negative",
-                        )
+                        handle_workflow_error(e, "Spend", logger)
 
                     finally:
                         # Re-enable spend button
