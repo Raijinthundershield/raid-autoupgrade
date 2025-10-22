@@ -55,7 +55,6 @@ class NetworkManager:
             bool: True if internet is accessible, False otherwise
         """
         try:
-            # Try to connect to a reliable host
             socket.create_connection(("8.8.8.8", 53), timeout=timeout)
             logger.debug("Network status: ONLINE")
             return True
@@ -86,6 +85,7 @@ class NetworkManager:
 
         start_time = time.time()
         last_log_time = start_time
+        expected_online = target_state == NetworkState.ONLINE
 
         logger.info(
             f"Waiting for network to be {target_state.value} (timeout: {timeout}s)..."
@@ -94,22 +94,17 @@ class NetworkManager:
         while True:
             elapsed = time.time() - start_time
 
-            # Check for timeout
             if elapsed >= timeout:
                 raise NetworkAdapterError(
                     f"Timeout waiting for network to be {target_state.value} after {timeout}s"
                 )
 
-            # Check current network state
             is_online = self.check_network_access()
-            expected_online = target_state == NetworkState.ONLINE
 
-            # Check if state matches expected
             if is_online == expected_online:
                 logger.info(f"Network confirmed {target_state.value}")
                 return
 
-            # Log progress every 2 seconds
             if time.time() - last_log_time >= 2.0:
                 logger.info(
                     f"Still waiting for network to be {target_state.value} "
@@ -117,7 +112,6 @@ class NetworkManager:
                 )
                 last_log_time = time.time()
 
-            # Wait before next check
             time.sleep(self.CHECK_INTERVAL)
 
     def get_adapters(self) -> list[NetworkAdapter]:
