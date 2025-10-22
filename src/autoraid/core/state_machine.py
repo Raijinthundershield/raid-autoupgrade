@@ -66,7 +66,12 @@ class UpgradeStateMachine:
         # Detect current state
         previous_state = self.recent_states[-1] if self.recent_states else None
         state = self._detect_state(roi_image)
-        logger.debug(f"Detected state: {state.value}")
+
+        # Log state transitions
+        if previous_state and previous_state != state:
+            logger.debug(f"State transition: {previous_state.value} → {state.value}")
+        elif previous_state is None:
+            logger.debug(f"State transition: {previous_state} → {state.value}")
 
         # Update recent states
         self.recent_states.append(state)
@@ -78,7 +83,7 @@ class UpgradeStateMachine:
 
         # Log warning for unknown states
         if state == ProgressBarState.UNKNOWN:
-            logger.warning("Unknown progress bar state detected")
+            logger.debug("Unknown progress bar state detected")
 
         # Check stop conditions
         stop_reason = self._check_stop_condition()

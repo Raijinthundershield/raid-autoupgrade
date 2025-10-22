@@ -48,13 +48,16 @@ class NetworkManager:
         try:
             # Try to connect to a reliable host
             socket.create_connection(("8.8.8.8", 53), timeout=timeout)
+            logger.debug("Network status: ONLINE")
             return True
         except OSError:
             try:
                 # Fallback to HTTP request
                 request.urlopen("http://www.google.com", timeout=timeout)
+                logger.debug("Network status: ONLINE")
                 return True
             except (URLError, TimeoutError):
+                logger.debug("Network status: OFFLINE")
                 return False
 
     def get_adapters(self) -> list[NetworkAdapter]:
@@ -167,10 +170,15 @@ class NetworkManager:
             return False
 
     def toggle_adapters(self, adapter_ids: list[str], enable: bool) -> bool:
+        logger.debug(
+            f"toggle_adapters called with {len(adapter_ids)} adapters, enable={enable}"
+        )
+
         success_count = 0
         for adapter_id in adapter_ids:
             if self.toggle_adapter(adapter_id, enable):
                 success_count += 1
+
         return success_count > 0
 
     def toggle_selected_adapters(self, enable: bool) -> None:

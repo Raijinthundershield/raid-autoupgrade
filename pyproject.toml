@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Raijin", email = "dummy@email.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "pyautogui>=0.9.54",
     "opencv-python>=4.8.0",
@@ -23,6 +23,7 @@ dependencies = [
     "wmi>=1.5.1",
     "pyscreeze>=1.0.1",
     "dependency-injector>=4.44.0",
+    "nicegui[native]>=2.10.0",
 ]
 
 [project.scripts]

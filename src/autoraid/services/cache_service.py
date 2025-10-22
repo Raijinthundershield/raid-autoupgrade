@@ -19,17 +19,16 @@ class CacheService:
             cache: diskcache.Cache instance for persistent storage
         """
         self._cache = cache
-        logger.debug("Initialized with cache directory: {}", cache.directory)
 
     @staticmethod
     def create_regions_key(window_size: tuple[int, int]) -> str:
         """Generate cache key for regions based on window size.
 
         Args:
-            window_size: Tuple of (width, height)
+            window_size: Tuple of (height, width)
 
         Returns:
-            Cache key string in format "regions_{width}_{height}"
+            Cache key string in format "regions_{height}_{width}"
         """
         return f"regions_{window_size[0]}_{window_size[1]}"
 
@@ -38,10 +37,10 @@ class CacheService:
         """Generate cache key for screenshots based on window size.
 
         Args:
-            window_size: Tuple of (width, height)
+            window_size: Tuple of (height, width)
 
         Returns:
-            Cache key string in format "screenshot_{width}_{height}"
+            Cache key string in format "screenshot_{height}_{width}"
         """
         return f"screenshot_{window_size[0]}_{window_size[1]}"
 
@@ -49,11 +48,12 @@ class CacheService:
         """Retrieve cached regions for window size.
 
         Args:
-            window_size: Tuple of (width, height)
+            window_size: Tuple of (height, width)
 
         Returns:
             Dictionary of region data if found, None otherwise
         """
+        logger.debug(f"Retrieving cached regions for window size {window_size}")
         cache_key = self.create_regions_key(window_size)
         regions = self._cache.get(cache_key)
         if regions is not None:
@@ -66,7 +66,7 @@ class CacheService:
         """Store regions in cache for window size.
 
         Args:
-            window_size: Tuple of (width, height)
+            window_size: Tuple of (height, width)
             regions: Dictionary of region data to cache
         """
         cache_key = self.create_regions_key(window_size)
@@ -77,7 +77,7 @@ class CacheService:
         """Retrieve cached screenshot for window size.
 
         Args:
-            window_size: Tuple of (width, height)
+            window_size: Tuple of (height, width)
 
         Returns:
             Screenshot as numpy array if found, None otherwise
@@ -96,7 +96,7 @@ class CacheService:
         """Store screenshot in cache for window size.
 
         Args:
-            window_size: Tuple of (width, height)
+            window_size: Tuple of (height, width)
             screenshot: Screenshot as numpy array to cache
         """
         cache_key = self.create_screenshot_key(window_size)

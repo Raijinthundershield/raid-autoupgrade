@@ -14,6 +14,7 @@ import pygetwindow
 from loguru import logger
 
 from autoraid.exceptions import WindowNotFoundException
+from autoraid.services.window_interaction_service import WindowInteractionService
 
 
 class ScreenshotService:
@@ -24,9 +25,13 @@ class ScreenshotService:
     - Extract regions of interest from screenshots
     """
 
-    def __init__(self) -> None:
-        """Initialize ScreenshotService with no dependencies."""
-        logger.debug("Initializing")
+    def __init__(self, window_interaction_service: WindowInteractionService) -> None:
+        """Initialize ScreenshotService with window interaction service dependency.
+
+        Args:
+            window_interaction_service: Service for window activation and interaction
+        """
+        self._window_interaction_service = window_interaction_service
 
     def take_screenshot(self, window_title: str) -> np.ndarray:
         """Take a screenshot of the specified window.
@@ -41,14 +46,16 @@ class ScreenshotService:
             WindowNotFoundException: If window not found
             ValueError: If window_title is empty
         """
-        logger.info("Capturing screenshot")
+        start_time = time.perf_counter()
         logger.debug(f'take_screenshot called with window_title="{window_title}"')
 
         if not window_title:
             raise ValueError("window_title cannot be empty")
 
         try:
-            # Get window and activate it
+            self._window_interaction_service.activate_window(window_title)
+
+            # Get window reference for coordinates
             windows = pygetwindow.getWindowsWithTitle(window_title)
             if not windows:
                 raise WindowNotFoundException(
@@ -57,8 +64,6 @@ class ScreenshotService:
                 )
 
             window = windows[0]
-            window.activate()
-            time.sleep(0.05)  # Give window time to activate
 
             # Capture screenshot of window region
             screenshot = pyautogui.screenshot(
@@ -67,8 +72,10 @@ class ScreenshotService:
             screenshot = np.array(screenshot)
             screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
 
+            elapsed = time.perf_counter() - start_time
+            h, w = screenshot.shape[:2]
             logger.debug(
-                f"take_screenshot returned screenshot of size {screenshot.shape[1]}x{screenshot.shape[0]}"
+                f"take_screenshot returned screenshot of size (w={w}, h={h}) in {elapsed:.2f}s"
             )
             return screenshot
 

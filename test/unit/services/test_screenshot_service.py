@@ -1,12 +1,13 @@
 """Smoke tests for ScreenshotService.
 
 These tests verify basic functionality of the ScreenshotService:
-- Service instantiation
+- Service instantiation with window interaction service dependency
 - ROI extraction from numpy arrays
 """
 
 import numpy as np
 import pytest
+from unittest.mock import Mock
 
 from autoraid.services.screenshot_service import (
     ScreenshotService,
@@ -14,8 +15,9 @@ from autoraid.services.screenshot_service import (
 
 
 def test_screenshot_service_instantiates():
-    """Smoke test: Service instantiates correctly."""
-    service = ScreenshotService()
+    """Smoke test: Service instantiates correctly with window interaction service."""
+    mock_window_service = Mock()
+    service = ScreenshotService(window_interaction_service=mock_window_service)
     assert service is not None
     assert isinstance(service, ScreenshotService)
 
@@ -23,7 +25,8 @@ def test_screenshot_service_instantiates():
 def test_screenshot_service_extracts_roi():
     """Smoke test: ROI extraction works with fake numpy array."""
     # Arrange
-    service = ScreenshotService()
+    mock_window_service = Mock()
+    service = ScreenshotService(window_interaction_service=mock_window_service)
 
     # Create a fake 100x100 screenshot (BGR format)
     screenshot = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -49,7 +52,8 @@ def test_screenshot_service_extracts_roi():
 
 def test_screenshot_service_extract_roi_validates_coordinates():
     """Smoke test: Service validates region coordinates."""
-    service = ScreenshotService()
+    mock_window_service = Mock()
+    service = ScreenshotService(window_interaction_service=mock_window_service)
     screenshot = np.zeros((100, 100, 3), dtype=np.uint8)
 
     # Test negative coordinates
@@ -62,7 +66,8 @@ def test_screenshot_service_extract_roi_validates_coordinates():
 
 def test_screenshot_service_extract_roi_validates_dimensions():
     """Smoke test: Service validates region dimensions."""
-    service = ScreenshotService()
+    mock_window_service = Mock()
+    service = ScreenshotService(window_interaction_service=mock_window_service)
     screenshot = np.zeros((100, 100, 3), dtype=np.uint8)
 
     # Test zero/negative dimensions
@@ -75,7 +80,8 @@ def test_screenshot_service_extract_roi_validates_dimensions():
 
 def test_screenshot_service_extract_roi_validates_bounds():
     """Smoke test: Service validates region is within screenshot bounds."""
-    service = ScreenshotService()
+    mock_window_service = Mock()
+    service = ScreenshotService(window_interaction_service=mock_window_service)
     screenshot = np.zeros((100, 100, 3), dtype=np.uint8)
 
     # Test region exceeding screenshot bounds
@@ -88,7 +94,8 @@ def test_screenshot_service_extract_roi_validates_bounds():
 
 def test_screenshot_service_take_screenshot_validates_input():
     """Smoke test: Service validates window_title input for take_screenshot."""
-    service = ScreenshotService()
+    mock_window_service = Mock()
+    service = ScreenshotService(window_interaction_service=mock_window_service)
 
     # Test empty window title
     with pytest.raises(ValueError, match="window_title cannot be empty"):

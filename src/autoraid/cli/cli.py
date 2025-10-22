@@ -6,6 +6,7 @@ from loguru import logger
 from autoraid.cli.upgrade_cli import upgrade
 from autoraid.cli.network_cli import network
 from autoraid.container import Container
+from autoraid.logging_config import add_logger_sink
 
 
 @click.group()
@@ -57,46 +58,20 @@ def autoraid(debug: bool):
     # Configure logging based on debug mode
     logger.remove()  # Remove default handler
 
-    # Custom format function to extract short module name
-    def format_short_name(record):
-        """Extract short module name (last component) from full module path."""
-        module_name = record["name"].split(".")[-1]
-        function_name = record["function"]
-        record["extra"]["short_name"] = f"{module_name}.{function_name}"
+    def console_sink(msg):
+        click.echo(msg, err=True)
+
+    add_logger_sink(debug, console_sink, colorize=True)
 
     if debug:
-        # DEBUG mode: detailed logging with timestamps, save to file
         debug_dir = cache_dir / "debug"
         debug_dir.mkdir(exist_ok=True)
 
-        # Console output with timestamps and full module path
-        logger.add(
-            sink=lambda msg: click.echo(msg, err=True),
-            format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-            level="DEBUG",
-            colorize=True,
-        )
-
-        # File output with full details
-        logger.add(
-            sink=debug_dir / "autoraid.log",
-            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
-            level="DEBUG",
-            rotation="10 MB",
-        )
-
-        logger.debug(f"Debug mode enabled. Logging to {debug_dir / 'autoraid.log'}")
+        file_sink = debug_dir / "autoraid.log"
+        add_logger_sink(debug, file_sink, colorize=False, rotation="10 MB")
+        logger.debug(f"Debug mode enabled. Logging to {file_sink}")
         ctx.obj["debug_dir"] = debug_dir
     else:
-        # INFO mode: clean output with timestamps and short module.function names
-        logger.add(
-            sink=lambda msg: click.echo(msg, err=True),
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <cyan>{extra[short_name]: <35}</cyan> | <level>{message}</level>",
-            level="INFO",
-            colorize=True,
-            filter=lambda record: format_short_name(record)
-            or True,  # Patch each record
-        )
         ctx.obj["debug_dir"] = None
 
     # Set debug mode in context
@@ -105,3 +80,17 @@ def autoraid(debug: bool):
 
 autoraid.add_command(upgrade)
 autoraid.add_command(network)
+
+
+@autoraid.command()
+@click.pass_context
+def gui(ctx):
+    """Launch the native desktop GUI interface.
+
+    Opens a native desktop window with a graphical interface for managing
+    upgrade workflows, network adapters, and UI regions.
+    """
+    from autoraid.gui.app import main
+
+    debug = ctx.obj.get("debug", False)
+    main(debug=debug)

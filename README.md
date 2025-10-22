@@ -164,12 +164,38 @@ This will save additional information to a `debug` directory within the cache fo
 * A cache folder will be generated in the folder in which the command is called.
 
 
+## GUI Usage
+
+### GUI Workflow Example
+
+1. **Launch the GUI**: `uv run autoraid gui`
+
+2. **Select Network Adapters** (scroll to Network Adapters section):
+   - Check the boxes for the adapters you want to control (e.g., Wi-Fi, Ethernet)
+   - Selection persists across application restarts
+
+3. **Select UI Regions** (Region Management section):
+   - Click "Select Regions (Auto)" to let the tool detect regions automatically
+   - Or click "Select Regions (Manual)" to manually select upgrade bar and button
+   - Click "Show Regions" to verify the cached regions
+
+4. **Count Upgrade Fails** (Upgrade Workflows section):
+   - In Raid, navigate to the upgrade screen for your gear piece
+   - Click "Start Count" in the GUI
+   - The tool will disable your selected network adapters, count fails, and re-enable adapters
+   - View logs in the Live Logs section
+
+5. **Spend Upgrade Attempts**:
+   - The "Max Attempts" field will be auto-populated with your count result
+   - Enable "Continue Upgrade" if upgrading level 10 gear
+   - Click "Start Spend" to automatically spend attempts
+
+Cached regions are stored in the same disk cache used by the CLI (`cache-raid-autoupgrade/` directory).
+
 ## Roadmap (slightly ordered)
 * Add automatic detection of piece level and whether it can continue to upgrade
    - lvl 10 -> continue upgrade
    - check to see if we spend upgrades on a piece with level <10 or >= 12
-* Create GUI for autoupgrade.
-* Create an autobattle tool that allows to create rules for battles.
 * Make it possible to have the raid window in the background.
     - Enable background screenshot
     - Enable background clicking
