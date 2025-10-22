@@ -87,7 +87,7 @@ class TestToggleAdaptersWithWait:
                         assert mock_wait.call_count == 1
                         call_args = mock_wait.call_args[0]
                         assert call_args[0] is False  # expected_online
-                        assert call_args[1] == 5.0  # timeout (DEFAULT_DISABLE_TIMEOUT)
+                        assert call_args[1] == 10.0  # timeout (DEFAULT_TIMEOUT)
 
 
 class TestToggleAdaptersTimeout:
@@ -96,7 +96,7 @@ class TestToggleAdaptersTimeout:
     def test_toggle_adapters_uses_default_timeout_disable(
         self, network_manager, mock_adapters
     ):
-        """Verify 5s timeout for disable operations."""
+        """Verify default timeout (10s) used for disable operations."""
         with patch.object(network_manager, "get_adapters", return_value=mock_adapters):
             with patch.object(network_manager, "toggle_adapter", return_value=True):
                 with patch.object(
@@ -108,16 +108,16 @@ class TestToggleAdaptersTimeout:
                         # Act
                         network_manager.toggle_adapters(["0"], enable=False, wait=True)
 
-                        # Assert: DEFAULT_DISABLE_TIMEOUT (5.0s) used
+                        # Assert: DEFAULT_TIMEOUT (10.0s) used
                         assert mock_wait.call_count == 1
                         call_args = mock_wait.call_args[0]
                         assert call_args[0] is False  # expected_online
-                        assert call_args[1] == 5.0  # timeout
+                        assert call_args[1] == 10.0  # timeout
 
     def test_toggle_adapters_uses_default_timeout_enable(
         self, network_manager, mock_adapters
     ):
-        """Verify 10s timeout for enable operations."""
+        """Verify default timeout (10s) used for enable operations."""
         with patch.object(network_manager, "get_adapters", return_value=mock_adapters):
             with patch.object(network_manager, "toggle_adapter", return_value=True):
                 with patch.object(
@@ -126,7 +126,7 @@ class TestToggleAdaptersTimeout:
                     # Act
                     network_manager.toggle_adapters(["0"], enable=True, wait=True)
 
-                    # Assert: DEFAULT_ENABLE_TIMEOUT (10.0s) used
+                    # Assert: DEFAULT_TIMEOUT (10.0s) used
                     assert mock_wait.call_count == 1
                     call_args = mock_wait.call_args[0]
                     assert call_args[0] is True  # expected_online
