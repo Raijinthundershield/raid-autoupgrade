@@ -176,27 +176,27 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting count workflow from GUI")
 
-                        n_fails, reason = await asyncio.to_thread(
+                        fail_count, reason = await asyncio.to_thread(
                             orchestrator.count_workflow,
                             network_adapter_id=selected_adapters
                             if selected_adapters
                             else None,
-                            max_attempts=99,
+                            max_attempts=MAX_COUNT_ATTEMPTS,
                             debug_dir=None,
                         )
 
-                        current_count_value = n_fails
+                        current_count_value = fail_count
                         show_current_count.refresh()
 
-                        app.storage.user["last_count_result"] = n_fails
+                        app.storage.user["last_count_result"] = fail_count
                         show_max_attempts_input.refresh()
 
                         reason_text = reason.name if reason else "unknown"
                         ui.notify(
-                            f"Count completed: {n_fails} fails (reason: {reason_text})",
+                            f"Count completed: {fail_count} fails (reason: {reason_text})",
                             type="positive",
                         )
-                        logger.info(f"Count workflow completed: {n_fails} fails")
+                        logger.info(f"Count workflow completed: {fail_count} fails")
 
                     except Exception as e:
                         handle_workflow_error(e, "Count", logger)
@@ -223,7 +223,9 @@ def create_upgrade_panel(
                     last_count = app.storage.user.get("last_count_result")
                     max_attempts_input = ui.number(
                         label="Max Attempts",
-                        value=last_count if last_count is not None else 1,
+                        value=last_count
+                        if last_count is not None
+                        else DEFAULT_MAX_ATTEMPTS,
                         min=1,
                         step=1,
                     ).classes("w-full")
@@ -271,7 +273,7 @@ def create_upgrade_panel(
                         ui.notify("Workflow already running", type="warning")
                         return
 
-                    max_attempts = int(max_attempts_input.value or 1)
+                    max_attempts = int(max_attempts_input.value or DEFAULT_MAX_ATTEMPTS)
                     continue_upgrade = continue_upgrade_checkbox.value
 
                     # Clear logs when starting new workflow
@@ -286,22 +288,22 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting spend workflow from GUI")
 
-                        n_upgrades, n_attempts, n_remaining = await asyncio.to_thread(
+                        spend_result = await asyncio.to_thread(
                             orchestrator.spend_workflow,
                             max_attempts=max_attempts,
                             continue_upgrade=continue_upgrade,
                             debug_dir=None,
                         )
 
-                        current_spent_value = n_attempts
+                        current_spent_value = spend_result.attempt_count
                         show_current_spent.refresh()
 
                         ui.notify(
-                            f"Spend completed: {n_upgrades} upgrades, {n_attempts} attempts, {n_remaining} remaining",
+                            f"Spend completed: {spend_result.upgrade_count} upgrades, {spend_result.attempt_count} attempts, {spend_result.remaining_attempts} remaining",
                             type="positive",
                         )
                         logger.info(
-                            f"Spend workflow completed: {n_upgrades} upgrades, {n_attempts} attempts"
+                            f"Spend workflow completed: {spend_result.upgrade_count} upgrades, {spend_result.attempt_count} attempts"
                         )
 
                     except Exception as e:
@@ -321,7 +323,7 @@ def create_upgrade_panel(
         with ui.card().classes("w-full"):
             ui.label("Logs").classes("text-lg font-semibold")
             ui.space()
-            log_element = ui.log(max_lines=1000).classes(
+            log_element = ui.log(max_lines=MAX_LOG_LINES).classes(
                 "w-full h-64 bg-gray-900 text-white"
             )
 

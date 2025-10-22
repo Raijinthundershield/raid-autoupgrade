@@ -2,6 +2,7 @@
 
 import json
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Callable
 
@@ -20,6 +21,14 @@ from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.utils.common import get_timestamp
+
+
+@dataclass
+class SpendResult:
+    upgrade_count: int
+    attempt_count: int
+    remaining_attempts: int
+    last_reason: StopCountReason
 
 
 class UpgradeOrchestrator:
@@ -95,25 +104,25 @@ class UpgradeOrchestrator:
         logger.info("Starting to monitor upgrade bar for color changes.")
 
         stop_reason = None
-        prev_n_fails = 0
+        prev_fail_count = 0
         while stop_reason is None:
             screenshot = self._screenshot_service.take_screenshot(window_title)
             upgrade_bar = self._screenshot_service.extract_roi(
                 screenshot, upgrade_bar_region
             )
 
-            n_fails, stop_reason = state_machine.process_frame(upgrade_bar)
+            fail_count, stop_reason = state_machine.process_frame(upgrade_bar)
 
-            if n_fails > prev_n_fails:
-                logger.info(f"Counting progress: {n_fails} fails detected")
-                prev_n_fails = n_fails
+            if fail_count > prev_fail_count:
+                logger.info(f"Counting progress: {fail_count} fails detected")
+                prev_fail_count = fail_count
 
             if debug_dir is not None:
                 timestamp = get_timestamp()
                 debug_screenshots[timestamp] = screenshot
                 debug_upgrade_bar_rois[timestamp] = upgrade_bar
                 debug_metadata["timestamp"].append(timestamp)
-                debug_metadata["n_fails"][timestamp] = n_fails
+                debug_metadata["n_fails"][timestamp] = fail_count
                 if len(state_machine.recent_states) > 0:
                     current_state = state_machine.recent_states[-1].value
                     debug_metadata["current_state"][timestamp] = current_state
@@ -142,8 +151,8 @@ class UpgradeOrchestrator:
             with open(output_dir / "debug_metadata.json", "w") as f:
                 json.dump(debug_metadata, f)
 
-        logger.info(f"Finished counting. Detected {n_fails} fails.")
-        return n_fails, stop_reason
+        logger.info(f"Finished counting. Detected {fail_count} fails.")
+        return fail_count, stop_reason
 
     def count_workflow(
         self,
@@ -236,7 +245,7 @@ class UpgradeOrchestrator:
 
             # Count upgrade fails
             logger.info("Counting upgrade fails")
-            n_fails, reason = self._count_upgrade_fails(
+            fail_count, reason = self._count_upgrade_fails(
                 window_title=window_title,
                 upgrade_bar_region=regions["upgrade_bar"],
                 max_attempts=max_attempts,
@@ -247,8 +256,10 @@ class UpgradeOrchestrator:
             logger.debug("Waiting for connection timeout (3s)")
             time.sleep(3)
 
-            logger.info(f"Count workflow completed: {n_fails} fails, reason={reason}")
-            return n_fails, reason
+            logger.info(
+                f"Count workflow completed: {fail_count} fails, reason={reason}"
+            )
+            return fail_count, reason
 
         finally:
             # Always re-enable network adapters
@@ -262,7 +273,7 @@ class UpgradeOrchestrator:
         max_attempts: int,
         continue_upgrade: bool = False,
         debug_dir: Path | None = None,
-    ) -> dict:
+    ) -> SpendResult:
         """Execute spend workflow to use upgrade attempts with network enabled.
 
         This workflow:
@@ -326,8 +337,8 @@ class UpgradeOrchestrator:
 
         # Loop upgrading until max attempts reached
         upgrade = True
-        n_upgrades = 0
-        n_attempts = 0
+        upgrade_count = 0
+        attempt_count = 0
         last_reason = None
 
         while upgrade:
@@ -340,44 +351,44 @@ class UpgradeOrchestrator:
 
             # Count upgrade fails
             logger.debug(
-                f"Counting upgrade fails (remaining: {max_attempts - n_attempts})"
+                f"Counting upgrade fails (remaining: {max_attempts - attempt_count})"
             )
             n_fails, reason = self._count_upgrade_fails(
                 window_title=window_title,
                 upgrade_bar_region=regions["upgrade_bar"],
-                max_attempts=max_attempts - n_attempts,
+                max_attempts=max_attempts - attempt_count,
                 debug_dir=debug_dir,
             )
-            n_attempts += n_fails
+            attempt_count += n_fails
             last_reason = reason
 
             if reason == StopCountReason.MAX_ATTEMPTS_REACHED:
                 logger.info(
-                    f"Reached max attempts at {n_attempts} upgrade attempts. Cancelling upgrade."
+                    f"Reached max attempts at {attempt_count} upgrade attempts. Cancelling upgrade."
                 )
                 self._window_interaction_service.click_region(
                     window_title, regions["upgrade_button"]
                 )
 
             elif reason == StopCountReason.UPGRADED:
-                n_attempts += 1
-                n_upgrades += 1
-                logger.info(f"Piece upgraded at {n_attempts} upgrade attempts.")
+                attempt_count += 1
+                upgrade_count += 1
+                logger.info(f"Piece upgraded at {attempt_count} upgrade attempts.")
 
             # Check if should continue upgrading
-            if continue_upgrade and n_upgrades == 1 and n_attempts < max_attempts:
+            if continue_upgrade and upgrade_count == 1 and attempt_count < max_attempts:
                 upgrade = True
                 logger.info("Continue upgrade enabled, starting next upgrade")
 
-        result = {
-            "n_upgrades": n_upgrades,
-            "n_attempts": n_attempts,
-            "n_remaining": max_attempts - n_attempts,
-            "last_reason": last_reason,
-        }
+        result = SpendResult(
+            upgrade_count=upgrade_count,
+            attempt_count=attempt_count,
+            remaining_attempts=max_attempts - attempt_count,
+            last_reason=last_reason,
+        )
 
         logger.info(
-            f"Spend workflow completed: {n_upgrades} upgrades, "
-            f"{n_attempts} attempts, {result['n_remaining']} remaining)"
+            f"Spend workflow completed: {upgrade_count} upgrades, "
+            f"{attempt_count} attempts, {result.remaining_attempts} remaining)"
         )
         return result
