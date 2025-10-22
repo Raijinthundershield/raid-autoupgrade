@@ -81,9 +81,11 @@ def create_upgrade_panel(
 
                 start_button = ui.button("Start Count", color="primary")
 
-                def validate_and_start_count():
-                    """Validate inputs and start count workflow."""
-                    # Validate network adapter selection before starting async task
+                async def start_count_workflow():
+                    """Start count workflow asynchronously."""
+                    nonlocal current_count_value, is_count_running
+
+                    # Validate network adapter selection
                     selected_adapters = app.storage.user.get("selected_adapters", [])
                     if not selected_adapters:
                         ui.notify(
@@ -92,18 +94,9 @@ def create_upgrade_panel(
                         )
                         return
 
-                    # Validation passed, create async task
-                    asyncio.create_task(start_count_workflow())
-
-                async def start_count_workflow():
-                    """Start count workflow asynchronously."""
-                    nonlocal current_count_value, is_count_running
-
                     if is_count_running or is_spend_running:
                         ui.notify("Workflow already running", type="warning")
                         return
-
-                    selected_adapters = app.storage.user.get("selected_adapters", [])
 
                     # Clear logs when starting new workflow
                     log_element.clear()
@@ -182,7 +175,7 @@ def create_upgrade_panel(
                         start_button.props(remove="disabled")
                         is_count_running = False
 
-                start_button.on_click(validate_and_start_count)
+                start_button.on_click(start_count_workflow)
 
             # Spend section (right)
             with ui.card().classes("flex-1"):
@@ -326,9 +319,7 @@ def create_upgrade_panel(
                         is_spend_running = False
 
                 # Wire button handler
-                spend_button.on_click(
-                    lambda: asyncio.create_task(start_spend_workflow())
-                )
+                spend_button.on_click(start_spend_workflow)
 
         ui.space()
 
