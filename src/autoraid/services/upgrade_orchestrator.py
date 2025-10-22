@@ -92,19 +92,22 @@ class UpgradeOrchestrator:
         debug_screenshots = {}
         debug_upgrade_bar_rois = {}
 
-        logger.info("Starting to monitor upgrade bar color changes...")
+        logger.info("Starting to monitor upgrade bar for color changes.")
 
         stop_reason = None
+        prev_n_fails = 0
         while stop_reason is None:
             screenshot = self._screenshot_service.take_screenshot(window_title)
             upgrade_bar = self._screenshot_service.extract_roi(
                 screenshot, upgrade_bar_region
             )
 
-            # Process frame using state machine
             n_fails, stop_reason = state_machine.process_frame(upgrade_bar)
 
-            # Store debug information
+            if n_fails > prev_n_fails:
+                logger.info(f"Counting progress: {n_fails} fails detected")
+                prev_n_fails = n_fails
+
             if debug_dir is not None:
                 timestamp = get_timestamp()
                 debug_screenshots[timestamp] = screenshot
@@ -172,8 +175,7 @@ class UpgradeOrchestrator:
         """
         logger.info("Starting count workflow")
         logger.debug(
-            f"count_workflow called with network_adapter_id={network_adapter_id}, "
-            f"max_attempts={max_attempts}, debug_dir={debug_dir}"
+            f"count_workflow(adapters={network_adapter_id}, max_attempts={max_attempts}"
         )
 
         window_title = "Raid: Shadow Legends"
@@ -201,9 +203,9 @@ class UpgradeOrchestrator:
             manager.toggle_adapters(network_adapter_id, enable=False)
 
             # Wait for network to turn off (max 3 seconds)
-            for _ in range(3):
-                logger.debug("Waiting for network to turn off")
-                time.sleep(1)
+            logger.info("Waiting for network to turn off...")
+            for _ in range(10):
+                time.sleep(0.5)
                 if not manager.check_network_access():
                     logger.info("Network disabled successfully")
                     break
@@ -213,11 +215,7 @@ class UpgradeOrchestrator:
 
         try:
             # Capture screenshot
-            logger.info("Captured screenshot")
             screenshot = self._screenshot_service.take_screenshot(window_title)
-
-            # Get regions (from cache or detection)
-            logger.debug("Getting upgrade regions")
             regions = self._locate_region_service.get_regions(screenshot, manual=False)
 
             # Save debug data if requested
@@ -231,7 +229,7 @@ class UpgradeOrchestrator:
                 logger.debug(f"Saved debug data to {output_dir}")
 
             # Click upgrade button
-            logger.info("Clicking upgrade button")
+            logger.info("Clicking upgrade button to start counting")
             self._window_interaction_service.click_region(
                 window_title, regions["upgrade_button"]
             )
@@ -292,8 +290,7 @@ class UpgradeOrchestrator:
         """
         logger.info("Starting spend workflow")
         logger.debug(
-            f"spend_workflow called with max_attempts={max_attempts}, "
-            f"continue_upgrade={continue_upgrade}, debug_dir={debug_dir}"
+            f"spend_workflow(max_attempts={max_attempts}, continue={continue_upgrade}"
         )
 
         window_title = "Raid: Shadow Legends"
@@ -312,11 +309,9 @@ class UpgradeOrchestrator:
             raise NetworkAdapterError("No internet access detected. Aborting.")
 
         # Capture screenshot
-        logger.info("Captured screenshot")
         screenshot = self._screenshot_service.take_screenshot(window_title)
 
         # Get regions
-        logger.debug("Getting upgrade regions")
         regions = self._locate_region_service.get_regions(screenshot, manual=False)
 
         # Save debug data if requested
@@ -338,7 +333,7 @@ class UpgradeOrchestrator:
         while upgrade:
             upgrade = False
 
-            logger.info("Clicking upgrade button")
+            logger.info("Clicking upgrade button to start spending upgrades")
             self._window_interaction_service.click_region(
                 window_title, regions["upgrade_button"]
             )
@@ -383,6 +378,6 @@ class UpgradeOrchestrator:
 
         logger.info(
             f"Spend workflow completed: {n_upgrades} upgrades, "
-            f"{n_attempts} attempts, {result['n_remaining']} remaining"
+            f"{n_attempts} attempts, {result['n_remaining']} remaining)"
         )
         return result

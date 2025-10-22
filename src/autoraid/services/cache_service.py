@@ -19,7 +19,6 @@ class CacheService:
             cache: diskcache.Cache instance for persistent storage
         """
         self._cache = cache
-        logger.debug("Initialized with cache directory: {}", cache.directory)
 
     @staticmethod
     def create_regions_key(window_size: tuple[int, int]) -> str:

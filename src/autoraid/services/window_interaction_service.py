@@ -35,7 +35,6 @@ class WindowInteractionService:
 
         """
         self._use_minimize_trick = use_minimize_trick
-        logger.debug(f"Initializing. {use_minimize_trick=}")
 
     def window_exists(self, window_title: str) -> bool:
         """Check if a window with the given title exists.
@@ -124,8 +123,6 @@ class WindowInteractionService:
 
             pyautogui.click(screen_x, screen_y)
             time.sleep(0.05)
-
-            logger.debug("click_region completed successfully")
 
         except IndexError:
             logger.error(f'Window "{window_title}" not found')

@@ -5,6 +5,8 @@ This service handles all screenshot operations including:
 - Extracting regions of interest from screenshots
 """
 
+import time
+
 import cv2
 import numpy as np
 import pyautogui
@@ -29,7 +31,6 @@ class ScreenshotService:
         Args:
             window_interaction_service: Service for window activation and interaction
         """
-        logger.debug("Initializing")
         self._window_interaction_service = window_interaction_service
 
     def take_screenshot(self, window_title: str) -> np.ndarray:
@@ -45,6 +46,7 @@ class ScreenshotService:
             WindowNotFoundException: If window not found
             ValueError: If window_title is empty
         """
+        start_time = time.perf_counter()
         logger.debug(f'take_screenshot called with window_title="{window_title}"')
 
         if not window_title:
@@ -70,8 +72,10 @@ class ScreenshotService:
             screenshot = np.array(screenshot)
             screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
 
+            elapsed = time.perf_counter() - start_time
+            h, w = screenshot.shape[:2]
             logger.debug(
-                f"take_screenshot returned screenshot of size {screenshot.shape[1]}x{screenshot.shape[0]}"
+                f"take_screenshot returned screenshot of size (w={w}, h={h}) in {elapsed:.2f}s"
             )
             return screenshot
 
