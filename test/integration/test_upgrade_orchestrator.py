@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
-from autoraid.core.state_machine import StopCountReason
+from autoraid.core.state_machine import StopReason
 from autoraid.services.network import NetworkState
 
 
@@ -72,7 +72,7 @@ class TestUpgradeOrchestrator:
             (2, None),
             (3, None),
             (4, None),
-            (5, StopCountReason.MAX_ATTEMPTS_REACHED),
+            (5, StopReason.MAX_ATTEMPTS_REACHED),
         ]
         mock_services["state_machine_provider"].return_value = mock_state_machine
 
@@ -101,7 +101,7 @@ class TestUpgradeOrchestrator:
 
         # Verify result
         assert n_fails == 5
-        assert reason == StopCountReason.MAX_ATTEMPTS_REACHED
+        assert reason == StopReason.MAX_ATTEMPTS_REACHED
 
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
     def test_orchestrator_count_workflow_re_enables_network(
@@ -170,7 +170,7 @@ class TestUpgradeOrchestrator:
         mock_state_machine.process_frame.side_effect = [
             (1, None),
             (2, None),
-            (3, StopCountReason.UPGRADED),
+            (3, StopReason.SUCCESS),
         ]
         mock_services["state_machine_provider"].return_value = mock_state_machine
 
@@ -198,4 +198,4 @@ class TestUpgradeOrchestrator:
         assert result.upgrade_count == 1
         assert result.attempt_count == 4  # 3 fails + 1 success
         assert result.remaining_attempts == 6  # 10 - 4
-        assert result.last_reason == StopCountReason.UPGRADED
+        assert result.last_reason == StopReason.SUCCESS

@@ -9,7 +9,7 @@ from collections.abc import Callable
 import cv2
 from loguru import logger
 
-from autoraid.core.state_machine import UpgradeStateMachine, StopCountReason
+from autoraid.core.state_machine import UpgradeStateMachine, StopReason
 from autoraid.exceptions import (
     WindowNotFoundException,
     NetworkAdapterError,
@@ -28,7 +28,7 @@ class SpendResult:
     upgrade_count: int
     attempt_count: int
     remaining_attempts: int
-    last_reason: StopCountReason
+    last_reason: StopReason
 
 
 class UpgradeOrchestrator:
@@ -78,7 +78,7 @@ class UpgradeOrchestrator:
         max_attempts: int,
         check_interval: float = 0.25,
         debug_dir: Path | None = None,
-    ) -> tuple[int, StopCountReason]:
+    ) -> tuple[int, StopReason]:
         """Count upgrade fails using state machine.
 
         Args:
@@ -162,7 +162,7 @@ class UpgradeOrchestrator:
         network_adapter_id: list[int] | None = None,
         max_attempts: int = 99,
         debug_dir: Path | None = None,
-    ) -> tuple[int, StopCountReason]:
+    ) -> tuple[int, StopReason]:
         """Execute count workflow to count upgrade fails with network disabled.
 
         This workflow:
@@ -357,7 +357,7 @@ class UpgradeOrchestrator:
             attempt_count += n_fails
             last_reason = reason
 
-            if reason == StopCountReason.MAX_ATTEMPTS_REACHED:
+            if reason == StopReason.MAX_ATTEMPTS_REACHED:
                 logger.info(
                     f"Reached max attempts at {attempt_count} upgrade attempts. Cancelling upgrade."
                 )
@@ -365,7 +365,7 @@ class UpgradeOrchestrator:
                     window_title, regions["upgrade_button"]
                 )
 
-            elif reason == StopCountReason.UPGRADED:
+            elif reason == StopReason.SUCCESS:
                 attempt_count += 1
                 upgrade_count += 1
                 logger.info(f"Piece upgraded at {attempt_count} upgrade attempts.")

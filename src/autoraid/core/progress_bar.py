@@ -1,5 +1,17 @@
+from enum import Enum
+
 import cv2
 import numpy as np
+
+
+class ProgressBarState(Enum):
+    """Progress bar state detected from color analysis."""
+
+    FAIL = "fail"
+    PROGRESS = "progress"
+    STANDBY = "standby"
+    CONNECTION_ERROR = "connection_error"
+    UNKNOWN = "unknown"
 
 
 def get_progress_bar_state(progress_bar_roi: np.ndarray) -> str:

@@ -7,10 +7,10 @@ import cv2
 import pytest
 
 from autoraid.core.state_machine import (
-    ProgressBarState,
-    StopCountReason,
+    StopReason,
     UpgradeStateMachine,
 )
+from autoraid.core.progress_bar import ProgressBarState
 
 
 @pytest.fixture
@@ -109,7 +109,7 @@ def test_state_machine_stops_on_upgraded(standby_image):
     assert stop_reason_3 is None
 
     fail_count_4, stop_reason_4 = state_machine.process_frame(standby_image)
-    assert stop_reason_4 == StopCountReason.UPGRADED
+    assert stop_reason_4 == StopReason.SUCCESS
     assert fail_count_4 == 0  # No fails detected
 
 
@@ -128,7 +128,7 @@ def test_state_machine_stops_on_max_attempts(fail_image, standby_image):
 
     fail_count_3, stop_reason_3 = state_machine.process_frame(fail_image)
     assert fail_count_3 == 2
-    assert stop_reason_3 == StopCountReason.MAX_ATTEMPTS_REACHED
+    assert stop_reason_3 == StopReason.MAX_ATTEMPTS_REACHED
 
 
 def test_state_machine_stops_on_connection_error(connection_error_image):
@@ -142,7 +142,7 @@ def test_state_machine_stops_on_connection_error(connection_error_image):
 
     # Fourth connection error should trigger stop
     fail_count, stop_reason = state_machine.process_frame(connection_error_image)
-    assert stop_reason == StopCountReason.CONNECTION_ERROR
+    assert stop_reason == StopReason.CONNECTION_ERROR
 
 
 def test_state_machine_tracks_recent_states(fail_image, progress_image):

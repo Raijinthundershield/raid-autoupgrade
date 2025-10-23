@@ -26,21 +26,21 @@
 
 ### Tasks
 
-- [ ] T001 Add ProgressBarState enum to src/autoraid/core/state_machine.py
-- [ ] T002 Rename StopCountReason to StopReason in src/autoraid/core/state_machine.py (keep alias StopCountReason = StopReason)
-- [ ] T003 Create src/autoraid/core/progress_bar_detector.py with ProgressBarStateDetector class and detect_state() method
-- [ ] T004 Implement input validation in ProgressBarStateDetector.detect_state() (raise ValueError for None/empty/invalid images)
-- [ ] T005 Implement state mapping in ProgressBarStateDetector.detect_state() (wrap existing progress_bar.get_progress_bar_state() function)
-- [ ] T006 Add DEBUG logging for UNKNOWN states in ProgressBarStateDetector
-- [ ] T007 Add UpgradeAttemptMonitor class to src/autoraid/core/state_machine.py with __init__(detector, max_attempts)
-- [ ] T008 Implement process_frame() method in UpgradeAttemptMonitor (calls detector, updates state)
-- [ ] T009 Implement fail counting logic in UpgradeAttemptMonitor (count transitions from non-FAIL to FAIL)
-- [ ] T010 Implement fail_count property in UpgradeAttemptMonitor (read-only)
-- [ ] T011 Implement stop_reason property in UpgradeAttemptMonitor (computed, checks all stop conditions)
-- [ ] T012 Implement current_state property in UpgradeAttemptMonitor (returns last state or None)
-- [ ] T013 Add DEBUG logging for state transitions in UpgradeAttemptMonitor.process_frame()
-- [ ] T014 Add DEBUG logging for stop conditions in UpgradeAttemptMonitor.stop_reason property
-- [ ] T015 Add validation for max_attempts > 0 in UpgradeAttemptMonitor.__init__()
+- [X] T001 Add ProgressBarState enum to src/autoraid/core/state_machine.py
+- [X] T002 Rename StopCountReason to StopReason in src/autoraid/core/state_machine.py (keep alias StopCountReason = StopReason)
+- [X] T003 Create src/autoraid/core/progress_bar_detector.py with ProgressBarStateDetector class and detect_state() method
+- [X] T004 Implement input validation in ProgressBarStateDetector.detect_state() (raise ValueError for None/empty/invalid images)
+- [X] T005 Implement state mapping in ProgressBarStateDetector.detect_state() (wrap existing progress_bar.get_progress_bar_state() function)
+- [X] T006 Add DEBUG logging for UNKNOWN states in ProgressBarStateDetector
+- [X] T007 Add UpgradeAttemptMonitor class to src/autoraid/core/state_machine.py with __init__(detector, max_attempts)
+- [X] T008 Implement process_frame() method in UpgradeAttemptMonitor (calls detector, updates state)
+- [X] T009 Implement fail counting logic in UpgradeAttemptMonitor (count transitions from non-FAIL to FAIL)
+- [X] T010 Implement fail_count property in UpgradeAttemptMonitor (read-only)
+- [X] T011 Implement stop_reason property in UpgradeAttemptMonitor (computed, checks all stop conditions)
+- [X] T012 Implement current_state property in UpgradeAttemptMonitor (returns last state or None)
+- [X] T013 Add DEBUG logging for state transitions in UpgradeAttemptMonitor.process_frame()
+- [X] T014 Add DEBUG logging for stop conditions in UpgradeAttemptMonitor.stop_reason property
+- [X] T015 Add validation for max_attempts > 0 in UpgradeAttemptMonitor.__init__()
 
 **Verification Commands**:
 ```bash
