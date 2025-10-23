@@ -64,8 +64,8 @@ uv run pytest
 
 ### Tasks
 
-- [ ] T016 Add progress_bar_detector Singleton provider to src/autoraid/container.py
-- [ ] T017 Add upgrade_attempt_monitor Factory provider to src/autoraid/container.py (injects detector)
+- [X] T016 Add progress_bar_detector Singleton provider to src/autoraid/container.py
+- [X] T017 Add upgrade_attempt_monitor Factory provider to src/autoraid/container.py (injects detector)
 
 **Verification Commands**:
 ```bash
