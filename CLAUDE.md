@@ -74,10 +74,15 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
    - **WindowInteractionService** (Singleton): Checks window existence, handles window activation and clicking
 
 3. **Core Domain Logic** ([src/autoraid/core/](autoraid/src/autoraid/core/))
-   - **UpgradeStateMachine** (Factory): Pure logic for tracking upgrade attempts
-     - Processes progress bar frames and counts fail states
-     - No I/O dependencies - testable with fixture images
-     - Tracks recent states in deque to detect stop conditions
+   - **ProgressBarStateDetector** (Singleton): Stateless CV layer for progress bar state detection
+     - Wraps existing color-based algorithm with type-safe enum output
+     - Validates input images and returns ProgressBarState enum
+     - No side effects - testable with fixture images
+   - **UpgradeAttemptMonitor** (Factory): Stateful business logic for tracking upgrade attempts
+     - Processes progress bar frames and counts fail state transitions
+     - Maintains state history (last 4 states) in deque to detect stop conditions
+     - Provides read-only properties: fail_count, stop_reason, current_state
+     - No I/O dependencies - testable with mocked detector
    - **Progress Bar Detection**: Color-based state detection (fail/standby/progress/connection_error)
    - **Region Location**: Automatic detection of UI regions using template matching
    - **Artifact Icon**: OCR-based artifact level detection
@@ -110,18 +115,19 @@ Container (DeclarativeContainer)
 │   ├── screenshot_service: ScreenshotService()
 │   ├── window_interaction_service: WindowInteractionService()
 │   ├── locate_region_service: LocateRegionService(cache_service, screenshot_service)
-│   └── network_manager: NetworkManager()
+│   ├── network_manager: NetworkManager()
+│   └── progress_bar_detector: ProgressBarStateDetector()
 │
 └── Providers (Factory)
-    ├── state_machine: UpgradeStateMachine(max_attempts)
-    └── upgrade_orchestrator: UpgradeOrchestrator(all services + state_machine.provider)
+    ├── upgrade_attempt_monitor: UpgradeAttemptMonitor(progress_bar_detector, max_attempts)
+    └── upgrade_orchestrator: UpgradeOrchestrator(all services + upgrade_attempt_monitor.provider)
 ```
 
 **Wiring**: CLI modules (`autoraid.cli.upgrade_cli`, `autoraid.cli.network_cli`) and GUI modules (`autoraid.gui.components.upgrade_panel`, `autoraid.gui.components.region_panel`, `autoraid.gui.components.network_panel`) are wired to enable `@inject` decorator.
 
 **Lifecycle**:
-- **Singleton**: One instance per container (services with no per-request state)
-- **Factory**: New instance per call (state machine, orchestrator with per-workflow state)
+- **Singleton**: One instance per container (services with no per-request state, detector is stateless)
+- **Factory**: New instance per call (monitor, orchestrator with per-workflow state)
 
 ### GUI Architecture
 
@@ -172,14 +178,17 @@ The GUI layer is a **thin presentation layer** that provides a native desktop in
 | **LocateRegionService** | Singleton | Region detection (auto + manual) | cache_service, screenshot_service |
 | **WindowInteractionService** | Singleton | Window existence checking, activation, clicking | None |
 | **NetworkManager** | Singleton | Network adapter management with automatic state waiting | None (service layer - no display logic) |
-| **UpgradeStateMachine** | Factory | Frame processing, fail counting | None (pure logic) |
-| **UpgradeOrchestrator** | Factory | Workflow coordination | All services + state_machine.provider |
+| **ProgressBarStateDetector** | Singleton | Progress bar state detection from images | None (stateless CV layer) |
+| **UpgradeAttemptMonitor** | Factory | Frame processing, fail counting, stop condition detection | progress_bar_detector |
+| **UpgradeOrchestrator** | Factory | Workflow coordination | All services + upgrade_attempt_monitor.provider |
 
 ### Key Design Patterns
 
 - **Dependency Injection**: Constructor injection for all services, configured via DeclarativeContainer
 - **Service Layer**: Business logic separated from CLI/I/O in testable services
-- **Pure State Machine**: UpgradeStateMachine has no I/O dependencies, testable with fixture images
+- **Separated Concerns**: CV logic (detector) separated from business logic (monitor)
+  - **ProgressBarStateDetector**: Stateless CV layer, testable with fixture images
+  - **UpgradeAttemptMonitor**: Stateful business logic, testable with mocked detector
 - **Orchestrator Pattern**: UpgradeOrchestrator coordinates services for complete workflows
 - **Region-based Detection**: All UI interactions use cached regions (left, top, width, height) relative to Raid window
 - **Window Size Dependency**: Regions cached per window size, requiring re-selection if window resized
@@ -252,7 +261,8 @@ autoraid/
 ├── test/                         # Tests organized by type
 │   ├── unit/                     # Unit tests
 │   │   ├── core/                 # Core logic tests
-│   │   │   ├── test_state_machine.py
+│   │   │   ├── test_progress_bar_detector.py
+│   │   │   ├── test_upgrade_attempt_monitor.py
 │   │   │   └── test_progressbar_state.py
 │   │   ├── services/             # Service tests
 │   │   │   ├── test_cache_service.py
@@ -301,7 +311,8 @@ AutoRaid uses **smoke tests** (not full TDD) to verify basic functionality:
 
 1. **Unit Tests** (core and services):
    - Core logic tests:
-     - [test/unit/core/test_state_machine.py](autoraid/test/unit/core/test_state_machine.py): State machine with fixture images
+     - [test/unit/core/test_progress_bar_detector.py](autoraid/test/unit/core/test_progress_bar_detector.py): Detector with fixture images (≥90% coverage)
+     - [test/unit/core/test_upgrade_attempt_monitor.py](autoraid/test/unit/core/test_upgrade_attempt_monitor.py): Monitor with mocked detector (≥90% coverage)
      - [test/unit/core/test_progressbar_state.py](autoraid/test/unit/core/test_progressbar_state.py): Progress bar color detection
    - Service tests:
      - [test/unit/services/test_cache_service.py](autoraid/test/unit/services/test_cache_service.py): Cache key generation and retrieval
@@ -318,6 +329,51 @@ AutoRaid uses **smoke tests** (not full TDD) to verify basic functionality:
 
 The service-based architecture enables testing with mocked dependencies:
 
+**Example 1: Testing Detector with Fixture Images**
+```python
+import cv2
+from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.core.state_machine import ProgressBarState
+
+def test_detector_recognizes_fail_state():
+    detector = ProgressBarStateDetector()
+    fail_image = cv2.imread("test/fixtures/images/fail_state.png")
+
+    state = detector.detect_state(fail_image)
+
+    assert state == ProgressBarState.FAIL
+```
+
+**Example 2: Testing Monitor with Mocked Detector**
+```python
+from unittest.mock import Mock
+from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.core.state_machine import UpgradeAttemptMonitor, ProgressBarState, StopReason
+import numpy as np
+
+def test_monitor_counts_fail_transitions():
+    # Mock detector to return controlled sequence
+    mock_detector = Mock(spec=ProgressBarStateDetector)
+    mock_detector.detect_state.side_effect = [
+        ProgressBarState.PROGRESS,  # Not a fail
+        ProgressBarState.FAIL,      # Count: 1
+        ProgressBarState.PROGRESS,  # Not a fail
+        ProgressBarState.FAIL,      # Count: 2
+    ]
+
+    monitor = UpgradeAttemptMonitor(mock_detector, max_attempts=10)
+
+    # Provide dummy image (detector is mocked, image not used)
+    fake_image = np.zeros((50, 200, 3), dtype=np.uint8)
+
+    for _ in range(4):
+        monitor.process_frame(fake_image)
+
+    assert monitor.fail_count == 2
+    assert monitor.stop_reason is None  # Not at max_attempts yet
+```
+
+**Example 3: Testing Orchestrator with Mocked Services**
 ```python
 from unittest.mock import Mock
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
@@ -328,7 +384,7 @@ def test_orchestrator_with_mocks():
     mock_screenshot = Mock()
     mock_locate = Mock()
     mock_window = Mock()
-    mock_state_machine_provider = Mock()
+    mock_monitor_provider = Mock()
 
     # Configure mock behavior
     mock_window.window_exists.return_value = True
@@ -340,7 +396,7 @@ def test_orchestrator_with_mocks():
         screenshot_service=mock_screenshot,
         locate_region_service=mock_locate,
         window_interaction_service=mock_window,
-        state_machine_provider=mock_state_machine_provider,
+        upgrade_attempt_monitor=mock_monitor_provider,
     )
 
     # Test workflow without external dependencies
@@ -353,7 +409,7 @@ def test_orchestrator_with_mocks():
 
 ### Coverage Requirements
 
-- **State machine**: ≥90% code coverage (verified with pytest-cov)
+- **Detector and Monitor**: ≥90% code coverage (verified with pytest-cov)
 - **Services**: Smoke tests for instantiation and key methods
 - **Integration**: CLI behavior unchanged after refactoring
 
@@ -367,10 +423,13 @@ uv run pytest
 uv run pytest --cov=autoraid --cov-report=term-missing
 
 # Specific test file
-uv run pytest test/unit/core/test_state_machine.py
+uv run pytest test/unit/core/test_upgrade_attempt_monitor.py
 
-# State machine coverage check
-uv run pytest --cov=autoraid.core.state_machine --cov-report=term-missing test/unit/core/test_state_machine.py
+# Detector coverage check
+uv run pytest --cov=autoraid.core.progress_bar_detector --cov-report=term-missing test/unit/core/test_progress_bar_detector.py
+
+# Monitor coverage check
+uv run pytest --cov=autoraid.core.state_machine --cov-report=term-missing test/unit/core/test_upgrade_attempt_monitor.py
 
 # Run only unit tests
 uv run pytest test/unit/

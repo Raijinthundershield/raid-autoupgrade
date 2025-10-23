@@ -3,7 +3,8 @@
 from dependency_injector import containers, providers
 import diskcache
 
-from autoraid.core.state_machine import UpgradeStateMachine
+from autoraid.core.state_machine import UpgradeAttemptMonitor
+from autoraid.core.progress_bar_detector import ProgressBarStateDetector
 from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
@@ -66,9 +67,14 @@ class Container(containers.DeclarativeContainer):
         NetworkManager,
     )
 
+    progress_bar_detector = providers.Singleton(
+        ProgressBarStateDetector,
+    )
+
     # Factory services (new instance per operation)
-    state_machine = providers.Factory(
-        UpgradeStateMachine,
+    upgrade_attempt_monitor = providers.Factory(
+        UpgradeAttemptMonitor,
+        detector=progress_bar_detector,
         max_attempts=config.max_attempts.as_(int),
     )
 
@@ -79,5 +85,5 @@ class Container(containers.DeclarativeContainer):
         locate_region_service=locate_region_service,
         window_interaction_service=window_interaction_service,
         network_manager=network_manager,
-        state_machine_provider=state_machine.provider,
+        upgrade_attempt_monitor=upgrade_attempt_monitor.provider,
     )

@@ -6,133 +6,158 @@ from enum import Enum
 import numpy as np
 from loguru import logger
 
-from autoraid.core import progress_bar
+from autoraid.core.progress_bar_detector import (
+    ProgressBarState,
+    ProgressBarStateDetector,
+)
 
 
-class ProgressBarState(Enum):
-    """Progress bar state detected from color analysis."""
+class StopReason(Enum):
+    """Reason for stopping upgrade attempt monitoring."""
 
-    FAIL = "fail"
-    PROGRESS = "progress"
-    STANDBY = "standby"
-    CONNECTION_ERROR = "connection_error"
-    UNKNOWN = "unknown"
-
-
-class StopCountReason(Enum):
-    """Reason for stopping count workflow."""
-
-    UPGRADED = "upgraded"
-    CONNECTION_ERROR = "connection_error"
     MAX_ATTEMPTS_REACHED = "max_attempts_reached"
+    SUCCESS = "upgraded"
+    CONNECTION_ERROR = "connection_error"
 
 
-class UpgradeStateMachine:
-    """State machine for tracking upgrade attempts and counting failures.
+class UpgradeAttemptMonitor:
+    """Stateful monitor for upgrade attempt tracking and stop detection.
 
-    This class separates the pure state machine logic from I/O operations,
-    making it testable with fixture images without requiring a live Raid window.
+    Tracks failure count, maintains state history (last 4 states), and
+    determines when to stop monitoring based on configured conditions.
+
+    Uses dependency injection to receive detector instance.
     """
 
-    def __init__(self, max_attempts: int = 100):
-        """Initialize state machine with max attempts limit.
+    def __init__(self, detector: ProgressBarStateDetector, max_attempts: int):
+        """Initialize monitor with detector and max attempts.
 
         Args:
-            max_attempts: Maximum number of upgrade attempts before stopping
+            detector: ProgressBarStateDetector instance (injected by DI container)
+            max_attempts: Maximum failures before stopping (must be positive integer)
+
+        Raises:
+            ValueError: If max_attempts <= 0
         """
         if max_attempts <= 0:
-            raise ValueError("max_attempts must be greater than 0")
+            raise ValueError(f"max_attempts must be positive, got {max_attempts}")
 
-        self.max_attempts = max_attempts
-        self.fail_count = 0
-        self.recent_states: deque[ProgressBarState] = deque(maxlen=4)
+        self._detector = detector
+        self._max_attempts = max_attempts
+        self._fail_count = 0
+        self._recent_states: deque[ProgressBarState] = deque(maxlen=4)
 
-        logger.debug(f"Initialized with max_attempts={max_attempts}")
+        logger.debug(
+            f"UpgradeAttemptMonitor initialized with max_attempts={max_attempts}"
+        )
 
-    def process_frame(
-        self, roi_image: np.ndarray
-    ) -> tuple[int, StopCountReason | None]:
-        """Process progress bar frame and return fail count and stop reason.
+    def process_frame(self, roi_image: np.ndarray) -> ProgressBarState:
+        """Process frame and update internal state.
+
+        Calls detector to get current state, updates failure count on
+        FAIL transitions, appends state to history, and logs transition.
 
         Args:
-            roi_image: Progress bar region of interest image
+            roi_image: BGR numpy array of progress bar region
 
         Returns:
-            Tuple of (fail_count, stop_reason). stop_reason is None if not stopped.
+            Detected ProgressBarState
+
+        Raises:
+            ValueError: If roi_image is invalid (propagated from detector)
+
+        Side Effects:
+            - Calls self._detector.detect_state(roi_image)
+            - Increments self._fail_count if transition to FAIL detected
+            - Appends state to self._recent_states (auto-evicts oldest if >4)
+            - Logs state transition at DEBUG level
         """
-        if roi_image is None or roi_image.size == 0:
-            raise ValueError("roi_image must be a valid numpy array")
+        # Get previous state before detection
+        previous_state = self._recent_states[-1] if self._recent_states else None
 
         # Detect current state
-        previous_state = self.recent_states[-1] if self.recent_states else None
-        state = self._detect_state(roi_image)
+        current_state = self._detector.detect_state(roi_image)
 
-        # Log state transitions
-        if previous_state and previous_state != state:
-            logger.debug(f"State transition: {previous_state.value} → {state.value}")
+        # Count fail transitions (only when transitioning from non-FAIL to FAIL)
+        if (
+            current_state == ProgressBarState.FAIL
+            and previous_state != ProgressBarState.FAIL
+        ):
+            self._fail_count += 1
+
+        # Update state history
+        self._recent_states.append(current_state)
+
+        # Log state transition
+        if previous_state and previous_state != current_state:
+            logger.debug(
+                f"State transition: {previous_state.value} → {current_state.value}"
+                f" (fail_count={self._fail_count})"
+            )
         elif previous_state is None:
-            logger.debug(f"State transition: {previous_state} → {state.value}")
+            logger.debug(f"Initial state: {current_state.value}")
 
-        # Update recent states
-        self.recent_states.append(state)
+        return current_state
 
-        # Count fail states
-        if state == ProgressBarState.FAIL and previous_state != ProgressBarState.FAIL:
-            self.fail_count += 1
-            logger.debug(f"Fail detected, count now: {self.fail_count}")
-
-        # Log warning for unknown states
-        if state == ProgressBarState.UNKNOWN:
-            logger.debug("Unknown progress bar state detected")
-
-        # Check stop conditions
-        stop_reason = self._check_stop_condition()
-        if stop_reason:
-            logger.info(f"Stop condition met: {stop_reason.value}")
-
-        return self.fail_count, stop_reason
-
-    def _detect_state(self, roi_image: np.ndarray) -> ProgressBarState:
-        """Detect progress bar state from image using color analysis.
-
-        Args:
-            roi_image: Progress bar region of interest image
+    @property
+    def fail_count(self) -> int:
+        """Current failure count (read-only).
 
         Returns:
-            Detected progress bar state
+            Number of times transition to FAIL state occurred.
+            Range: [0, max_attempts]
         """
-        # Use existing progress_bar module for detection
-        state_str = progress_bar.get_progress_bar_state(roi_image)
+        return self._fail_count
 
-        # Map string to enum
-        try:
-            return ProgressBarState(state_str)
-        except ValueError:
-            logger.warning(f"Unexpected state string: {state_str}")
-            return ProgressBarState.UNKNOWN
+    @property
+    def stop_reason(self) -> StopReason | None:
+        """Reason for stopping if stop condition met, None otherwise.
 
-    def _check_stop_condition(self) -> StopCountReason | None:
-        """Check if any stop condition is met.
+        Evaluates stop conditions on each access (computed property).
 
         Returns:
-            Stop reason if condition met, None otherwise
+            - StopReason.MAX_ATTEMPTS_REACHED if fail_count >= max_attempts
+            - StopReason.SUCCESS if last 4 states all STANDBY
+            - StopReason.CONNECTION_ERROR if last 4 states all CONNECTION_ERROR
+            - None if no stop condition met
+
+        Evaluation Order (priority):
+            1. MAX_ATTEMPTS_REACHED (always checked first)
+            2. Require at least 4 states in history (return None if <4)
+            3. SUCCESS (4 consecutive STANDBY)
+            4. CONNECTION_ERROR (4 consecutive CONNECTION_ERROR)
         """
         # Check if max attempts reached (this should be checked first)
-        if self.fail_count >= self.max_attempts:
-            return StopCountReason.MAX_ATTEMPTS_REACHED
+        if self._fail_count >= self._max_attempts:
+            logger.debug(
+                f"Stop condition: MAX_ATTEMPTS_REACHED (fail_count={self._fail_count})"
+            )
+            return StopReason.MAX_ATTEMPTS_REACHED
 
         # Need at least 4 states to check for consecutive conditions
-        if len(self.recent_states) < 4:
+        if len(self._recent_states) < 4:
             return None
 
-        # Check for 4 consecutive standby states (upgraded)
-        if all(state == ProgressBarState.STANDBY for state in self.recent_states):
-            return StopCountReason.UPGRADED
+        # Check for 4 consecutive standby states (success)
+        if all(state == ProgressBarState.STANDBY for state in self._recent_states):
+            logger.debug("Stop condition: SUCCESS (4 consecutive STANDBY)")
+            return StopReason.SUCCESS
 
         # Check for 4 consecutive connection error states
         if all(
-            state == ProgressBarState.CONNECTION_ERROR for state in self.recent_states
+            state == ProgressBarState.CONNECTION_ERROR for state in self._recent_states
         ):
-            return StopCountReason.CONNECTION_ERROR
+            logger.debug("Stop condition: CONNECTION_ERROR (4 consecutive errors)")
+            return StopReason.CONNECTION_ERROR
 
         return None
+
+    @property
+    def current_state(self) -> ProgressBarState | None:
+        """Most recently detected state, None if no frames processed yet.
+
+        Returns:
+            - Last state from recent_states deque
+            - None if process_frame() never called
+        """
+        return self._recent_states[-1] if self._recent_states else None

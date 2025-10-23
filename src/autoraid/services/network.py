@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import warnings
 import socket
+import threading
 import time
 from dataclasses import dataclass
 from enum import StrEnum
 from urllib import request
 from urllib.error import URLError
 
+import pythoncom
 import wmi
 from loguru import logger
 
@@ -14,6 +16,22 @@ from autoraid.exceptions import NetworkAdapterError
 
 # Known issue with wmi module emitting SyntaxWarning
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
+
+
+class _ThreadLocalWMI:
+    def __init__(self):
+        pythoncom.CoInitialize()
+        self.wmi_obj = wmi.WMI()
+        self._com_initialized = True
+
+    def __del__(self):
+        if hasattr(self, "_com_initialized") and self._com_initialized:
+            try:
+                pythoncom.CoUninitialize()
+                self._com_initialized = False
+            except Exception:
+                # Suppress errors during cleanup (thread may be shutting down)
+                pass
 
 
 class NetworkState(StrEnum):
@@ -47,7 +65,12 @@ class NetworkManager:
     CHECK_INTERVAL: float = 0.5
 
     def __init__(self) -> None:
-        self.wmi_obj = wmi.WMI()
+        self._thread_local = threading.local()
+
+    def _get_wmi(self):
+        if not hasattr(self._thread_local, "wmi_wrapper"):
+            self._thread_local.wmi_wrapper = _ThreadLocalWMI()
+        return self._thread_local.wmi_wrapper.wmi_obj
 
     def check_network_access(self, timeout: float = 5.0) -> NetworkState:
         """Check if there is internet connectivity.
@@ -117,8 +140,9 @@ class NetworkManager:
 
     def get_adapters(self) -> list[NetworkAdapter]:
         """Get all physical network adapters"""
+        wmi_obj = self._get_wmi()
         adapters: list[NetworkAdapter] = []
-        for adapter in self.wmi_obj.Win32_NetworkAdapter(PhysicalAdapter=True):
+        for adapter in wmi_obj.Win32_NetworkAdapter(PhysicalAdapter=True):
             adapters.append(
                 NetworkAdapter(
                     name=adapter.Name,
@@ -132,9 +156,9 @@ class NetworkManager:
         return adapters
 
     def toggle_adapter(self, adapter_id: str, target_state: NetworkState) -> bool:
-        """Toggle a specific adapter"""
         try:
-            adapter = self.wmi_obj.Win32_NetworkAdapter(DeviceID=adapter_id)[0]
+            wmi_obj = self._get_wmi()
+            adapter = wmi_obj.Win32_NetworkAdapter(DeviceID=adapter_id)[0]
             if target_state == NetworkState.ONLINE:
                 adapter.Enable()
                 logger.info(f"Enabled adapter: {adapter.Name}")

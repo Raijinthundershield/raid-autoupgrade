@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
-from autoraid.core.state_machine import StopCountReason
+from autoraid.core.state_machine import StopReason
 from autoraid.services.network import NetworkState
 
 
@@ -24,7 +24,7 @@ class TestUpgradeOrchestrator:
             "locate_region_service": Mock(),
             "window_interaction_service": Mock(),
             "network_manager": Mock(),
-            "state_machine_provider": Mock(),
+            "upgrade_attempt_monitor": Mock(),
         }
 
     @pytest.fixture
@@ -36,7 +36,7 @@ class TestUpgradeOrchestrator:
             locate_region_service=mock_services["locate_region_service"],
             window_interaction_service=mock_services["window_interaction_service"],
             network_manager=mock_services["network_manager"],
-            state_machine_provider=mock_services["state_machine_provider"],
+            upgrade_attempt_monitor=mock_services["upgrade_attempt_monitor"],
         )
 
     def test_orchestrator_instantiates(self, orchestrator):
@@ -65,16 +65,26 @@ class TestUpgradeOrchestrator:
             (5, 50, 3), dtype=np.uint8
         )
 
-        # Setup state machine mock
-        mock_state_machine = Mock()
-        mock_state_machine.process_frame.side_effect = [
-            (1, None),
-            (2, None),
-            (3, None),
-            (4, None),
-            (5, StopCountReason.MAX_ATTEMPTS_REACHED),
-        ]
-        mock_services["state_machine_provider"].return_value = mock_state_machine
+        # Setup monitor mock
+        mock_monitor = Mock()
+        mock_monitor.process_frame.return_value = Mock()  # Returns ProgressBarState
+        mock_monitor.stop_reason = None
+        mock_monitor.fail_count = 0
+
+        # Create a side effect function to simulate the monitor behavior
+        call_count = [0]
+
+        def monitor_side_effect():
+            call_count[0] += 1
+            if call_count[0] < 5:
+                return None
+            return StopReason.MAX_ATTEMPTS_REACHED
+
+        # Use property to control stop_reason
+        type(mock_monitor).stop_reason = property(lambda self: monitor_side_effect())
+        type(mock_monitor).fail_count = property(lambda self: call_count[0])
+
+        mock_services["upgrade_attempt_monitor"].return_value = mock_monitor
 
         # Setup network manager mock
         mock_services[
@@ -96,12 +106,12 @@ class TestUpgradeOrchestrator:
         # Verify window_interaction_service.click_region was called
         assert mock_services["window_interaction_service"].click_region.called
 
-        # Verify state machine was used
-        assert mock_state_machine.process_frame.called
+        # Verify monitor was used
+        assert mock_monitor.process_frame.called
 
         # Verify result
         assert n_fails == 5
-        assert reason == StopCountReason.MAX_ATTEMPTS_REACHED
+        assert reason == StopReason.MAX_ATTEMPTS_REACHED
 
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
     def test_orchestrator_count_workflow_re_enables_network(
@@ -165,14 +175,23 @@ class TestUpgradeOrchestrator:
             (5, 50, 3), dtype=np.uint8
         )
 
-        # Setup state machine mock (simulate upgrade after 3 fails)
-        mock_state_machine = Mock()
-        mock_state_machine.process_frame.side_effect = [
-            (1, None),
-            (2, None),
-            (3, StopCountReason.UPGRADED),
-        ]
-        mock_services["state_machine_provider"].return_value = mock_state_machine
+        # Setup monitor mock (simulate upgrade after 3 fails)
+        mock_monitor = Mock()
+        mock_monitor.process_frame.return_value = Mock()  # Returns ProgressBarState
+
+        # Simulate monitoring behavior
+        call_count = [0]
+
+        def monitor_side_effect():
+            call_count[0] += 1
+            if call_count[0] < 3:
+                return None
+            return StopReason.SUCCESS
+
+        type(mock_monitor).stop_reason = property(lambda self: monitor_side_effect())
+        type(mock_monitor).fail_count = property(lambda self: min(call_count[0], 3))
+
+        mock_services["upgrade_attempt_monitor"].return_value = mock_monitor
 
         # Setup network manager mock
         mock_services[
@@ -186,7 +205,7 @@ class TestUpgradeOrchestrator:
         assert mock_services["screenshot_service"].take_screenshot.called
         assert mock_services["locate_region_service"].get_regions.called
         assert mock_services["window_interaction_service"].click_region.called
-        assert mock_state_machine.process_frame.called
+        assert mock_monitor.process_frame.called
 
         # Verify result structure (SpendResult dataclass)
         assert hasattr(result, "upgrade_count")
@@ -198,4 +217,4 @@ class TestUpgradeOrchestrator:
         assert result.upgrade_count == 1
         assert result.attempt_count == 4  # 3 fails + 1 success
         assert result.remaining_attempts == 6  # 10 - 4
-        assert result.last_reason == StopCountReason.UPGRADED
+        assert result.last_reason == StopReason.SUCCESS
