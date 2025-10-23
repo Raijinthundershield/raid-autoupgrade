@@ -90,5 +90,5 @@ class Container(containers.DeclarativeContainer):
         locate_region_service=locate_region_service,
         window_interaction_service=window_interaction_service,
         network_manager=network_manager,
-        state_machine_provider=state_machine.provider,
+        upgrade_attempt_monitor=upgrade_attempt_monitor.provider,
     )

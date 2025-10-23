@@ -9,7 +9,7 @@ from collections.abc import Callable
 import cv2
 from loguru import logger
 
-from autoraid.core.state_machine import UpgradeStateMachine, StopReason
+from autoraid.core.state_machine import UpgradeAttemptMonitor, StopReason
 from autoraid.exceptions import (
     WindowNotFoundException,
     NetworkAdapterError,
@@ -52,7 +52,7 @@ class UpgradeOrchestrator:
         locate_region_service: LocateRegionService,
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
-        state_machine_provider: Callable,
+        upgrade_attempt_monitor: Callable,
     ):
         """Initialize orchestrator with service dependencies.
 
@@ -62,14 +62,14 @@ class UpgradeOrchestrator:
             locate_region_service: Service for region detection
             window_interaction_service: Service for window interactions and clicking
             network_manager: Service for network adapter management
-            state_machine_provider: Factory provider for creating state machine instances
+            upgrade_attempt_monitor: Factory provider for creating monitor instances
         """
         self._cache_service = cache_service
         self._screenshot_service = screenshot_service
         self._locate_region_service = locate_region_service
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
-        self._state_machine_provider = state_machine_provider
+        self._monitor_provider = upgrade_attempt_monitor
 
     def _count_upgrade_fails(
         self,
@@ -91,7 +91,7 @@ class UpgradeOrchestrator:
         Returns:
             Tuple of (fail_count, stop_reason)
         """
-        state_machine: UpgradeStateMachine = self._state_machine_provider(
+        monitor: UpgradeAttemptMonitor = self._monitor_provider(
             max_attempts=max_attempts
         )
 
@@ -106,29 +106,29 @@ class UpgradeOrchestrator:
 
         logger.info("Starting to monitor upgrade bar for color changes.")
 
-        stop_reason = None
         prev_fail_count = 0
-        while stop_reason is None:
+        while monitor.stop_reason is None:
             screenshot = self._screenshot_service.take_screenshot(window_title)
             upgrade_bar = self._screenshot_service.extract_roi(
                 screenshot, upgrade_bar_region
             )
 
-            fail_count, stop_reason = state_machine.process_frame(upgrade_bar)
+            current_state = monitor.process_frame(upgrade_bar)
 
-            if fail_count > prev_fail_count:
-                logger.info(f"Counting progress: {fail_count} fails detected")
-                prev_fail_count = fail_count
+            if monitor.fail_count > prev_fail_count:
+                logger.info(f"Counting progress: {monitor.fail_count} fails detected")
+                prev_fail_count = monitor.fail_count
 
             if debug_dir is not None:
                 timestamp = get_timestamp()
                 debug_screenshots[timestamp] = screenshot
                 debug_upgrade_bar_rois[timestamp] = upgrade_bar
                 debug_metadata["timestamp"].append(timestamp)
-                debug_metadata["n_fails"][timestamp] = fail_count
-                if len(state_machine.recent_states) > 0:
-                    current_state = state_machine.recent_states[-1].value
-                    debug_metadata["current_state"][timestamp] = current_state
+                debug_metadata["n_fails"][timestamp] = monitor.fail_count
+                if monitor.current_state is not None:
+                    debug_metadata["current_state"][timestamp] = (
+                        monitor.current_state.value
+                    )
 
             time.sleep(check_interval)
 
@@ -154,8 +154,8 @@ class UpgradeOrchestrator:
             with open(output_dir / "debug_metadata.json", "w") as f:
                 json.dump(debug_metadata, f)
 
-        logger.info(f"Finished counting. Detected {fail_count} fails.")
-        return fail_count, stop_reason
+        logger.info(f"Finished counting. Detected {monitor.fail_count} fails.")
+        return monitor.fail_count, monitor.stop_reason
 
     def count_workflow(
         self,

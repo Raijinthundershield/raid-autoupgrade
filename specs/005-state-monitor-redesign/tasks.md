@@ -144,17 +144,17 @@ uv run pytest
 
 ### Tasks: Update Orchestrator
 
-- [ ] T039 Update UpgradeOrchestrator.__init__() in src/autoraid/services/upgrade_orchestrator.py (replace state_machine_provider with upgrade_attempt_monitor)
-- [ ] T040 Update UpgradeOrchestrator._count_upgrade_fails() to use monitor API (replace tuple unpacking with property access)
-- [ ] T041 Update loop condition in _count_upgrade_fails() to check monitor.stop_reason property
-- [ ] T042 Update fail count access in _count_upgrade_fails() to use monitor.fail_count property
-- [ ] T043 Update imports in src/autoraid/services/upgrade_orchestrator.py (use StopReason instead of StopCountReason)
-- [ ] T044 Update container wiring in src/autoraid/cli/cli.py (pass upgrade_attempt_monitor to orchestrator)
+- [X] T039 Update UpgradeOrchestrator.__init__() in src/autoraid/services/upgrade_orchestrator.py (replace state_machine_provider with upgrade_attempt_monitor)
+- [X] T040 Update UpgradeOrchestrator._count_upgrade_fails() to use monitor API (replace tuple unpacking with property access)
+- [X] T041 Update loop condition in _count_upgrade_fails() to check monitor.stop_reason property
+- [X] T042 Update fail count access in _count_upgrade_fails() to use monitor.fail_count property
+- [X] T043 Update imports in src/autoraid/services/upgrade_orchestrator.py (use StopReason instead of StopCountReason)
+- [X] T044 Update container wiring in src/autoraid/cli/cli.py (pass upgrade_attempt_monitor to orchestrator)
 
 ### Tasks: Update Integration Tests
 
-- [ ] T045 Update test/integration/test_upgrade_orchestrator.py to use new monitor API
-- [ ] T046 Add behavior parity test in test/integration/test_upgrade_orchestrator.py (verify same results as old implementation)
+- [X] T045 Update test/integration/test_upgrade_orchestrator.py to use new monitor API
+- [X] T046 Add behavior parity test in test/integration/test_upgrade_orchestrator.py (verify same results as old implementation)
 
 **Verification Commands**:
 ```bash
