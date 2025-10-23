@@ -4,8 +4,10 @@ from autoraid.core.state_machine import (
     StopReason,
     UpgradeAttemptMonitor,
 )
-from autoraid.core.progress_bar import ProgressBarState, get_progress_bar_state
-from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.core.progress_bar_detector import (
+    ProgressBarState,
+    ProgressBarStateDetector,
+)
 from autoraid.core.locate_region import (
     locate_progress_bar,
     locate_upgrade_button,
@@ -17,7 +19,6 @@ __all__ = [
     "ProgressBarState",
     "ProgressBarStateDetector",
     "UpgradeAttemptMonitor",
-    "get_progress_bar_state",
     "locate_progress_bar",
     "locate_upgrade_button",
     "MissingRegionException",

@@ -6,8 +6,10 @@ from enum import Enum
 import numpy as np
 from loguru import logger
 
-from autoraid.core.progress_bar import ProgressBarState
-from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.core.progress_bar_detector import (
+    ProgressBarState,
+    ProgressBarStateDetector,
+)
 
 
 class StopReason(Enum):
