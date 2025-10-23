@@ -109,7 +109,8 @@ Container (DeclarativeContainer)
 │   ├── cache_service: CacheService(disk_cache)
 │   ├── screenshot_service: ScreenshotService()
 │   ├── window_interaction_service: WindowInteractionService()
-│   └── locate_region_service: LocateRegionService(cache_service, screenshot_service)
+│   ├── locate_region_service: LocateRegionService(cache_service, screenshot_service)
+│   └── network_manager: NetworkManager()
 │
 └── Providers (Factory)
     ├── state_machine: UpgradeStateMachine(max_attempts)
@@ -170,6 +171,7 @@ The GUI layer is a **thin presentation layer** that provides a native desktop in
 | **ScreenshotService** | Singleton | Window screenshots, ROI extraction | None |
 | **LocateRegionService** | Singleton | Region detection (auto + manual) | cache_service, screenshot_service |
 | **WindowInteractionService** | Singleton | Window existence checking, activation, clicking | None |
+| **NetworkManager** | Singleton | Network adapter management with automatic state waiting | None (service layer - no display logic) |
 | **UpgradeStateMachine** | Factory | Frame processing, fail counting | None (pure logic) |
 | **UpgradeOrchestrator** | Factory | Workflow coordination | All services + state_machine.provider |
 

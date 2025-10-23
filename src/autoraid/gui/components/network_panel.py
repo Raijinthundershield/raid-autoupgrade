@@ -1,12 +1,17 @@
 """Network adapter management panel for AutoRaid GUI."""
 
+from dependency_injector.wiring import inject, Provide
 from nicegui import app, ui
 from loguru import logger
 
-from autoraid.platform.network import NetworkManager
+from autoraid.container import Container
+from autoraid.services.network import NetworkManager, NetworkState
 
 
-def create_network_panel() -> None:
+@inject
+def create_network_panel(
+    network_manager: NetworkManager = Provide[Container.network_manager],
+) -> None:
     """Create network adapter management UI section.
 
     Displays:
@@ -16,8 +21,10 @@ def create_network_panel() -> None:
 
     State:
     - Selected adapter IDs persist in app.storage.user['selected_adapters']
+
+    Args:
+        network_manager: Injected NetworkManager singleton service
     """
-    network_manager = NetworkManager()
 
     # Initialize storage for selected adapters
     if "selected_adapters" not in app.storage.user:
@@ -32,10 +39,11 @@ def create_network_panel() -> None:
         def show_internet_status():
             """Display internet connection status with color coding."""
             try:
-                online = network_manager.check_network_access(timeout=2.0)
-                icon = "🟢" if online else "🔴"
-                color = "text-green-600" if online else "text-red-600"
-                status_text = "Online" if online else "Offline"
+                state = network_manager.check_network_access(timeout=2.0)
+                is_online = state == NetworkState.ONLINE
+                icon = "🟢" if is_online else "🔴"
+                color = "text-green-600" if is_online else "text-red-600"
+                status_text = "Online" if is_online else "Offline"
                 ui.label(f"{icon} Internet: {status_text}").classes(color)
             except Exception as e:
                 logger.error(f"Failed to check internet status: {e}")

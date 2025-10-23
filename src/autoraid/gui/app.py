@@ -8,7 +8,7 @@ from autoraid.gui.components.region_panel import create_region_panel
 from autoraid.gui.components.upgrade_panel import create_upgrade_panel
 from autoraid.container import Container
 from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.platform.network import NetworkManager
+from autoraid.services.network import NetworkManager, NetworkState
 from autoraid.exceptions import WindowNotFoundException
 
 WINDOW_TITLE = "Raid: Shadow Legends"
@@ -20,13 +20,14 @@ def create_header(
     window_interaction_service: WindowInteractionService = Provide[
         Container.window_interaction_service
     ],
+    network_manager: NetworkManager = Provide[Container.network_manager],
 ) -> None:
     """Create application header with title and status indicators.
 
     Args:
         window_interaction_service: Service for checking window existence
+        network_manager: Service for network adapter management
     """
-    network_manager = NetworkManager()
 
     with ui.card().classes("w-full bg-blue-50"):
         with ui.row().classes("w-full items-center justify-between"):
@@ -58,8 +59,8 @@ def create_header(
                 def show_network_status():
                     """Display network connection status indicator."""
                     try:
-                        online = network_manager.check_network_access(timeout=2.0)
-                        if online:
+                        state = network_manager.check_network_access(timeout=2.0)
+                        if state == NetworkState.ONLINE:
                             ui.label("🟢 Network").classes(
                                 "text-green-600 font-semibold"
                             )

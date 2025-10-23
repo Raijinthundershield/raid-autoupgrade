@@ -15,7 +15,7 @@ from autoraid.exceptions import (
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
-from autoraid.platform.network import NetworkManager
+from autoraid.services.network import NetworkManager, NetworkState
 from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
@@ -51,6 +51,7 @@ class UpgradeOrchestrator:
         screenshot_service: ScreenshotService,
         locate_region_service: LocateRegionService,
         window_interaction_service: WindowInteractionService,
+        network_manager: NetworkManager,
         state_machine_provider: Callable,
     ):
         """Initialize orchestrator with service dependencies.
@@ -60,12 +61,14 @@ class UpgradeOrchestrator:
             screenshot_service: Service for capturing screenshots and ROI extraction
             locate_region_service: Service for region detection
             window_interaction_service: Service for window interactions and clicking
+            network_manager: Service for network adapter management
             state_machine_provider: Factory provider for creating state machine instances
         """
         self._cache_service = cache_service
         self._screenshot_service = screenshot_service
         self._locate_region_service = locate_region_service
         self._window_interaction_service = window_interaction_service
+        self._network_manager = network_manager
         self._state_machine_provider = state_machine_provider
 
     def _count_upgrade_fails(
@@ -196,31 +199,22 @@ class UpgradeOrchestrator:
                 "Raid window not found. Check if Raid is running."
             )
 
-        # Initialize network manager
-        manager = NetworkManager()
-
         # Check network access and disable if needed
-        if manager.check_network_access() and not network_adapter_id:
+        if (
+            self._network_manager.check_network_access() == NetworkState.ONLINE
+            and not network_adapter_id
+        ):
             logger.warning("Internet access detected but no network adapter specified")
             raise UpgradeWorkflowError(
                 "Internet access detected and network id not specified. This will upgrade the piece. Aborting."
             )
 
-        # Disable network adapters
+        # Disable network adapters with automatic waiting
         if network_adapter_id:
             logger.info(f"Disabling network adapters: {network_adapter_id}")
-            manager.toggle_adapters(network_adapter_id, enable=False)
-
-            # Wait for network to turn off (max 3 seconds)
-            logger.info("Waiting for network to turn off...")
-            for _ in range(10):
-                time.sleep(0.5)
-                if not manager.check_network_access():
-                    logger.info("Network disabled successfully")
-                    break
-            else:
-                logger.error("Failed to disable network")
-                raise NetworkAdapterError("Failed to turn off network. Aborting.")
+            self._network_manager.toggle_adapters(
+                network_adapter_id, NetworkState.OFFLINE, wait=True
+            )
 
         try:
             # Capture screenshot
@@ -262,10 +256,12 @@ class UpgradeOrchestrator:
             return fail_count, reason
 
         finally:
-            # Always re-enable network adapters
+            # Always re-enable network adapters (non-blocking for fast cleanup)
             if network_adapter_id:
                 logger.info(f"Re-enabling network adapters: {network_adapter_id}")
-                manager.toggle_adapters(network_adapter_id, enable=True)
+                self._network_manager.toggle_adapters(
+                    network_adapter_id, NetworkState.ONLINE, wait=False
+                )
                 logger.debug("Network adapters re-enabled")
 
     def spend_workflow(
@@ -314,8 +310,7 @@ class UpgradeOrchestrator:
             )
 
         # Validate network access
-        manager = NetworkManager()
-        if not manager.check_network_access():
+        if self._network_manager.check_network_access() == NetworkState.OFFLINE:
             logger.error("No internet access detected")
             raise NetworkAdapterError("No internet access detected. Aborting.")
 

@@ -9,6 +9,7 @@ import numpy as np
 
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 from autoraid.core.state_machine import StopCountReason
+from autoraid.services.network import NetworkState
 
 
 class TestUpgradeOrchestrator:
@@ -22,6 +23,7 @@ class TestUpgradeOrchestrator:
             "screenshot_service": Mock(),
             "locate_region_service": Mock(),
             "window_interaction_service": Mock(),
+            "network_manager": Mock(),
             "state_machine_provider": Mock(),
         }
 
@@ -33,6 +35,7 @@ class TestUpgradeOrchestrator:
             screenshot_service=mock_services["screenshot_service"],
             locate_region_service=mock_services["locate_region_service"],
             window_interaction_service=mock_services["window_interaction_service"],
+            network_manager=mock_services["network_manager"],
             state_machine_provider=mock_services["state_machine_provider"],
         )
 
@@ -41,12 +44,10 @@ class TestUpgradeOrchestrator:
         assert orchestrator is not None
         assert isinstance(orchestrator, UpgradeOrchestrator)
 
-    @patch("autoraid.services.upgrade_orchestrator.NetworkManager")
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
     def test_orchestrator_count_workflow_calls_services(
         self,
         mock_sleep,
-        mock_network_manager,
         orchestrator,
         mock_services,
     ):
@@ -76,8 +77,9 @@ class TestUpgradeOrchestrator:
         mock_services["state_machine_provider"].return_value = mock_state_machine
 
         # Setup network manager mock
-        network_manager_instance = mock_network_manager.return_value
-        network_manager_instance.check_network_access.return_value = False
+        mock_services[
+            "network_manager"
+        ].check_network_access.return_value = NetworkState.OFFLINE
 
         # Execute workflow (no network adapters to avoid network toggle logic)
         n_fails, reason = orchestrator.count_workflow(
@@ -101,12 +103,10 @@ class TestUpgradeOrchestrator:
         assert n_fails == 5
         assert reason == StopCountReason.MAX_ATTEMPTS_REACHED
 
-    @patch("autoraid.services.upgrade_orchestrator.NetworkManager")
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
     def test_orchestrator_count_workflow_re_enables_network(
         self,
         mock_sleep,
-        mock_network_manager,
         orchestrator,
         mock_services,
     ):
@@ -122,8 +122,9 @@ class TestUpgradeOrchestrator:
         }
 
         # Setup network manager mock
-        network_manager_instance = mock_network_manager.return_value
-        network_manager_instance.check_network_access.return_value = False
+        mock_services[
+            "network_manager"
+        ].check_network_access.return_value = NetworkState.OFFLINE
 
         # Execute workflow with network adapter ID
         network_adapter_id = [1, 2]
@@ -133,22 +134,20 @@ class TestUpgradeOrchestrator:
             )
 
         # Verify network was disabled
-        assert network_manager_instance.toggle_adapters.call_count >= 1
-        first_call = network_manager_instance.toggle_adapters.call_args_list[0]
+        assert mock_services["network_manager"].toggle_adapters.call_count >= 1
+        first_call = mock_services["network_manager"].toggle_adapters.call_args_list[0]
         assert first_call[0][0] == network_adapter_id
-        assert first_call[1]["enable"] is False
+        assert first_call[0][1] == NetworkState.OFFLINE
 
         # Verify network was re-enabled in finally block (last call)
-        last_call = network_manager_instance.toggle_adapters.call_args_list[-1]
+        last_call = mock_services["network_manager"].toggle_adapters.call_args_list[-1]
         assert last_call[0][0] == network_adapter_id
-        assert last_call[1]["enable"] is True
+        assert last_call[0][1] == NetworkState.ONLINE
 
-    @patch("autoraid.services.upgrade_orchestrator.NetworkManager")
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
     def test_orchestrator_spend_workflow_calls_services(
         self,
         mock_sleep,
-        mock_network_manager,
         orchestrator,
         mock_services,
     ):
@@ -176,8 +175,9 @@ class TestUpgradeOrchestrator:
         mock_services["state_machine_provider"].return_value = mock_state_machine
 
         # Setup network manager mock
-        network_manager_instance = mock_network_manager.return_value
-        network_manager_instance.check_network_access.return_value = True
+        mock_services[
+            "network_manager"
+        ].check_network_access.return_value = NetworkState.ONLINE
 
         # Execute workflow
         result = orchestrator.spend_workflow(max_attempts=10, continue_upgrade=False)
