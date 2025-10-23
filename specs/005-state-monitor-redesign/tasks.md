@@ -89,33 +89,33 @@ uv run pytest
 
 ### Tasks: Detector Tests
 
-- [ ] T018 [P] Create test/unit/core/test_progress_bar_detector.py
-- [ ] T019 [P] Write test_detect_state_fail() using test/fixtures/images/fail_state.png
-- [ ] T020 [P] Write test_detect_state_progress() using test/fixtures/images/progress_state.png
-- [ ] T021 [P] Write test_detect_state_standby() using test/fixtures/images/standby_state.png
-- [ ] T022 [P] Write test_detect_state_connection_error() using test/fixtures/images/connection_error_state.png
-- [ ] T023 [P] Write test_detect_state_is_stateless() (verify same image returns same state 100 times)
-- [ ] T024 [P] Write test_detect_state_raises_on_none_image() (verify ValueError)
-- [ ] T025 [P] Write test_detect_state_raises_on_empty_image() (verify ValueError)
-- [ ] T026 [P] Write test_detect_state_raises_on_invalid_shape() (verify ValueError)
+- [X] T018 [P] Create test/unit/core/test_progress_bar_detector.py
+- [X] T019 [P] Write test_detect_state_fail() using test/fixtures/images/fail_state.png
+- [X] T020 [P] Write test_detect_state_progress() using test/fixtures/images/progress_state.png
+- [X] T021 [P] Write test_detect_state_standby() using test/fixtures/images/standby_state.png
+- [X] T022 [P] Write test_detect_state_connection_error() using test/fixtures/images/connection_error_state.png
+- [X] T023 [P] Write test_detect_state_is_stateless() (verify same image returns same state 100 times)
+- [X] T024 [P] Write test_detect_state_raises_on_none_image() (verify ValueError)
+- [X] T025 [P] Write test_detect_state_raises_on_empty_image() (verify ValueError)
+- [X] T026 [P] Write test_detect_state_raises_on_invalid_shape() (verify ValueError)
 
 ### Tasks: Monitor Tests
 
-- [ ] T027 [P] Create test/unit/core/test_upgrade_attempt_monitor.py
-- [ ] T028 [P] Write test_monitor_counts_fail_transitions() with mocked detector
-- [ ] T029 [P] Write test_monitor_ignores_consecutive_fails() with mocked detector
-- [ ] T030 [P] Write test_monitor_stops_on_max_attempts() (verify MAX_ATTEMPTS_REACHED)
-- [ ] T031 [P] Write test_monitor_stops_on_success() (verify SUCCESS after 4 STANDBY)
-- [ ] T032 [P] Write test_monitor_stops_on_connection_error() (verify CONNECTION_ERROR after 4 errors)
-- [ ] T033 [P] Write test_monitor_does_not_stop_early() (verify 3 STANDBY continues)
-- [ ] T034 [P] Write test_monitor_tracks_current_state() (verify current_state property)
-- [ ] T035 [P] Write test_monitor_validates_max_attempts() (verify ValueError for max_attempts <= 0)
-- [ ] T036 [P] Write test_monitor_fail_count_property_readonly() (verify property returns int)
+- [X] T027 [P] Create test/unit/core/test_upgrade_attempt_monitor.py
+- [X] T028 [P] Write test_monitor_counts_fail_transitions() with mocked detector
+- [X] T029 [P] Write test_monitor_ignores_consecutive_fails() with mocked detector
+- [X] T030 [P] Write test_monitor_stops_on_max_attempts() (verify MAX_ATTEMPTS_REACHED)
+- [X] T031 [P] Write test_monitor_stops_on_success() (verify SUCCESS after 4 STANDBY)
+- [X] T032 [P] Write test_monitor_stops_on_connection_error() (verify CONNECTION_ERROR after 4 errors)
+- [X] T033 [P] Write test_monitor_does_not_stop_early() (verify 3 STANDBY continues)
+- [X] T034 [P] Write test_monitor_tracks_current_state() (verify current_state property)
+- [X] T035 [P] Write test_monitor_validates_max_attempts() (verify ValueError for max_attempts <= 0)
+- [X] T036 [P] Write test_monitor_fail_count_property_readonly() (verify property returns int)
 
 ### Tasks: Coverage Verification
 
-- [ ] T037 Run pytest --cov=autoraid.core.progress_bar_detector --cov-report=term-missing and verify ≥90%
-- [ ] T038 Run pytest --cov=autoraid.core.state_machine --cov-report=term-missing (UpgradeAttemptMonitor only) and verify ≥90%
+- [X] T037 Run pytest --cov=autoraid.core.progress_bar_detector --cov-report=term-missing and verify ≥90%
+- [X] T038 Run pytest --cov=autoraid.core.state_machine --cov-report=term-missing (UpgradeAttemptMonitor only) and verify ≥90%
 
 **Verification Commands**:
 ```bash
