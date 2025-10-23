@@ -20,13 +20,14 @@ def create_header(
     window_interaction_service: WindowInteractionService = Provide[
         Container.window_interaction_service
     ],
+    network_manager: NetworkManager = Provide[Container.network_manager],
 ) -> None:
     """Create application header with title and status indicators.
 
     Args:
         window_interaction_service: Service for checking window existence
+        network_manager: Service for network adapter management
     """
-    network_manager = NetworkManager()
 
     with ui.card().classes("w-full bg-blue-50"):
         with ui.row().classes("w-full items-center justify-between"):
