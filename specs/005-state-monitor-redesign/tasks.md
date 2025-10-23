@@ -259,12 +259,12 @@ uv run ruff format --check .
 
 ### Tasks
 
-- [ ] T060 [P] Update "Core Components" section in CLAUDE.md (add ProgressBarStateDetector description)
-- [ ] T061 [P] Update "Core Components" section in CLAUDE.md (add UpgradeAttemptMonitor description)
-- [ ] T062 [P] Remove UpgradeStateMachine reference from CLAUDE.md
-- [ ] T063 [P] Update "Service Responsibilities" table in CLAUDE.md (add detector and monitor rows)
-- [ ] T064 Update "Dependency Injection Container" diagram in CLAUDE.md (show detector singleton and monitor factory)
-- [ ] T065 Update "Testing" section in CLAUDE.md (add detector and monitor testing examples)
+- [X] T060 [P] Update "Core Components" section in CLAUDE.md (add ProgressBarStateDetector description)
+- [X] T061 [P] Update "Core Components" section in CLAUDE.md (add UpgradeAttemptMonitor description)
+- [X] T062 [P] Remove UpgradeStateMachine reference from CLAUDE.md
+- [X] T063 [P] Update "Service Responsibilities" table in CLAUDE.md (add detector and monitor rows)
+- [X] T064 Update "Dependency Injection Container" diagram in CLAUDE.md (show detector singleton and monitor factory)
+- [X] T065 Update "Testing" section in CLAUDE.md (add detector and monitor testing examples)
 
 **Verification Commands**:
 ```bash
