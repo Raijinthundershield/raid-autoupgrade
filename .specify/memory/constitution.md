@@ -1,9 +1,11 @@
 <!--
 Sync Impact Report:
-- Version change: INITIAL → 1.0.0
-- Modified principles: N/A (initial version)
-- Added sections: Core Principles (5), Development Standards, Governance
-- Removed sections: N/A
+- Version change: 1.0.0 → 1.1.0
+- Modified principles:
+  * II. Readability First → II. DRY & Separation of Concerns (expanded scope)
+  * III. Pragmatic Testing (clarified smoke test approach vs TDD)
+- Added sections: Explicit DRY enforcement guidance
+- Removed sections: None
 - Templates requiring updates:
   ✅ plan-template.md (verified, no updates needed)
   ✅ spec-template.md (verified, no updates needed)
@@ -22,11 +24,13 @@ Sync Impact Report:
 **Code MUST prioritize simplicity over cleverness.** This is a one-person project where
 maintainability trumps optimization. Choose straightforward solutions that are easy to
 understand and modify. Avoid premature optimization, complex abstractions, and
-"clever" solutions that sacrifice readability.
+"clever" solutions that sacrifice readability. The pragmatic programmer chooses
+the simplest thing that works.
 
 **Rationale:** As a solo developer, you are your own maintainer. Code you write today
 will be debugged by future-you who won't remember the clever tricks. Simple code is
-fast to debug, easy to extend, and requires no mental gymnastics.
+fast to debug, easy to extend, and requires no mental gymnastics. Complexity is a
+liability, not an asset.
 
 **Rules:**
 - Prefer explicit over implicit
@@ -34,8 +38,37 @@ fast to debug, easy to extend, and requires no mental gymnastics.
 - No metaprogramming or magic unless absolutely necessary
 - Question every abstraction: does it truly reduce complexity or just hide it?
 - When in doubt, write the obvious solution first
+- YAGNI (You Aren't Gonna Need It) is law
+- Premature optimization is the root of evil
 
-### II. Readability First
+### II. DRY & Separation of Concerns
+
+**Code and knowledge MUST follow the DRY principle.** Don't Repeat Yourself applies
+to both code and documentation. Every piece of knowledge should have a single,
+authoritative source. When the same logic or information appears in multiple places,
+it becomes a maintenance burden and a source of bugs.
+
+**Code MUST be organized by separation of concerns.** Related functionality lives
+together; unrelated concerns are isolated. Use layers and clear boundaries: CLI
+is thin presentation, services contain business logic, core has pure domain logic,
+platform has OS-specific code. Dependencies flow inward, never outward.
+
+**Rationale:** Duplication means maintaining the same fix in multiple places. Knowledge
+scattered across files creates documentation debt. Separation of concerns makes code
+testable by letting you swap implementations (dependency injection, mocking) without
+touching business logic. When concerns are mixed, changing one thing breaks unrelated code.
+
+**Rules:**
+- Single source of truth for all domain logic and critical knowledge
+- Extract shared code into reusable functions/classes
+- Extract shared documentation into CLAUDE.md or README.md (not scattered in docstrings)
+- Layer architecture: CLI → Services → Core → Platform
+- Services orchestrate; core implements pure logic; platform handles OS specifics
+- No business logic in CLI; no I/O in core state machines
+- Dependencies inject via constructors (dependency-injector pattern)
+- Related code lives in the same module; unrelated code is isolated
+
+### III. Readability First
 
 **Code MUST be self-documenting through clear names and structure.** Variable names,
 function names, and module organization should tell the story. Comments explain "why",
@@ -49,29 +82,40 @@ automation tasks, clarity is critical for debugging.
 - Functions do one thing with a name that describes exactly what
 - Variable names are descriptive: `upgrade_bar_region` not `r1`
 - Magic numbers become named constants with units: `POLL_INTERVAL_SECONDS = 0.25`
-- Module structure reflects domain concepts (autoupgrade, interaction, network)
+- Module structure reflects domain concepts
 - Comments explain decisions, trade-offs, and non-obvious "why"
+- Avoid abbreviations unless universally understood (e.g., `img` for image is OK)
+- Type hints are mandatory for public APIs
 
-### III. Pragmatic Testing
+### IV. Pragmatic Testing (Smoke Tests, Not TDD)
 
-**Tests MUST exist for core logic and computer vision algorithms. Testing SHOULD be
+**Tests MUST exist for core logic and critical algorithms. Testing SHOULD be
 pragmatic, not dogmatic.** Focus testing effort where it provides the most value:
 state detection, color analysis, region detection, and upgrade counting logic.
-GUI automation and simple utilities can rely on manual testing.
+Use **smoke tests** to verify basic functionality, not exhaustive TDD.
+
+**Tests are regression protection, not design tools.** Write tests after core
+implementation to catch regressions. For simple utilities and GUI wiring, manual
+testing is acceptable. For complex algorithms (state machines, computer vision),
+automated tests are mandatory.
 
 **Rationale:** Computer vision algorithms are notoriously fragile and require
 regression testing. However, this is a personal project - not every line needs
 100% coverage. Test what breaks, test what's complex, skip what's trivial.
+The pragmatic programmer tests strategically, not dogmatically.
 
 **Rules:**
-- MUST test: progress bar state detection, color analysis algorithms, state machine logic
-- SHOULD test: region detection, upgrade counting, error handling
-- CAN skip: simple getters/setters, CLI argument parsing, straightforward utilities
-- Tests use real image fixtures from `test/images/` to catch visual regressions
+- MUST test: progress bar state detection, color analysis, state machine logic (≥90% coverage)
+- SHOULD test: region detection, orchestrator workflows, error handling
+- CAN skip: simple getters/setters, CLI argument parsing, straightforward utilities, GUI wiring
+- Tests use real image fixtures from `test/fixtures/images/` to catch visual regressions
 - Test names describe the scenario: `test_detects_fail_state_from_red_bar()`
+- Integration tests use mocks to isolate services (dependency injection enables this)
 - Pre-commit hooks run tests automatically to catch obvious breaks
+- Tests are written AFTER implementation (smoke tests, not TDD)
+- Coverage targets: core logic ≥90%, services ≥60%, overall ≥70%
 
-### IV. Debug-Friendly Architecture
+### V. Debug-Friendly Architecture
 
 **The system MUST be easy to debug when things go wrong.** Automation and computer
 vision are inherently unpredictable. The architecture MUST support rapid diagnosis
@@ -79,7 +123,8 @@ through debug modes, cached artifacts, and clear error messages.
 
 **Rationale:** When the tool misdetects a progress bar state at 2 AM during a
 critical upgrade, you need to diagnose quickly. Debug artifacts (screenshots,
-metadata, logs) are your flashlight.
+metadata, logs) are your flashlight. The pragmatic programmer builds for
+debuggability from day one.
 
 **Rules:**
 - Global `--debug` flag saves screenshots and metadata to `cache-raid-autoupgrade/debug/`
@@ -88,8 +133,9 @@ metadata, logs) are your flashlight.
 - Rich terminal output shows progress, states, and decisions in real-time
 - Loguru logging with structured context for trace-level debugging
 - Region visualization commands (`autoraid upgrade region show`) for visual verification
+- Custom exceptions inherit from base classes with clear names
 
-### V. Incremental Improvement Over Perfection
+### VI. Incremental Improvement Over Perfection
 
 **Ship working features incrementally. Perfection is the enemy of done.** Features
 should be functional and useful, not perfect. Improvements happen iteratively based
@@ -166,4 +212,4 @@ For agent-specific development guidance and best practices, refer to `CLAUDE.md`
 in the repository root. The constitution defines principles; `CLAUDE.md` provides
 practical implementation guidance.
 
-**Version**: 1.0.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-17
+**Version**: 1.1.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-23
