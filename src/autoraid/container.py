@@ -3,7 +3,7 @@
 from dependency_injector import containers, providers
 import diskcache
 
-from autoraid.core.state_machine import UpgradeStateMachine, UpgradeAttemptMonitor
+from autoraid.core.state_machine import UpgradeAttemptMonitor
 from autoraid.core.progress_bar_detector import ProgressBarStateDetector
 from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
@@ -72,11 +72,6 @@ class Container(containers.DeclarativeContainer):
     )
 
     # Factory services (new instance per operation)
-    state_machine = providers.Factory(
-        UpgradeStateMachine,
-        max_attempts=config.max_attempts.as_(int),
-    )
-
     upgrade_attempt_monitor = providers.Factory(
         UpgradeAttemptMonitor,
         detector=progress_bar_detector,

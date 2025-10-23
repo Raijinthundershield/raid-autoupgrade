@@ -1,8 +1,6 @@
 """Core domain logic for AutoRaid upgrade automation."""
 
 from autoraid.core.state_machine import (
-    UpgradeStateMachine,
-    StopCountReason,  # Backward compatibility alias
     StopReason,
     UpgradeAttemptMonitor,
 )
@@ -15,8 +13,6 @@ from autoraid.core.locate_region import (
 )
 
 __all__ = [
-    "UpgradeStateMachine",
-    "StopCountReason",  # Backward compatibility alias
     "StopReason",
     "ProgressBarState",
     "ProgressBarStateDetector",

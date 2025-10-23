@@ -19,9 +19,10 @@ def test_create_network_panel_smoke():
     - No runtime errors during setup
     """
     # Mock NiceGUI components to avoid requiring a running UI
-    with patch("autoraid.gui.components.network_panel.ui") as mock_ui, patch(
-        "autoraid.gui.components.network_panel.app"
-    ) as mock_app:
+    with (
+        patch("autoraid.gui.components.network_panel.ui") as mock_ui,
+        patch("autoraid.gui.components.network_panel.app") as mock_app,
+    ):
         # Setup mock storage
         mock_app.storage.user = {}
 
@@ -52,9 +53,11 @@ def test_adapter_select_updates_storage():
     - Removing adapter from selection
     - Persistence in storage
     """
-    with patch("autoraid.gui.components.network_panel.ui"), patch(
-        "autoraid.gui.components.network_panel.app"
-    ) as mock_app, patch("autoraid.gui.components.network_panel.NetworkManager"):
+    with (
+        patch("autoraid.gui.components.network_panel.ui"),
+        patch("autoraid.gui.components.network_panel.app") as mock_app,
+        patch("autoraid.gui.components.network_panel.NetworkManager"),
+    ):
         # Setup mock storage
         mock_app.storage.user = {"selected_adapters": []}
 
@@ -79,9 +82,11 @@ def test_adapter_select_updates_storage():
 
 def test_adapter_deselect_updates_storage():
     """Verify unchecking removes from storage."""
-    with patch("autoraid.gui.components.network_panel.ui"), patch(
-        "autoraid.gui.components.network_panel.app"
-    ) as mock_app, patch("autoraid.gui.components.network_panel.NetworkManager"):
+    with (
+        patch("autoraid.gui.components.network_panel.ui"),
+        patch("autoraid.gui.components.network_panel.app") as mock_app,
+        patch("autoraid.gui.components.network_panel.NetworkManager"),
+    ):
         # Setup mock storage with pre-selected adapters
         mock_app.storage.user = {"selected_adapters": ["1", "2"]}
 

@@ -181,11 +181,11 @@ uv run autoraid upgrade count --help
 
 ### Tasks
 
-- [ ] T047 Manual test: Run Count workflow in CLI with --debug flag (verify DEBUG logging)
-- [ ] T048 Manual test: Run Spend workflow in CLI (verify behavior unchanged)
-- [ ] T049 Manual test: Run Count workflow in GUI (verify UI updates correctly)
-- [ ] T050 Manual test: Run Spend workflow in GUI (verify UI updates correctly)
-- [ ] T051 Verify all success criteria SC-001 through SC-007 met per plan.md
+- [X] T047 Manual test: Run Count workflow in CLI with --debug flag (verify DEBUG logging)
+- [X] T048 Manual test: Run Spend workflow in CLI (verify behavior unchanged)
+- [X] T049 Manual test: Run Count workflow in GUI (verify UI updates correctly)
+- [X] T050 Manual test: Run Spend workflow in GUI (verify UI updates correctly)
+- [X] T051 Verify all success criteria SC-001 through SC-007 met per plan.md
 
 **Verification Commands**:
 ```bash
@@ -218,17 +218,17 @@ uv run autoraid gui
 
 ### Tasks: Remove Old Implementation
 
-- [ ] T052 Remove UpgradeStateMachine class from src/autoraid/core/state_machine.py
-- [ ] T053 Remove StopCountReason alias from src/autoraid/core/state_machine.py
-- [ ] T054 Remove state_machine_provider from src/autoraid/container.py
-- [ ] T055 Remove old state machine tests from test/unit/core/test_state_machine.py (keep enum tests if any)
-- [ ] T056 Remove behavior parity test from test/integration/test_upgrade_orchestrator.py (no longer needed)
+- [X] T052 Remove UpgradeStateMachine class from src/autoraid/core/state_machine.py
+- [X] T053 Remove StopCountReason alias from src/autoraid/core/state_machine.py
+- [X] T054 Remove state_machine_provider from src/autoraid/container.py
+- [X] T055 Remove old state machine tests from test/unit/core/test_state_machine.py (keep enum tests if any)
+- [X] T056 Remove behavior parity test from test/integration/test_upgrade_orchestrator.py (no longer needed)
 
 ### Tasks: Verify Cleanup
 
-- [ ] T057 Run grep -r "UpgradeStateMachine" src/autoraid/ and verify no matches
-- [ ] T058 Run grep -r "StopCountReason" src/autoraid/ and verify no matches
-- [ ] T059 Run grep -r "state_machine_provider" src/autoraid/ and verify no matches
+- [X] T057 Run grep -r "UpgradeStateMachine" src/autoraid/ and verify no matches
+- [X] T058 Run grep -r "StopCountReason" src/autoraid/ and verify no matches
+- [X] T059 Run grep -r "state_machine_provider" src/autoraid/ and verify no matches
 
 **Verification Commands**:
 ```bash
