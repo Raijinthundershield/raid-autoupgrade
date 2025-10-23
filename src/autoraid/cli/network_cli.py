@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 
 from autoraid.container import Container
-from autoraid.platform.network import NetworkManager, NetworkAdapter, NetworkState
+from autoraid.services.network import NetworkManager, NetworkAdapter, NetworkState
 
 
 @click.group()

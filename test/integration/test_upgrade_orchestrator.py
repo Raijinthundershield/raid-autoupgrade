@@ -9,7 +9,7 @@ import numpy as np
 
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 from autoraid.core.state_machine import StopCountReason
-from autoraid.platform.network import NetworkState
+from autoraid.services.network import NetworkState
 
 
 class TestUpgradeOrchestrator:
@@ -125,8 +125,6 @@ class TestUpgradeOrchestrator:
         }
 
         # Setup network manager mock
-        from autoraid.platform.network import NetworkState
-
         network_manager_instance = mock_network_manager.return_value
         network_manager_instance.check_network_access.return_value = (
             NetworkState.OFFLINE
@@ -183,8 +181,6 @@ class TestUpgradeOrchestrator:
         mock_services["state_machine_provider"].return_value = mock_state_machine
 
         # Setup network manager mock
-        from autoraid.platform.network import NetworkState
-
         network_manager_instance = mock_network_manager.return_value
         network_manager_instance.check_network_access.return_value = NetworkState.ONLINE
 

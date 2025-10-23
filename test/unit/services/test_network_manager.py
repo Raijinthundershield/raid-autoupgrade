@@ -3,14 +3,14 @@
 import pytest
 from unittest.mock import patch
 
-from autoraid.platform.network import NetworkManager, NetworkAdapter, NetworkState
+from autoraid.services.network import NetworkManager, NetworkAdapter, NetworkState
 from autoraid.exceptions import NetworkAdapterError
 
 
 @pytest.fixture
 def network_manager():
     """Create a NetworkManager instance for testing."""
-    with patch("autoraid.platform.network.wmi.WMI"):
+    with patch("autoraid.services.network.wmi.WMI"):
         manager = NetworkManager()
         return manager
 

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 sys.modules["nicegui.native"] = MagicMock()
 
 from autoraid.gui.components.network_panel import create_network_panel  # noqa: E402
-from autoraid.platform.network import NetworkState  # noqa: E402
+from autoraid.services.network import NetworkState  # noqa: E402
 
 
 def test_create_network_panel_smoke():

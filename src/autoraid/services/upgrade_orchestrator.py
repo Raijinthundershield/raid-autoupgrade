@@ -15,7 +15,7 @@ from autoraid.exceptions import (
     NetworkAdapterError,
     UpgradeWorkflowError,
 )
-from autoraid.platform.network import NetworkManager, NetworkState
+from autoraid.services.network import NetworkManager, NetworkState
 from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService

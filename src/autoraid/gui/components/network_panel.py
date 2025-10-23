@@ -5,7 +5,7 @@ from nicegui import app, ui
 from loguru import logger
 
 from autoraid.container import Container
-from autoraid.platform.network import NetworkManager
+from autoraid.services.network import NetworkManager, NetworkState
 
 
 @inject
@@ -39,8 +39,6 @@ def create_network_panel(
         def show_internet_status():
             """Display internet connection status with color coding."""
             try:
-                from autoraid.platform.network import NetworkState
-
                 state = network_manager.check_network_access(timeout=2.0)
                 is_online = state == NetworkState.ONLINE
                 icon = "🟢" if is_online else "🔴"

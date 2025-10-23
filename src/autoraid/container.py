@@ -4,7 +4,7 @@ from dependency_injector import containers, providers
 import diskcache
 
 from autoraid.core.state_machine import UpgradeStateMachine
-from autoraid.platform.network import NetworkManager
+from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService

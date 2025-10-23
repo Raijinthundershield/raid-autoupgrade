@@ -12,6 +12,7 @@ from loguru import logger
 
 from autoraid.exceptions import NetworkAdapterError
 
+# Known issue with wmi module emitting SyntaxWarning
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
 
 
