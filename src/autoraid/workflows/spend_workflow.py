@@ -162,6 +162,7 @@ class SpendWorkflow:
                 # Track upgrades: SpendWorkflow-specific logic
                 # Monitor doesn't track this - only fail transitions
                 upgrade_count += 1
+                remaining_attempts -= 1  # Successful upgrade uses an attempt
                 logger.info(
                     f"Piece upgraded successfully! Total upgrades: {upgrade_count}"
                 )
