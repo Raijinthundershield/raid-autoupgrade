@@ -2,6 +2,8 @@
 
 A Windows desktop tool to automate the "airplane mode trick" for gear upgrades in Raid: Shadow Legends. AutoRaid uses computer vision to count failed upgrade attempts offline, then automatically spends those attempts on another piece to save silver.
 
+> **⚠️ WARNING**: This tool automates gameplay and **may violate Raid: Shadow Legends' Terms of Service**. Use at your own risk. Read the full [DISCLAIMER](DISCLAIMER.md) before using.
+
 ## Quick Start
 
 1. **Launch the GUI**:
@@ -69,3 +71,9 @@ autoraid --debug <command>
 * Make it possible to have the raid window in the background.
     - Enable background screenshot
     - Enable background clicking
+
+## License & Disclaimer
+
+**License**: Personal use only. See [LICENSE](LICENSE) for full terms.
+
+**Legal**: See [DISCLAIMER.md](DISCLAIMER.md) for important legal information regarding use of this tool.
