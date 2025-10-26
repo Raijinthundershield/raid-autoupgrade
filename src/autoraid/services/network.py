@@ -59,6 +59,9 @@ class NetworkAdapter:
         elif isinstance(self.speed, str):
             self.speed = None
 
+    def __eq__(self, value):
+        self.id == value
+
 
 class NetworkManager:
     DEFAULT_TIMEOUT: float = 10.0
@@ -209,12 +212,13 @@ class NetworkManager:
             if adapter_id in valid_ids_set:
                 valid_adapter_ids.append(adapter_id)
             else:
-                logger.warning(f"Invalid adapter ID: {adapter_id}")
+                logger.warning(
+                    f"Invalid adapter ID: {adapter_id}. Available IDs: {all_adapters}"
+                )
 
-        # If all IDs were invalid, return False
+        # If all IDs were invalid
         if not valid_adapter_ids:
-            logger.error("All adapter IDs were invalid")
-            return False
+            raise NetworkAdapterError("No valid network adapters found to toggle")
 
         # Toggle each valid adapter
         success_count = 0

@@ -5,6 +5,7 @@ from loguru import logger
 
 from autoraid.cli.upgrade_cli import upgrade
 from autoraid.cli.network_cli import network
+from autoraid.cli.debug_cli import debug
 from autoraid.container import Container
 from autoraid.logging_config import add_logger_sink
 
@@ -80,6 +81,7 @@ def autoraid(debug: bool):
 
 autoraid.add_command(upgrade)
 autoraid.add_command(network)
+autoraid.add_command(debug)
 
 
 @autoraid.command()

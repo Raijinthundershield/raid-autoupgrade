@@ -5,6 +5,7 @@ Provides Count and Spend upgrade workflow UI with real-time progress display.
 
 import asyncio
 from dataclasses import dataclass
+from collections.abc import Callable
 
 from dependency_injector.wiring import Provide, inject
 from loguru import logger
@@ -15,9 +16,11 @@ from autoraid.exceptions import (
     WindowNotFoundException,
     NetworkAdapterError,
     UpgradeWorkflowError,
+    WorkflowValidationError,
 )
 from autoraid.logging_config import add_logger_sink
-from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
+from autoraid.workflows.count_workflow import CountWorkflow
+from autoraid.workflows.spend_workflow import SpendWorkflow
 
 
 MAX_COUNT_ATTEMPTS = 99
@@ -71,6 +74,11 @@ def handle_workflow_error(
         workflow_name: "Count" or "Spend" for logging context
         logger_instance: Logger instance to use for error logging
     """
+    if isinstance(error, WorkflowValidationError):
+        logger_instance.error(f"Validation error: {error}")
+        ui.notify(f"Validation error: {error}", type="negative")
+        return
+
     if isinstance(error, WindowNotFoundException):
         logger_instance.error(f"Window not found: {error}")
         ui.notify(
@@ -117,13 +125,19 @@ def handle_workflow_error(
 
 @inject
 def create_upgrade_panel(
-    orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
+    count_workflow_factory: Callable[..., CountWorkflow] = Provide[
+        Container.count_workflow_factory.provider
+    ],
+    spend_workflow_factory: Callable[..., SpendWorkflow] = Provide[
+        Container.spend_workflow_factory.provider
+    ],
     debug: bool = False,
 ) -> None:
     """Create the upgrade workflows panel (Count + Spend).
 
     Args:
-        orchestrator: Injected UpgradeOrchestrator service for workflow execution
+        count_workflow_factory: Injected factory for creating CountWorkflow instances
+        spend_workflow_factory: Injected factory for creating SpendWorkflow instances
         debug: Enable debug logging (DEBUG level vs INFO level)
     """
     # Workflow state
@@ -199,27 +213,36 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting count workflow from GUI")
 
-                        fail_count, reason = await asyncio.to_thread(
-                            orchestrator.count_workflow,
-                            network_adapter_id=selected_adapters
-                            if selected_adapters
-                            else None,
+                        # Create workflow instance with runtime parameters
+                        workflow = count_workflow_factory(
+                            network_adapter_ids=selected_adapters,
                             max_attempts=MAX_COUNT_ATTEMPTS,
                             debug_dir=None,
                         )
 
-                        state.finish_count(fail_count)
+                        # Run validate-then-run lifecycle
+                        def run_workflow():
+                            workflow.validate()
+                            return workflow.run()
+
+                        result = await asyncio.to_thread(run_workflow)
+
+                        state.finish_count(result.fail_count)
                         show_current_count.refresh()
 
-                        app.storage.user["last_count_result"] = fail_count
+                        app.storage.user["last_count_result"] = result.fail_count
                         show_max_attempts_input.refresh()
 
-                        reason_text = reason.name if reason else "unknown"
+                        reason_text = (
+                            result.stop_reason.name if result.stop_reason else "unknown"
+                        )
                         ui.notify(
-                            f"Count completed: {fail_count} fails (reason: {reason_text})",
+                            f"Count completed: {result.fail_count} fails (reason: {reason_text})",
                             type="positive",
                         )
-                        logger.info(f"Count workflow completed: {fail_count} fails")
+                        logger.info(
+                            f"Count workflow completed: {result.fail_count} fails"
+                        )
 
                     except Exception as e:
                         handle_workflow_error(e, "Count", logger)
@@ -309,12 +332,19 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting spend workflow from GUI")
 
-                        spend_result = await asyncio.to_thread(
-                            orchestrator.spend_workflow,
-                            max_attempts=max_attempts,
+                        # Create workflow instance with runtime parameters
+                        workflow = spend_workflow_factory(
+                            max_upgrade_attempts=max_attempts,
                             continue_upgrade=continue_upgrade,
                             debug_dir=None,
                         )
+
+                        # Run validate-then-run lifecycle
+                        def run_workflow():
+                            workflow.validate()
+                            return workflow.run()
+
+                        spend_result = await asyncio.to_thread(run_workflow)
 
                         state.finish_spend(spend_result.attempt_count)
                         show_current_spent.refresh()
