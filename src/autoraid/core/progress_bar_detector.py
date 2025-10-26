@@ -25,7 +25,7 @@ class ProgressBarStateDetector:
     def detect_state(self, progress_bar_image: np.ndarray) -> ProgressBarState:
         self._validate_input(progress_bar_image)
 
-        avg_color = cv2.mean(progress_bar_image)[:3]
+        avg_color = self._avg_color(progress_bar_image)
 
         if self._is_fail(avg_color):
             state = ProgressBarState.FAIL
@@ -62,6 +62,10 @@ class ProgressBarStateDetector:
     ) -> bool:
         b, g, r = bgr_color
         return b > g and b > r and b > 50
+
+    @staticmethod
+    def _avg_color(progress_bar_image: np.ndarray) -> tuple[float, float, float]:
+        return cv2.mean(progress_bar_image)[:3]
 
     def _validate_input(self, progress_bar_image: np.ndarray) -> None:
         if progress_bar_image is None:

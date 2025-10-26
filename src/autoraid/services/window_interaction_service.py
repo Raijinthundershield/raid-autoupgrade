@@ -140,7 +140,7 @@ class WindowInteractionService:
             window_title: Title of the window to get size for
 
         Returns:
-            Tuple of (width, height) in pixels
+            Tuple of (height, width) in pixels
 
         Raises:
             WindowNotFoundException: If window not found

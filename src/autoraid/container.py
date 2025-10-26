@@ -3,14 +3,17 @@
 from dependency_injector import containers, providers
 import diskcache
 
-from autoraid.core.state_machine import UpgradeAttemptMonitor
 from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.core.progress_bar_monitor import ProgressBarMonitor
 from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
+from autoraid.workflows.count_workflow import CountWorkflow
+from autoraid.workflows.spend_workflow import SpendWorkflow
+from autoraid.workflows.debug_monitor_workflow import DebugMonitorWorkflow
 
 
 class Container(containers.DeclarativeContainer):
@@ -26,6 +29,7 @@ class Container(containers.DeclarativeContainer):
         modules=[
             "autoraid.cli.upgrade_cli",
             "autoraid.cli.network_cli",
+            "autoraid.cli.debug_cli",
             "autoraid.gui.app",
             "autoraid.gui.components.network_panel",
             "autoraid.gui.components.region_panel",
@@ -72,18 +76,41 @@ class Container(containers.DeclarativeContainer):
     )
 
     # Factory services (new instance per operation)
-    upgrade_attempt_monitor = providers.Factory(
-        UpgradeAttemptMonitor,
+    progress_bar_monitor = providers.Factory(
+        ProgressBarMonitor,
         detector=progress_bar_detector,
-        max_attempts=config.max_attempts.as_(int),
     )
 
     upgrade_orchestrator = providers.Factory(
         UpgradeOrchestrator,
-        cache_service=cache_service,
         screenshot_service=screenshot_service,
-        locate_region_service=locate_region_service,
+        window_interaction_service=window_interaction_service,
+        cache_service=cache_service,
+        network_manager=network_manager,
+        monitor=progress_bar_monitor,
+    )
+
+    # Workflow factories (new instances with runtime parameters)
+    count_workflow_factory = providers.Factory(
+        CountWorkflow,
+        cache_service=cache_service,
         window_interaction_service=window_interaction_service,
         network_manager=network_manager,
-        upgrade_attempt_monitor=upgrade_attempt_monitor.provider,
+        orchestrator=upgrade_orchestrator,
+    )
+
+    spend_workflow_factory = providers.Factory(
+        SpendWorkflow,
+        orchestrator=upgrade_orchestrator,
+        cache_service=cache_service,
+        window_interaction_service=window_interaction_service,
+        network_manager=network_manager,
+    )
+
+    debug_monitor_workflow_factory = providers.Factory(
+        DebugMonitorWorkflow,
+        orchestrator=upgrade_orchestrator,
+        cache_service=cache_service,
+        window_interaction_service=window_interaction_service,
+        network_manager=network_manager,
     )

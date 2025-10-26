@@ -1,389 +1,189 @@
-"""Orchestrator for coordinating upgrade workflows with all services."""
+"""Upgrade orchestration service for coordinating upgrade monitoring.
 
-import json
-import time
+This service orchestrates the upgrade monitoring process with configurable
+stop conditions and optional debug logging.
+"""
+
 from dataclasses import dataclass
+import time
 from pathlib import Path
-from collections.abc import Callable
-
-import cv2
 from loguru import logger
 
-from autoraid.core.state_machine import UpgradeAttemptMonitor, StopReason
-from autoraid.exceptions import (
-    WindowNotFoundException,
-    NetworkAdapterError,
-    UpgradeWorkflowError,
-)
-from autoraid.services.network import NetworkManager, NetworkState
-from autoraid.services.cache_service import CacheService
-from autoraid.services.locate_region_service import LocateRegionService
+from autoraid.core.progress_bar_monitor import ProgressBarMonitor
+from autoraid.core.stop_conditions import StopConditionChain, StopReason
+from autoraid.core.debug_frame_logger import DebugFrameLogger
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.utils.common import get_timestamp
+from autoraid.services.cache_service import CacheService
+from autoraid.services.network import NetworkManager
+from autoraid.utils.network_context import NetworkContext
+from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
 
 
-@dataclass
-class SpendResult:
-    upgrade_count: int
-    attempt_count: int
-    remaining_attempts: int
-    last_reason: StopReason
+@dataclass(frozen=True)
+class UpgradeSession:
+    """Configuration for a single upgrade monitoring session."""
+
+    upgrade_bar_region: tuple[int, int, int, int]
+    upgrade_button_region: tuple[int, int, int, int]
+    stop_conditions: StopConditionChain
+    check_interval: float = 0.25
+    network_adapter_ids: list[int] | None = None
+    disable_network: bool = False
+    debug_logger: DebugFrameLogger | None = None
+
+
+@dataclass(frozen=True)
+class UpgradeResult:
+    """Result from a single upgrade monitoring session."""
+
+    fail_count: int
+    frames_processed: int
+    stop_reason: StopReason
+    debug_session_dir: Path | None = None
 
 
 class UpgradeOrchestrator:
-    """Orchestrates upgrade workflows by coordinating all services.
-
-    This class is responsible for high-level workflow coordination:
-    - Count workflow: Count upgrade fails with network disabled
-    - Spend workflow: Execute upgrade attempts with network enabled
-
-    The orchestrator handles:
-    - Service coordination
-    - Network adapter management (disable/enable)
-    - Debug data collection
-    - Error recovery (finally blocks)
     """
+    Orchestrates upgrade monitoring with configurable stop conditions.
+    """
+
+    WINDOW_TITLE = "Raid: Shadow Legends"
 
     def __init__(
         self,
-        cache_service: CacheService,
         screenshot_service: ScreenshotService,
-        locate_region_service: LocateRegionService,
         window_interaction_service: WindowInteractionService,
+        cache_service: CacheService,
         network_manager: NetworkManager,
-        upgrade_attempt_monitor: Callable,
+        monitor: ProgressBarMonitor,
     ):
-        """Initialize orchestrator with service dependencies.
-
-        Args:
-            cache_service: Service for caching regions and screenshots
-            screenshot_service: Service for capturing screenshots and ROI extraction
-            locate_region_service: Service for region detection
-            window_interaction_service: Service for window interactions and clicking
-            network_manager: Service for network adapter management
-            upgrade_attempt_monitor: Factory provider for creating monitor instances
         """
-        self._cache_service = cache_service
+        Initialize orchestrator with injected services.
+        """
         self._screenshot_service = screenshot_service
-        self._locate_region_service = locate_region_service
         self._window_interaction_service = window_interaction_service
+        self._cache_service = cache_service
         self._network_manager = network_manager
-        self._monitor_provider = upgrade_attempt_monitor
+        self._monitor = monitor
 
-    def _count_upgrade_fails(
-        self,
-        window_title: str,
-        upgrade_bar_region: tuple[int, int, int, int],
-        max_attempts: int,
-        check_interval: float = 0.25,
-        debug_dir: Path | None = None,
-    ) -> tuple[int, StopReason]:
-        """Count upgrade fails using state machine.
+    def validate_prerequisites(self, session: UpgradeSession) -> None:
+        logger.info("Validating orchestrator prerequisites")
 
-        Args:
-            window_title: Title of the Raid window
-            upgrade_bar_region: Region coordinates (left, top, width, height)
-            max_attempts: Maximum upgrade attempts
-            check_interval: Time between frame checks
-            debug_dir: Directory for debug artifacts
-
-        Returns:
-            Tuple of (fail_count, stop_reason)
-        """
-        monitor: UpgradeAttemptMonitor = self._monitor_provider(
-            max_attempts=max_attempts
-        )
-
-        debug_metadata = {
-            "upgrade_bar_region": upgrade_bar_region,
-            "timestamp": [],
-            "current_state": {},
-            "n_fails": {},
-        }
-        debug_screenshots = {}
-        debug_upgrade_bar_rois = {}
-
-        logger.info("Starting to monitor upgrade bar for color changes.")
-
-        prev_fail_count = 0
-        while monitor.stop_reason is None:
-            screenshot = self._screenshot_service.take_screenshot(window_title)
-            upgrade_bar = self._screenshot_service.extract_roi(
-                screenshot, upgrade_bar_region
-            )
-
-            current_state = monitor.process_frame(upgrade_bar)
-
-            if monitor.fail_count > prev_fail_count:
-                logger.info(f"Counting progress: {monitor.fail_count} fails detected")
-                prev_fail_count = monitor.fail_count
-
-            if debug_dir is not None:
-                timestamp = get_timestamp()
-                debug_screenshots[timestamp] = screenshot
-                debug_upgrade_bar_rois[timestamp] = upgrade_bar
-                debug_metadata["timestamp"].append(timestamp)
-                debug_metadata["n_fails"][timestamp] = monitor.fail_count
-                if monitor.current_state is not None:
-                    debug_metadata["current_state"][timestamp] = (
-                        monitor.current_state.value
-                    )
-
-            time.sleep(check_interval)
-
-        # Save debug data if debug_dir specified
-        if debug_dir is not None:
-            output_dir = debug_dir / "count_upgrade_fails"
-            output_dir.mkdir(exist_ok=True)
-            logger.debug(f"Saving count_upgrade_fails debug data to {output_dir}")
-            for timestamp in debug_metadata["timestamp"]:
-                current_state = debug_metadata["current_state"].get(
-                    timestamp, "unknown"
-                )
-                cv2.imwrite(
-                    str(output_dir / f"{timestamp}_{current_state}_screenshot.png"),
-                    debug_screenshots[timestamp],
-                )
-                cv2.imwrite(
-                    str(
-                        output_dir / f"{timestamp}_{current_state}_upgrade_bar_roi.png"
-                    ),
-                    debug_upgrade_bar_rois[timestamp],
-                )
-            with open(output_dir / "debug_metadata.json", "w") as f:
-                json.dump(debug_metadata, f)
-
-        logger.info(f"Finished counting. Detected {monitor.fail_count} fails.")
-        return monitor.fail_count, monitor.stop_reason
-
-    def count_workflow(
-        self,
-        network_adapter_id: list[int] | None = None,
-        max_attempts: int = 99,
-        debug_dir: Path | None = None,
-    ) -> tuple[int, StopReason]:
-        """Execute count workflow to count upgrade fails with network disabled.
-
-        This workflow:
-        1. Validates Raid window exists
-        2. Disables network adapters (if specified)
-        3. Takes screenshot and gets regions
-        4. Clicks upgrade button
-        5. Counts upgrade fails
-        6. Re-enables network adapters (in finally block)
-
-        Args:
-            network_adapter_id: List of network adapter IDs to disable/enable
-            max_attempts: Maximum upgrade attempts before stopping
-            debug_dir: Directory to save debug screenshots and metadata
-
-        Returns:
-            Tuple of (fail_count, stop_reason)
-
-        Raises:
-            ValueError: If Raid window not found
-            RuntimeError: If network disable/enable fails
-        """
-        logger.info("Starting count workflow")
-        logger.debug(
-            f"count_workflow(adapters={network_adapter_id}, max_attempts={max_attempts}"
-        )
-
-        window_title = "Raid: Shadow Legends"
-
-        # Validate window exists
-        if not self._window_interaction_service.window_exists(window_title):
-            logger.error("Raid window not found")
+        # Window exists
+        if not self._window_interaction_service.window_exists(self.WINDOW_TITLE):
             raise WindowNotFoundException(
-                "Raid window not found. Check if Raid is running."
+                f"Raid window not found. Ensure {self.WINDOW_TITLE} is running."
             )
 
-        # Check network access and disable if needed
-        if (
-            self._network_manager.check_network_access() == NetworkState.ONLINE
-            and not network_adapter_id
+        # Regions cached for current window size
+        current_size = self._window_interaction_service.get_window_size(
+            self.WINDOW_TITLE
+        )
+        regions = self._cache_service.get_regions(current_size)
+        if regions is None:
+            raise WorkflowValidationError(
+                f"No regions cached for window size {current_size}. "
+                "Please select regions using 'autoraid upgrade region select'."
+            )
+
+        logger.debug(
+            f"Prerequisites validated: window exists, regions cached for {current_size}"
+        )
+
+    def run_upgrade_session(self, session: UpgradeSession) -> UpgradeResult:
+        # Validate prerequisites first
+        self.validate_prerequisites(session)
+
+        logger.info("Starting upgrade session")
+        logger.debug(
+            f"Session config: disable_network={session.disable_network}, "
+            f"adapters={session.network_adapter_ids}, "
+            f"check_interval={session.check_interval}"
+        )
+
+        # Use NetworkContext for automatic network adapter management
+        with NetworkContext(
+            network_manager=self._network_manager,
+            adapter_ids=session.network_adapter_ids,
+            disable_network=session.disable_network,
         ):
-            logger.warning("Internet access detected but no network adapter specified")
-            raise UpgradeWorkflowError(
-                "Internet access detected and network id not specified. This will upgrade the piece. Aborting."
-            )
-
-        # Disable network adapters with automatic waiting
-        if network_adapter_id:
-            logger.info(f"Disabling network adapters: {network_adapter_id}")
-            self._network_manager.toggle_adapters(
-                network_adapter_id, NetworkState.OFFLINE, wait=True
-            )
-
-        try:
-            # Capture screenshot
-            screenshot = self._screenshot_service.take_screenshot(window_title)
-            regions = self._locate_region_service.get_regions(screenshot, manual=False)
-
-            # Save debug data if requested
-            if debug_dir is not None:
-                output_dir = debug_dir / "count"
-                output_dir.mkdir(exist_ok=True)
-                timestamp = get_timestamp()
-                cv2.imwrite(str(output_dir / f"{timestamp}_screenshot.png"), screenshot)
-                with open(output_dir / f"{timestamp}_regions.json", "w") as f:
-                    json.dump(regions, f)
-                logger.debug(f"Saved debug data to {output_dir}")
-
-            # Click upgrade button
-            logger.info("Clicking upgrade button to start counting")
+            # Click upgrade button to start
+            logger.info("Clicking upgrade button to start monitoring")
             self._window_interaction_service.click_region(
-                window_title, regions["upgrade_button"]
+                self.WINDOW_TITLE,
+                session.upgrade_button_region,
             )
 
-            # Count upgrade fails
-            logger.info("Counting upgrade fails")
-            fail_count, reason = self._count_upgrade_fails(
-                window_title=window_title,
-                upgrade_bar_region=regions["upgrade_bar"],
-                max_attempts=max_attempts,
-                debug_dir=debug_dir,
-            )
+            # Monitor loop
+            stop_reason = self._monitor_loop(session)
 
-            # Wait for connection timeout
-            logger.debug("Waiting for connection timeout (3s)")
-            time.sleep(3)
+            # Get final state
+            final_state = self._monitor.get_state()
+
+            # Save debug summary if logger provided
+            debug_dir = None
+            if session.debug_logger:
+                debug_dir = session.debug_logger.session_dir
+                session.debug_logger.save_summary(
+                    {
+                        "stop_reason": stop_reason.value,
+                        "final_fail_count": final_state.fail_count,
+                        "check_interval": session.check_interval,
+                    }
+                )
 
             logger.info(
-                f"Count workflow completed: {fail_count} fails, reason={reason}"
-            )
-            return fail_count, reason
-
-        finally:
-            # Always re-enable network adapters (non-blocking for fast cleanup)
-            if network_adapter_id:
-                logger.info(f"Re-enabling network adapters: {network_adapter_id}")
-                self._network_manager.toggle_adapters(
-                    network_adapter_id, NetworkState.ONLINE, wait=False
-                )
-                logger.debug("Network adapters re-enabled")
-
-    def spend_workflow(
-        self,
-        max_attempts: int,
-        continue_upgrade: bool = False,
-        debug_dir: Path | None = None,
-    ) -> SpendResult:
-        """Execute spend workflow to use upgrade attempts with network enabled.
-
-        This workflow:
-        1. Validates Raid window exists
-        2. Validates network access available
-        3. Takes screenshot and gets regions
-        4. Loops clicking upgrade button and counting fails until max_attempts reached
-        5. Returns summary of upgrade attempts
-
-        Args:
-            max_attempts: Maximum upgrade attempts before stopping
-            continue_upgrade: Continue upgrading after first successful upgrade (for level 10+)
-            debug_dir: Directory to save debug screenshots and metadata
-
-        Returns:
-            Dictionary with workflow results:
-                - n_upgrades: Number of successful upgrades
-                - n_attempts: Total upgrade attempts used
-                - n_remaining: Remaining attempts
-                - last_reason: Last stop reason
-
-        Raises:
-            ValueError: If Raid window not found
-            RuntimeError: If no internet access detected
-        """
-        logger.info("Starting spend workflow")
-        logger.debug(
-            f"spend_workflow(max_attempts={max_attempts}, continue={continue_upgrade}"
-        )
-
-        window_title = "Raid: Shadow Legends"
-
-        # Validate window exists
-        if not self._window_interaction_service.window_exists(window_title):
-            logger.error("Raid window not found")
-            raise WindowNotFoundException(
-                "Raid window not found. Check if Raid is running."
+                f"Session complete: fails={final_state.fail_count}, "
+                f"frames={final_state.frames_processed}, "
+                f"reason={stop_reason.value}"
             )
 
-        # Validate network access
-        if self._network_manager.check_network_access() == NetworkState.OFFLINE:
-            logger.error("No internet access detected")
-            raise NetworkAdapterError("No internet access detected. Aborting.")
+            return UpgradeResult(
+                fail_count=final_state.fail_count,
+                frames_processed=final_state.frames_processed,
+                stop_reason=stop_reason,
+                debug_session_dir=debug_dir,
+            )
+        # NetworkContext automatically re-enables adapters on exit
 
-        # Capture screenshot
-        screenshot = self._screenshot_service.take_screenshot(window_title)
+    def _monitor_loop(self, session: UpgradeSession) -> StopReason:
+        logger.info("Starting progress bar monitoring loop")
 
-        # Get regions
-        regions = self._locate_region_service.get_regions(screenshot, manual=False)
+        prev_fail_count = 0
 
-        # Save debug data if requested
-        if debug_dir is not None:
-            output_dir = debug_dir / "upgrade"
-            output_dir.mkdir(exist_ok=True)
-            timestamp = get_timestamp()
-            cv2.imwrite(str(output_dir / f"{timestamp}_screenshot.png"), screenshot)
-            with open(output_dir / f"{timestamp}_regions.json", "w") as f:
-                json.dump(regions, f)
-            logger.debug(f"Saved debug data to {output_dir}")
-
-        # Loop upgrading until max attempts reached
-        upgrade = True
-        upgrade_count = 0
-        attempt_count = 0
-        last_reason = None
-
-        while upgrade:
-            upgrade = False
-
-            logger.info("Clicking upgrade button to start spending upgrades")
-            self._window_interaction_service.click_region(
-                window_title, regions["upgrade_button"]
+        while True:
+            # Capture screenshot and extract ROI
+            screenshot = self._screenshot_service.take_screenshot(self.WINDOW_TITLE)
+            upgrade_bar_roi = self._screenshot_service.extract_roi(
+                screenshot,
+                session.upgrade_bar_region,
             )
 
-            # Count upgrade fails
-            logger.debug(
-                f"Counting upgrade fails (remaining: {max_attempts - attempt_count})"
-            )
-            n_fails, reason = self._count_upgrade_fails(
-                window_title=window_title,
-                upgrade_bar_region=regions["upgrade_bar"],
-                max_attempts=max_attempts - attempt_count,
-                debug_dir=debug_dir,
-            )
-            attempt_count += n_fails
-            last_reason = reason
+            # Process frame with monitor
+            current_state = self._monitor.process_frame(upgrade_bar_roi)
+            monitor_state = self._monitor.get_state()
 
-            if reason == StopReason.MAX_ATTEMPTS_REACHED:
-                logger.info(
-                    f"Reached max attempts at {attempt_count} upgrade attempts. Cancelling upgrade."
-                )
-                self._window_interaction_service.click_region(
-                    window_title, regions["upgrade_button"]
+            # Log progress on fail count changes
+            if monitor_state.fail_count > prev_fail_count:
+                logger.info(f"Progress: {monitor_state.fail_count} fails detected")
+                prev_fail_count = monitor_state.fail_count
+
+            # Optional debug logging
+            if session.debug_logger:
+                session.debug_logger.log_frame(
+                    frame_number=monitor_state.frames_processed - 1,
+                    detected_state=current_state,
+                    fail_count=monitor_state.fail_count,
+                    screenshot=screenshot,
+                    roi=upgrade_bar_roi,
                 )
 
-            elif reason == StopReason.SUCCESS:
-                attempt_count += 1
-                upgrade_count += 1
-                logger.info(f"Piece upgraded at {attempt_count} upgrade attempts.")
+            # Check stop conditions
+            stop_reason = session.stop_conditions.check(monitor_state)
+            if stop_reason is not None:
+                logger.debug(f"Stop condition met: {stop_reason.value}")
+                return stop_reason
 
-            # Check if should continue upgrading
-            if continue_upgrade and upgrade_count == 1 and attempt_count < max_attempts:
-                upgrade = True
-                logger.info("Continue upgrade enabled, starting next upgrade")
-
-        result = SpendResult(
-            upgrade_count=upgrade_count,
-            attempt_count=attempt_count,
-            remaining_attempts=max_attempts - attempt_count,
-            last_reason=last_reason,
-        )
-
-        logger.info(
-            f"Spend workflow completed: {upgrade_count} upgrades, "
-            f"{attempt_count} attempts, {result.remaining_attempts} remaining)"
-        )
-        return result
+            # Wait before next iteration
+            time.sleep(session.check_interval)

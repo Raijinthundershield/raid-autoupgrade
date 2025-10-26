@@ -45,3 +45,9 @@ class UpgradeWorkflowError(AutoRaidError):
     """Raised when an upgrade workflow encounters an error."""
 
     pass
+
+
+class WorkflowValidationError(AutoRaidError):
+    """Raised when workflow validation fails before execution."""
+
+    pass

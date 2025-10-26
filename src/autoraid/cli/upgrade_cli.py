@@ -3,6 +3,7 @@ import click
 from pathlib import Path
 import sys
 import cv2
+from collections.abc import Callable
 from loguru import logger
 from dependency_injector.wiring import inject, Provide
 
@@ -11,12 +12,14 @@ from autoraid.exceptions import (
     WindowNotFoundException,
     NetworkAdapterError,
     UpgradeWorkflowError,
+    WorkflowValidationError,
 )
 from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
 from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.workflows.count_workflow import CountWorkflow
+from autoraid.workflows.spend_workflow import SpendWorkflow
 from autoraid.utils.common import get_timestamp
 from autoraid.utils.visualization import show_regions_in_image
 
@@ -35,7 +38,7 @@ def upgrade():
 @click.option(
     "--network-adapter-id",
     "-n",
-    type=int,
+    type=str,
     multiple=True,
     help="Network adapter ids to enable automatically turning network off and on.",
 )
@@ -50,7 +53,9 @@ def upgrade():
 def count(
     network_adapter_id: list[int],
     show_most_recent_gear: bool,
-    orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
+    count_workflow_factory: Callable[..., CountWorkflow] = Provide[
+        Container.count_workflow_factory.provider
+    ],
 ):
     """Count the number of upgrade fails.
 
@@ -70,14 +75,27 @@ def count(
         cv2.destroyAllWindows()
         sys.exit(0)
 
-    # Execute count workflow via orchestrator
+    # Execute count workflow using factory pattern
     try:
-        n_fails, reason = orchestrator.count_workflow(
-            network_adapter_id=list(network_adapter_id) if network_adapter_id else None,
+        # Create workflow instance with runtime parameters
+        workflow = count_workflow_factory(
+            network_adapter_ids=list(network_adapter_id)
+            if network_adapter_id
+            else None,
             max_attempts=99,
             debug_dir=ctx.obj["debug_dir"],
         )
-        logger.info(f"Detected {n_fails} fails. Stop reason: {reason}")
+
+        # Run validate-then-run lifecycle
+        workflow.validate()
+        result = workflow.run()
+
+        logger.info(
+            f"Detected {result.fail_count} fails. Stop reason: {result.stop_reason.name}"
+        )
+    except WorkflowValidationError as e:
+        logger.error(f"Validation failed: {e}")
+        sys.exit(1)
     except (WindowNotFoundException, NetworkAdapterError, UpgradeWorkflowError) as e:
         logger.error(str(e))
         sys.exit(1)
@@ -101,22 +119,35 @@ def count(
 def spend(
     max_attempts: int,
     continue_upgrade: bool,
-    orchestrator: UpgradeOrchestrator = Provide[Container.upgrade_orchestrator],
+    spend_workflow_factory: Callable[..., SpendWorkflow] = Provide[
+        Container.spend_workflow_factory.provider
+    ],
 ):
     """Upgrade the piece until the max number of fails is reached."""
     ctx = click.get_current_context()
 
-    # Execute spend workflow via orchestrator
+    # Execute spend workflow using factory pattern
     try:
-        result = orchestrator.spend_workflow(
-            max_attempts=max_attempts,
+        # Create workflow instance with runtime parameters
+        workflow = spend_workflow_factory(
+            max_upgrade_attempts=max_attempts,
             continue_upgrade=continue_upgrade,
             debug_dir=ctx.obj["debug_dir"],
         )
+
+        # Run validate-then-run lifecycle
+        workflow.validate()
+        result = workflow.run()
+
         logger.info(
-            f"Total upgrade attempts: {result['n_attempts']}. "
-            f"There are {result['n_remaining']} left."
+            f"Upgraded {result.upgrade_count} times. "
+            f"Total upgrade attempts: {result.attempt_count}. "
+            f"There are {result.remaining_attempts} left. "
+            f"Stop reason: {result.stop_reason.name}"
         )
+    except WorkflowValidationError as e:
+        logger.error(f"Validation failed: {e}")
+        sys.exit(1)
     except (WindowNotFoundException, NetworkAdapterError, UpgradeWorkflowError) as e:
         logger.error(str(e))
         sys.exit(1)
