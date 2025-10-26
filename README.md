@@ -4,6 +4,8 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
 
 > **⚠️ WARNING**: This tool automates gameplay and **may violate Raid: Shadow Legends' Terms of Service**. Use at your own risk. Read the full [DISCLAIMER](DISCLAIMER.md) before using.
 
+**New to the airplane mode trick?** See [How It Works](docs/airplane-mode-trick.md) for a detailed explanation.
+
 ## Quick Start
 
 1. **Launch the GUI**:
