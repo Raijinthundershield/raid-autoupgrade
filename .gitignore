@@ -12,7 +12,7 @@ temp
 
 # Misc
 scripts/
-plans/
+scratchpad/
 .claude/agents
 .claude/settings.local.json
 

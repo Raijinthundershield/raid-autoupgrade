@@ -5,6 +5,7 @@ import diskcache
 
 from autoraid.core.progress_bar_detector import ProgressBarStateDetector
 from autoraid.core.progress_bar_monitor import ProgressBarMonitor
+from autoraid.core.debug_frame_logger import DebugFrameLogger
 from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
@@ -81,6 +82,11 @@ class Container(containers.DeclarativeContainer):
         detector=progress_bar_detector,
     )
 
+    debug_frame_logger_factory = providers.Factory(
+        DebugFrameLogger,
+        # output_dir and session_name provided at call time
+    )
+
     upgrade_orchestrator = providers.Factory(
         UpgradeOrchestrator,
         screenshot_service=screenshot_service,
@@ -97,6 +103,7 @@ class Container(containers.DeclarativeContainer):
         window_interaction_service=window_interaction_service,
         network_manager=network_manager,
         orchestrator=upgrade_orchestrator,
+        debug_frame_logger_factory=debug_frame_logger_factory,
     )
 
     spend_workflow_factory = providers.Factory(
@@ -105,6 +112,7 @@ class Container(containers.DeclarativeContainer):
         cache_service=cache_service,
         window_interaction_service=window_interaction_service,
         network_manager=network_manager,
+        debug_frame_logger_factory=debug_frame_logger_factory,
     )
 
     debug_monitor_workflow_factory = providers.Factory(
@@ -113,4 +121,5 @@ class Container(containers.DeclarativeContainer):
         cache_service=cache_service,
         window_interaction_service=window_interaction_service,
         network_manager=network_manager,
+        debug_frame_logger_factory=debug_frame_logger_factory,
     )

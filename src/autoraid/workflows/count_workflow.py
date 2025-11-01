@@ -5,6 +5,7 @@ This module implements the CountWorkflow class for counting upgrade fails offlin
 with optional network adapter management.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,6 +55,7 @@ class CountWorkflow:
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
         orchestrator: UpgradeOrchestrator,
+        debug_frame_logger_factory: Callable[..., DebugFrameLogger],
         network_adapter_ids: list[int] | None = None,
         max_attempts: int = 99,
         debug_dir: Path | None = None,
@@ -65,6 +67,7 @@ class CountWorkflow:
             window_interaction_service: Service for window validation
             network_manager: Service for network state checks
             orchestrator: Orchestrator for upgrade session execution
+            debug_frame_logger_factory: Factory for creating debug frame loggers
             network_adapter_ids: List of adapter IDs to disable during counting
             max_attempts: Maximum number of fail attempts before stopping
             debug_dir: Optional directory for debug artifacts
@@ -73,6 +76,7 @@ class CountWorkflow:
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
         self._orchestrator = orchestrator
+        self._debug_frame_logger_factory = debug_frame_logger_factory
         self._network_adapter_ids = network_adapter_ids
         self._max_attempts = max_attempts
         self._debug_dir = debug_dir
@@ -141,10 +145,12 @@ class CountWorkflow:
             ]
         )
 
-        # Create optional debug logger
+        # Create optional debug logger via factory
         debug_logger = None
         if self._debug_dir is not None:
-            debug_logger = DebugFrameLogger(output_dir=self._debug_dir / "count")
+            debug_logger = self._debug_frame_logger_factory(
+                output_dir=self._debug_dir / "count"
+            )
 
         # Create upgrade session
         session = UpgradeSession(
@@ -154,11 +160,10 @@ class CountWorkflow:
             check_interval=0.25,
             network_adapter_ids=self._network_adapter_ids,
             disable_network=self._network_adapter_ids is not None,
-            debug_logger=debug_logger,
         )
 
-        # Run upgrade session via orchestrator
-        result = self._orchestrator.run_upgrade_session(session)
+        # Run upgrade session via orchestrator with optional debug logger
+        result = self._orchestrator.run_upgrade_session(session, debug_logger)
 
         logger.info(
             f"Count workflow completed: {result.fail_count} fails, reason={result.stop_reason.value}"

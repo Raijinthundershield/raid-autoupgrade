@@ -30,7 +30,6 @@ class UpgradeSession:
     check_interval: float = 0.25
     network_adapter_ids: list[int] | None = None
     disable_network: bool = False
-    debug_logger: DebugFrameLogger | None = None
 
 
 @dataclass(frozen=True)
@@ -91,7 +90,11 @@ class UpgradeOrchestrator:
             f"Prerequisites validated: window exists, regions cached for {current_size}"
         )
 
-    def run_upgrade_session(self, session: UpgradeSession) -> UpgradeResult:
+    def run_upgrade_session(
+        self,
+        session: UpgradeSession,
+        debug_logger: DebugFrameLogger | None = None,
+    ) -> UpgradeResult:
         # Validate prerequisites first
         self.validate_prerequisites(session)
 
@@ -116,16 +119,16 @@ class UpgradeOrchestrator:
             )
 
             # Monitor loop
-            stop_reason = self._monitor_loop(session)
+            stop_reason = self._monitor_loop(session, debug_logger)
 
             # Get final state
             final_state = self._monitor.get_state()
 
             # Save debug summary if logger provided
             debug_dir = None
-            if session.debug_logger:
-                debug_dir = session.debug_logger.session_dir
-                session.debug_logger.save_summary(
+            if debug_logger:
+                debug_dir = debug_logger.session_dir
+                debug_logger.save_summary(
                     {
                         "stop_reason": stop_reason.value,
                         "final_fail_count": final_state.fail_count,
@@ -147,7 +150,11 @@ class UpgradeOrchestrator:
             )
         # NetworkContext automatically re-enables adapters on exit
 
-    def _monitor_loop(self, session: UpgradeSession) -> StopReason:
+    def _monitor_loop(
+        self,
+        session: UpgradeSession,
+        debug_logger: DebugFrameLogger | None = None,
+    ) -> StopReason:
         logger.info("Starting progress bar monitoring loop")
 
         prev_fail_count = 0
@@ -170,8 +177,8 @@ class UpgradeOrchestrator:
                 prev_fail_count = monitor_state.fail_count
 
             # Optional debug logging
-            if session.debug_logger:
-                session.debug_logger.log_frame(
+            if debug_logger:
+                debug_logger.log_frame(
                     frame_number=monitor_state.frames_processed - 1,
                     detected_state=current_state,
                     fail_count=monitor_state.fail_count,
