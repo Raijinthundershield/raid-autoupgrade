@@ -6,13 +6,11 @@ diagnostic data (screenshots, ROIs, and state metadata) to disk.
 """
 
 from __future__ import annotations
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
-from autoraid.core.debug_frame_logger import DebugFrameLogger
 from autoraid.core.stop_conditions import (
     MaxFramesCondition,
     StopConditionChain,
@@ -48,7 +46,6 @@ class DebugMonitorWorkflow:
         cache_service: CacheService,
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
-        debug_frame_logger_factory: Callable[..., DebugFrameLogger],
         network_adapter_ids: list[int] | None = None,
         disable_network: bool = True,
         max_frames: int | None = None,
@@ -62,7 +59,6 @@ class DebugMonitorWorkflow:
             cache_service: CacheService for retrieving cached regions
             window_interaction_service: WindowInteractionService for window operations
             network_manager: NetworkManager for network state validation
-            debug_frame_logger_factory: Factory for creating debug frame loggers
             network_adapter_ids: List of adapter IDs to disable/enable
             disable_network: Whether to disable network during monitoring
             max_frames: Maximum frames to capture (None = unlimited)
@@ -73,7 +69,6 @@ class DebugMonitorWorkflow:
         self._cache_service = cache_service
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
-        self._debug_frame_logger_factory = debug_frame_logger_factory
         self._network_adapter_ids = network_adapter_ids
         self._disable_network = disable_network
         self._max_frames = max_frames
@@ -129,15 +124,11 @@ class DebugMonitorWorkflow:
             else StopConditionChain([])
         )
 
-        # Create debug logger via factory (always enabled for this workflow)
+        # Determine debug output directory (always enabled for this workflow)
         output_dir = (
             self._debug_dir
             if self._debug_dir
             else Path("cache-raid-autoupgrade") / "debug"
-        )
-        debug_logger = self._debug_frame_logger_factory(
-            output_dir=output_dir / "progressbar_monitor",
-            session_name=None,  # Auto-generate timestamp
         )
 
         # Create session configuration
@@ -148,24 +139,25 @@ class DebugMonitorWorkflow:
             check_interval=self._check_interval,
             network_adapter_ids=self._network_adapter_ids,
             disable_network=self._disable_network,
+            debug_dir=output_dir / "progressbar_monitor",
         )
 
-        # Execute via orchestrator with debug logger
+        # Execute via orchestrator
         try:
-            result = self._orchestrator.run_upgrade_session(session, debug_logger)
+            result = self._orchestrator.run_upgrade_session(session)
         except KeyboardInterrupt:
             logger.info("Monitoring interrupted by user")
-            # Save what we have so far
-            debug_logger.save_summary({"interrupted": True})
             result = None
 
         logger.info(
             f"Debug monitor workflow completed: "
-            f"{debug_logger.frame_count} frames captured"
+            f"{result.frames_processed if result else 0} frames captured"
         )
 
         return DebugMonitorResult(
-            total_frames=debug_logger.frame_count,
-            output_dir=debug_logger.session_dir,
+            total_frames=result.frames_processed if result else 0,
+            output_dir=result.debug_session_dir
+            if result and result.debug_session_dir
+            else output_dir / "progressbar_monitor",
             stop_reason=result.stop_reason if result else StopReason.MANUAL_STOP,
         )

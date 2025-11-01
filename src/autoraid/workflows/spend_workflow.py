@@ -6,7 +6,6 @@ with internet verification and optional continue upgrade logic.
 """
 
 from __future__ import annotations
-from collections.abc import Callable
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +19,6 @@ from autoraid.core.stop_conditions import (
     StopReason,
     UpgradedCondition,
 )
-from autoraid.core.debug_frame_logger import DebugFrameLogger
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager, NetworkState
@@ -54,7 +52,6 @@ class SpendWorkflow:
         cache_service: CacheService,
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
-        debug_frame_logger_factory: Callable[..., DebugFrameLogger],
         max_upgrade_attempts: int,
         continue_upgrade: bool = False,
         debug_dir: Path | None = None,
@@ -66,7 +63,6 @@ class SpendWorkflow:
             cache_service: CacheService for retrieving cached regions
             window_interaction_service: WindowInteractionService for window operations
             network_manager: NetworkManager for network state validation
-            debug_frame_logger_factory: Factory for creating debug frame loggers
             max_upgrade_attempts: Maximum upgrade attempts to spend
             continue_upgrade: Whether to continue upgrading to next level after success
             debug_dir: Optional debug directory for logging
@@ -75,7 +71,6 @@ class SpendWorkflow:
         self._cache_service = cache_service
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
-        self._debug_frame_logger_factory = debug_frame_logger_factory
         self._max_upgrade_attempts = max_upgrade_attempts
         self._continue_upgrade = continue_upgrade
         self._debug_dir = debug_dir
@@ -123,14 +118,6 @@ class SpendWorkflow:
                 ]
             )
 
-            # Create optional debug logger via factory
-            debug_logger = None
-            if self._debug_dir:
-                debug_logger = self._debug_frame_logger_factory(
-                    output_dir=self._debug_dir / "spend",
-                    session_name=f"upgrade_{upgrade_count + 1}",
-                )
-
             # Create session configuration
             session = UpgradeSession(
                 upgrade_bar_region=regions["upgrade_bar"],
@@ -139,10 +126,15 @@ class SpendWorkflow:
                 check_interval=0.25,
                 network_adapter_ids=None,
                 disable_network=False,
+                debug_dir=(
+                    self._debug_dir / "spend" / f"upgrade_{upgrade_count + 1}"
+                    if self._debug_dir
+                    else None
+                ),
             )
 
-            # Execute monitoring session with optional debug logger
-            result = self._orchestrator.run_upgrade_session(session, debug_logger)
+            # Execute monitoring session
+            result = self._orchestrator.run_upgrade_session(session)
 
             # Update counters
             attempt_count += result.fail_count

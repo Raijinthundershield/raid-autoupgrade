@@ -30,6 +30,7 @@ class UpgradeSession:
     check_interval: float = 0.25
     network_adapter_ids: list[int] | None = None
     disable_network: bool = False
+    debug_dir: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -93,10 +94,14 @@ class UpgradeOrchestrator:
     def run_upgrade_session(
         self,
         session: UpgradeSession,
-        debug_logger: DebugFrameLogger | None = None,
     ) -> UpgradeResult:
         # Validate prerequisites first
         self.validate_prerequisites(session)
+
+        # Create debug logger if debug_dir is provided
+        debug_logger = None
+        if session.debug_dir is not None:
+            debug_logger = DebugFrameLogger(output_dir=session.debug_dir)
 
         logger.info("Starting upgrade session")
         logger.debug(
@@ -177,8 +182,8 @@ class UpgradeOrchestrator:
                 prev_fail_count = monitor_state.fail_count
 
             # Optional debug logging
-            if debug_logger:
-                debug_logger.log_frame(
+            if self.debug_logger:
+                self.debug_logger.log_frame(
                     frame_number=monitor_state.frames_processed - 1,
                     detected_state=current_state,
                     fail_count=monitor_state.fail_count,
