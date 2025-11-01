@@ -1,4 +1,3 @@
-from pathlib import Path
 import click
 from diskcache import Cache
 from loguru import logger
@@ -8,6 +7,7 @@ from autoraid.cli.network_cli import network
 from autoraid.cli.debug_cli import debug
 from autoraid.container import Container
 from autoraid.logging_config import add_logger_sink
+from autoraid.services.app_data import AppData
 
 
 @click.group()
@@ -26,34 +26,27 @@ def autoraid(debug: bool):
 
     """
 
-    # Create cache directory
-    cache_dir = Path("cache-raid-autoupgrade")
-    cache_dir.mkdir(exist_ok=True)
-
-    # Initialize cache
-    cache = Cache(str(cache_dir))
-
     # Create and configure DI container
     container = Container()
-    container.config.from_dict(
-        {
-            "cache_dir": str(cache_dir),
-            "debug": debug,
-        }
-    )
-    container.wire(
-        modules=[
-            "autoraid.cli.upgrade_cli",
-            "autoraid.cli.network_cli",
-        ]
-    )
+    container.config.cache_dir.from_value(AppData.DEFAULT_CACHE_DIR)
+    container.config.debug.from_value(debug)
+    container.wire()
 
-    # Store cache and container in context
+    # Create app_data and ensure directories exist
+    app_data = container.app_data()
+    app_data.ensure_directories()
+
+    # Initialize cache (still needed for backward compatibility)
+    cache = Cache(str(app_data.cache_dir))
+
+    # Store in context
     ctx = click.get_current_context()
     ctx.obj = {
         "cache": cache,
-        "cache_dir": cache_dir,
+        "cache_dir": app_data.cache_dir,
         "container": container,
+        "app_data": app_data,
+        "debug": debug,
     }
 
     # Configure logging based on debug mode
@@ -64,19 +57,11 @@ def autoraid(debug: bool):
 
     add_logger_sink(debug, console_sink, colorize=True)
 
-    if debug:
-        debug_dir = cache_dir / "debug"
-        debug_dir.mkdir(exist_ok=True)
-
-        file_sink = debug_dir / "autoraid.log"
-        add_logger_sink(debug, file_sink, colorize=False, rotation="10 MB")
-        logger.debug(f"Debug mode enabled. Logging to {file_sink}")
-        ctx.obj["debug_dir"] = debug_dir
-    else:
-        ctx.obj["debug_dir"] = None
-
-    # Set debug mode in context
-    ctx.obj["debug"] = debug
+    # Add file logging if debug enabled
+    log_file = app_data.get_log_file_path()
+    if log_file:
+        add_logger_sink(debug, log_file, colorize=False, rotation="10 MB")
+        logger.debug(f"Debug mode enabled. Logging to {log_file}")
 
 
 autoraid.add_command(upgrade)

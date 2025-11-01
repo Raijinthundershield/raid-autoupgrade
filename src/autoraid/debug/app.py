@@ -5,13 +5,14 @@ from pathlib import Path
 from nicegui import ui
 
 from autoraid.debug.progressbar_review_gui import ProgressBarReviewGUI
+from autoraid.services.app_data import AppData
 
 
-def main(cache_dir: Path | str = "cache-raid-autoupgrade") -> None:
+def main(cache_dir: Path | str = AppData.DEFAULT_CACHE_DIR) -> None:
     """Launch the progress bar review GUI.
 
     Args:
-        cache_dir: Path to cache directory (default: "cache-raid-autoupgrade")
+        cache_dir: Path to cache directory (default: AppData.DEFAULT_CACHE_DIR)
     """
     cache_path = Path(cache_dir) if isinstance(cache_dir, str) else cache_dir
 

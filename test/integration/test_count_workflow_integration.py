@@ -87,8 +87,8 @@ class TestCountWorkflowIntegration:
         # Verify check interval
         assert session.check_interval == 0.25
 
-        # Verify no debug logger (debug_dir is None)
-        assert session.debug_logger is None
+        # Verify no debug directory (debug_dir is None)
+        assert session.debug_dir is None
 
         # Verify result mapping
         assert isinstance(result, CountResult)
@@ -176,9 +176,9 @@ class TestCountWorkflowIntegration:
         workflow.validate()
         workflow.run()
 
-        # Assert: Verify debug logger was passed to session
+        # Assert: Verify debug directory was passed to session
         session: UpgradeSession = mock_orchestrator.run_upgrade_session.call_args[0][0]
-        assert session.debug_logger is not None
+        assert session.debug_dir is not None
 
     def test_count_workflow_without_network_adapters(self):
         """Test CountWorkflow configures session correctly when no network adapters specified."""

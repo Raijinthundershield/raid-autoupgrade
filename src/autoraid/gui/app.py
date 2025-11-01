@@ -7,6 +7,7 @@ from autoraid.gui.components.network_panel import create_network_panel
 from autoraid.gui.components.region_panel import create_region_panel
 from autoraid.gui.components.upgrade_panel import create_upgrade_panel
 from autoraid.container import Container
+from autoraid.services.app_data import AppData
 from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.services.network import NetworkManager, NetworkState
 from autoraid.exceptions import WindowNotFoundException
@@ -84,6 +85,18 @@ def main(debug: bool = False) -> None:
     Args:
         debug: Enable debug logging (same as --debug flag in CLI)
     """
+    # Create and configure DI container
+    container = Container()
+    container.config.cache_dir.from_value(AppData.DEFAULT_CACHE_DIR)
+    container.config.debug.from_value(debug)
+    container.wire()
+
+    # Create app_data and ensure directories exist
+    app_data = container.app_data()
+    app_data.ensure_directories()
+
+    # Note: We don't store app_data in app.storage.general because Path objects
+    # aren't JSON serializable. Instead, pass app_data directly to components.
 
     @ui.page("/")
     def index():
@@ -91,7 +104,7 @@ def main(debug: bool = False) -> None:
         with ui.column().classes("w-full"):
             create_header()
             ui.separator()
-            create_upgrade_panel(debug=debug)
+            create_upgrade_panel(debug=debug, app_data=app_data)
             ui.separator()
             create_region_panel()
             ui.separator()

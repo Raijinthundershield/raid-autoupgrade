@@ -182,8 +182,8 @@ class UpgradeOrchestrator:
                 prev_fail_count = monitor_state.fail_count
 
             # Optional debug logging
-            if self.debug_logger:
-                self.debug_logger.log_frame(
+            if debug_logger:
+                debug_logger.log_frame(
                     frame_number=monitor_state.frames_processed - 1,
                     detected_state=current_state,
                     fail_count=monitor_state.fail_count,

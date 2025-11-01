@@ -4,7 +4,6 @@ This module provides debug commands for monitoring and diagnosing AutoRaid behav
 """
 
 import sys
-from pathlib import Path
 from collections.abc import Callable
 
 import click
@@ -77,8 +76,12 @@ def progressbar(
     """
     logger.info("Starting progress bar debug monitoring")
 
-    # Get debug directory from context
-    debug_dir = ctx.obj.get("debug_dir")
+    # Get app_data from context
+    app_data = ctx.obj["app_data"]
+    debug_dir = app_data.debug_dir
+
+    if debug_dir is None:
+        raise click.UsageError("Debug mode not enabled. Use --debug flag.")
 
     # Create workflow with runtime parameters
     workflow = debug_monitor_workflow_factory(
@@ -86,7 +89,7 @@ def progressbar(
         disable_network=disable_network,
         max_frames=max_frames,
         check_interval=interval,
-        debug_dir=Path(debug_dir) if debug_dir else None,
+        debug_dir=debug_dir,
     )
 
     try:

@@ -188,14 +188,21 @@ class TestUpgradeOrchestrator:
             assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
 
     @patch("autoraid.services.upgrade_orchestrator.time.sleep")
-    def test_run_upgrade_session_with_debug_logger(self, mock_sleep):
-        """Verify run_upgrade_session integrates with debug logger."""
+    @patch("autoraid.services.upgrade_orchestrator.DebugFrameLogger")
+    def test_run_upgrade_session_with_debug_dir(
+        self, mock_debug_logger_class, mock_sleep
+    ):
+        """Verify run_upgrade_session creates debug logger when debug_dir is set."""
         mock_screenshot = Mock(spec=ScreenshotService)
         mock_window = Mock(spec=WindowInteractionService)
         mock_cache = Mock(spec=CacheService)
         mock_network = Mock(spec=NetworkManager)
         mock_monitor = Mock(spec=ProgressBarMonitor)
+
+        # Mock the DebugFrameLogger instance
         mock_debug_logger = MagicMock()
+        mock_debug_logger.session_dir = Path("/tmp/debug")
+        mock_debug_logger_class.return_value = mock_debug_logger
 
         # Configure mock behavior
         fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
@@ -215,8 +222,6 @@ class TestUpgradeOrchestrator:
         mock_state.frames_processed = 1
         mock_monitor.get_state.return_value = mock_state
         mock_monitor.process_frame.return_value = ProgressBarState.FAIL
-
-        mock_debug_logger.session_dir = Path("/tmp/debug")
 
         stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
 
@@ -242,12 +247,15 @@ class TestUpgradeOrchestrator:
                 upgrade_bar_region=(0, 0, 100, 50),
                 upgrade_button_region=(0, 0, 100, 50),
                 stop_conditions=stop_conditions,
-                debug_logger=mock_debug_logger,
+                debug_dir=Path("/tmp/debug"),
             )
 
             result = orchestrator.run_upgrade_session(session)
 
-            # Verify debug logger was used
+            # Verify debug logger was created and used
+            mock_debug_logger_class.assert_called_once_with(
+                output_dir=Path("/tmp/debug")
+            )
             assert mock_debug_logger.log_frame.call_count >= 1
             mock_debug_logger.save_summary.assert_called_once()
             assert result.debug_session_dir == Path("/tmp/debug")

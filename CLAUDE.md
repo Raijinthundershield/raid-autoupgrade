@@ -124,6 +124,10 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
      - Returns structured SpendResult with upgrade_count, attempt_count, remaining_attempts, and stop_reason
 
 4. **Service Layer** ([src/autoraid/services/](autoraid/src/autoraid/services/))
+   - **AppData** (Singleton): Centralized application directory configuration
+     - Manages cache_dir and debug_dir paths
+     - Provides directory creation and validation
+     - Single source of truth for all application directories
    - **CacheService** (Singleton): Manages region/screenshot caching with diskcache
    - **ScreenshotService** (Singleton): Captures window screenshots and extracts ROIs
    - **LocateRegionService** (Singleton): Detects and caches UI regions (upgrade bar, button)
@@ -183,6 +187,7 @@ Container (DeclarativeContainer)
 │   └── debug: bool
 │
 ├── Providers (Singleton)
+│   ├── app_data: AppData(cache_dir, debug_enabled)
 │   ├── disk_cache: Cache(cache_dir)
 │   ├── cache_service: CacheService(disk_cache)
 │   ├── screenshot_service: ScreenshotService()
@@ -211,6 +216,7 @@ The GUI layer is a **thin presentation layer** that provides a native desktop in
 
 **Design Principles**:
 - **Zero Logic Duplication**: GUI components inject and call the same services used by CLI
+- **Centralized Configuration**: GUI creates DI container with AppData for consistent directory management
 - **Async Threading**: Blocking operations (workflows, region selection) run via `asyncio.to_thread()` to keep UI responsive
 - **State Persistence**: User preferences (selected adapters, last count result) persist via `app.storage.user`
 - **External OpenCV**: Region selection popups remain external windows (not embedded in GUI)
@@ -249,6 +255,7 @@ The GUI layer is a **thin presentation layer** that provides a native desktop in
 
 | Service | Lifecycle | Responsibilities | Dependencies |
 |---------|-----------|------------------|--------------|
+| **AppData** | Singleton | Centralized directory configuration (cache_dir, debug_dir) | None |
 | **CacheService** | Singleton | Region/screenshot caching | disk_cache |
 | **ScreenshotService** | Singleton | Window screenshots, ROI extraction | None |
 | **LocateRegionService** | Singleton | Region detection (auto + manual) | cache_service, screenshot_service |

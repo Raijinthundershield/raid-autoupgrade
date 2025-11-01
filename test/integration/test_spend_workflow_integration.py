@@ -252,12 +252,12 @@ class TestSpendWorkflowIntegration:
         # Assert: Verify debug logger was created for each iteration
         assert mock_orchestrator.run_upgrade_session.call_count == 2
 
-        # First iteration: debug_logger with session_name="upgrade_1"
+        # First iteration: debug_dir with session_name="upgrade_1"
         first_call = mock_orchestrator.run_upgrade_session.call_args_list[0]
         first_session = first_call[0][0]
-        assert first_session.debug_logger is not None
+        assert first_session.debug_dir is not None
 
-        # Second iteration: debug_logger with session_name="upgrade_2"
+        # Second iteration: debug_dir with session_name="upgrade_2"
         second_call = mock_orchestrator.run_upgrade_session.call_args_list[1]
         second_session = second_call[0][0]
-        assert second_session.debug_logger is not None
+        assert second_session.debug_dir is not None

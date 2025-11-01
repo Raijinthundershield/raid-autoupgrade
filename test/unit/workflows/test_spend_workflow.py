@@ -339,8 +339,8 @@ class TestSpendWorkflowContinueUpgrade:
         # Verify orchestrator was called only once (no attempts left to continue)
         assert mock_orchestrator.run_upgrade_session.call_count == 1
 
-    def test_debug_logger_created_when_debug_dir_provided(self):
-        """Test that debug logger is created for each upgrade when debug_dir provided."""
+    def test_debug_dir_set_in_session_when_provided(self):
+        """Test that debug_dir is set in session when provided."""
         # Arrange: Mock orchestrator
         mock_orchestrator = Mock()
         mock_result = UpgradeResult(
@@ -374,7 +374,7 @@ class TestSpendWorkflowContinueUpgrade:
         # Act: Run workflow
         workflow.run()
 
-        # Assert: Verify orchestrator was called with session containing debug_logger
+        # Assert: Verify orchestrator was called with session containing debug_dir
         call_args = mock_orchestrator.run_upgrade_session.call_args
         session = call_args[0][0]
-        assert session.debug_logger is not None
+        assert session.debug_dir == Path("/tmp/debug") / "spend" / "upgrade_1"

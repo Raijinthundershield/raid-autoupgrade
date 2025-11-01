@@ -158,7 +158,7 @@ def test_run_creates_correct_upgrade_session(
     assert session.check_interval == 0.2
     assert session.network_adapter_ids == [1, 2]
     assert session.disable_network is True
-    assert session.debug_logger is not None
+    assert session.debug_dir is not None
 
     # Verify stop conditions (should have MaxFramesCondition)
     assert len(session.stop_conditions._conditions) == 1
@@ -178,6 +178,7 @@ def test_run_creates_empty_stop_conditions_when_max_frames_none(
         window_interaction_service=mock_window_service,
         network_manager=mock_network_manager,
         max_frames=None,  # No frame limit
+        debug_dir=Path("/tmp/debug"),  # Required parameter
     )
 
     # Mock orchestrator to return result
@@ -200,7 +201,7 @@ def test_run_creates_empty_stop_conditions_when_max_frames_none(
 def test_run_uses_default_debug_dir_when_none_provided(
     mock_orchestrator, mock_cache_service, mock_window_service, mock_network_manager
 ):
-    """Test run() uses default debug directory when none provided."""
+    """Test run() raises ValueError when debug_dir is None."""
     workflow = DebugMonitorWorkflow(
         orchestrator=mock_orchestrator,
         cache_service=mock_cache_service,
@@ -209,23 +210,15 @@ def test_run_uses_default_debug_dir_when_none_provided(
         debug_dir=None,  # No debug dir specified
     )
 
-    # Mock orchestrator to return result
-    mock_result = UpgradeResult(
-        fail_count=0,
-        frames_processed=10,
-        stop_reason=StopReason.MAX_FRAMES_CAPTURED,
-        debug_session_dir=Path(
-            "cache-raid-autoupgrade/debug/progressbar_monitor/session123"
-        ),
-    )
-    mock_orchestrator.run_upgrade_session.return_value = mock_result
+    # Mock cache service to return valid regions
+    mock_cache_service.get_regions.return_value = {
+        "upgrade_button": (100, 200, 50, 30),
+        "upgrade_bar": (100, 250, 200, 10),
+    }
 
-    workflow.run()
-
-    # Verify debug logger was created with default path
-    call_args = mock_orchestrator.run_upgrade_session.call_args
-    session = call_args[0][0]
-    assert session.debug_logger is not None
+    # Expect ValueError because debug_dir is required
+    with pytest.raises(ValueError, match="debug_dir parameter is required"):
+        workflow.run()
 
 
 def test_run_handles_keyboard_interrupt(

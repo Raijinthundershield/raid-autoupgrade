@@ -125,11 +125,13 @@ class DebugMonitorWorkflow:
         )
 
         # Determine debug output directory (always enabled for this workflow)
-        output_dir = (
-            self._debug_dir
-            if self._debug_dir
-            else Path("cache-raid-autoupgrade") / "debug"
-        )
+        # Require debug_dir parameter - no fallback
+        if not self._debug_dir:
+            raise ValueError(
+                "debug_dir parameter is required for DebugMonitorWorkflow. "
+                "Enable debug mode with --debug flag."
+            )
+        output_dir = self._debug_dir
 
         # Create session configuration
         session = UpgradeSession(

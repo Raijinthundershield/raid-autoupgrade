@@ -5,6 +5,7 @@ import diskcache
 
 from autoraid.core.progress_bar_detector import ProgressBarStateDetector
 from autoraid.core.progress_bar_monitor import ProgressBarMonitor
+from autoraid.services.app_data import AppData
 from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
@@ -47,6 +48,12 @@ class Container(containers.DeclarativeContainer):
     )
 
     # Singleton services (shared instance across application)
+    app_data = providers.Singleton(
+        AppData,
+        cache_dir=config.cache_dir,
+        debug_enabled=config.debug,
+    )
+
     cache_service = providers.Singleton(
         CacheService,
         cache=disk_cache,

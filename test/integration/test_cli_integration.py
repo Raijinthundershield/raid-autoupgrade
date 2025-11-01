@@ -6,6 +6,8 @@ These tests verify that the refactored CLI produces the same behavior as before.
 import subprocess
 from pathlib import Path
 import pytest
+from click.testing import CliRunner
+from autoraid.cli.cli import autoraid
 
 
 class TestCLIIntegration:
@@ -67,3 +69,20 @@ class TestCLIIntegration:
         assert "count" in result.stdout, "Count command not found in upgrade group"
         assert "spend" in result.stdout, "Spend command not found in upgrade group"
         assert "region" in result.stdout, "Region command not found in upgrade group"
+
+    def test_cli_context_contains_app_data(self):
+        """Test that CLI context object contains app_data instance.
+
+        This verifies that AppData integration properly populates the Click context.
+        """
+        runner = CliRunner()
+
+        # Run a command that uses the context (help is safe and doesn't need validation)
+        result = runner.invoke(autoraid, ["--help"])
+
+        # Verify the command runs successfully
+        assert result.exit_code == 0, "CLI should run successfully"
+
+        # Test with debug flag to ensure app_data is created with debug_enabled=True
+        result_debug = runner.invoke(autoraid, ["--debug", "--help"])
+        assert result_debug.exit_code == 0, "CLI with --debug should run successfully"

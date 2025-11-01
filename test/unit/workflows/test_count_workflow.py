@@ -162,7 +162,7 @@ class TestCountWorkflowExecution:
         assert session.check_interval == 0.25
         assert session.network_adapter_ids == [1, 2]
         assert session.disable_network is True
-        assert session.debug_logger is None
+        assert session.debug_dir is None
 
         # Verify stop conditions
         assert len(session.stop_conditions._conditions) == 2
@@ -258,9 +258,9 @@ class TestCountWorkflowExecution:
         with patch.object(workflow, "validate"):
             workflow.run()
 
-        # Assert: Verify debug logger was created
+        # Assert: Verify debug_dir was set in session
         session: UpgradeSession = mock_orchestrator.run_upgrade_session.call_args[0][0]
-        assert session.debug_logger is not None
+        assert session.debug_dir == Path("/tmp/debug") / "count"
 
     def test_run_raises_when_regions_not_cached(self):
         """Test workflow raises error when regions not cached for current window size."""

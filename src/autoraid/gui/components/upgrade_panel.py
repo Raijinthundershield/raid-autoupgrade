@@ -19,6 +19,7 @@ from autoraid.exceptions import (
     WorkflowValidationError,
 )
 from autoraid.logging_config import add_logger_sink
+from autoraid.services.app_data import AppData
 from autoraid.workflows.count_workflow import CountWorkflow
 from autoraid.workflows.spend_workflow import SpendWorkflow
 
@@ -132,6 +133,7 @@ def create_upgrade_panel(
         Container.spend_workflow_factory.provider
     ],
     debug: bool = False,
+    app_data: AppData | None = None,
 ) -> None:
     """Create the upgrade workflows panel (Count + Spend).
 
@@ -139,6 +141,7 @@ def create_upgrade_panel(
         count_workflow_factory: Injected factory for creating CountWorkflow instances
         spend_workflow_factory: Injected factory for creating SpendWorkflow instances
         debug: Enable debug logging (DEBUG level vs INFO level)
+        app_data: Application data for directory configuration (optional)
     """
     # Workflow state
     state = WorkflowState()
@@ -217,7 +220,7 @@ def create_upgrade_panel(
                         workflow = count_workflow_factory(
                             network_adapter_ids=selected_adapters,
                             max_attempts=MAX_COUNT_ATTEMPTS,
-                            debug_dir=None,
+                            debug_dir=app_data.debug_dir if app_data else None,
                         )
 
                         # Run validate-then-run lifecycle
@@ -336,7 +339,7 @@ def create_upgrade_panel(
                         workflow = spend_workflow_factory(
                             max_upgrade_attempts=max_attempts,
                             continue_upgrade=continue_upgrade,
-                            debug_dir=None,
+                            debug_dir=app_data.debug_dir if app_data else None,
                         )
 
                         # Run validate-then-run lifecycle

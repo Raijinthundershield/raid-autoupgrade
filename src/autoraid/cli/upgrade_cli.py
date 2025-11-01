@@ -77,13 +77,17 @@ def count(
 
     # Execute count workflow using factory pattern
     try:
+        # Get app_data from context
+        app_data = ctx.obj["app_data"]
+        debug_dir = app_data.debug_dir
+
         # Create workflow instance with runtime parameters
         workflow = count_workflow_factory(
             network_adapter_ids=list(network_adapter_id)
             if network_adapter_id
             else None,
             max_attempts=99,
-            debug_dir=ctx.obj["debug_dir"],
+            debug_dir=debug_dir,
         )
 
         # Run validate-then-run lifecycle
@@ -128,11 +132,15 @@ def spend(
 
     # Execute spend workflow using factory pattern
     try:
+        # Get app_data from context
+        app_data = ctx.obj["app_data"]
+        debug_dir = app_data.debug_dir
+
         # Create workflow instance with runtime parameters
         workflow = spend_workflow_factory(
             max_upgrade_attempts=max_attempts,
             continue_upgrade=continue_upgrade,
-            debug_dir=ctx.obj["debug_dir"],
+            debug_dir=debug_dir,
         )
 
         # Run validate-then-run lifecycle
