@@ -9,8 +9,8 @@ from enum import Enum
 from dataclasses import dataclass
 from loguru import logger
 
-from autoraid.core.progress_bar_monitor import ProgressBarMonitorState
-from autoraid.core.progress_bar_detector import ProgressBarState
+from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitorState
+from autoraid.detection.progress_bar_detector import ProgressBarState
 
 
 class StopReason(Enum):

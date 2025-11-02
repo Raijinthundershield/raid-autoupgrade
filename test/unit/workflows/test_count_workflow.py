@@ -8,15 +8,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autoraid.core.stop_conditions import (
+from autoraid.orchestration.stop_conditions import (
     StopReason,
     MaxAttemptsCondition,
     UpgradedCondition,
 )
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.services.network import NetworkState
-from autoraid.services.upgrade_orchestrator import UpgradeResult, UpgradeSession
+from autoraid.orchestration.upgrade_orchestrator import UpgradeResult, UpgradeSession
 from autoraid.workflows.count_workflow import CountResult, CountWorkflow
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 
 
 class TestCountWorkflowValidation:
@@ -44,7 +45,8 @@ class TestCountWorkflowValidation:
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=mock_network_manager,
-            orchestrator=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             network_adapter_ids=None,  # No adapters specified
             max_attempts=99,
             debug_dir=None,
@@ -76,7 +78,8 @@ class TestCountWorkflowValidation:
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=mock_network_manager,
-            orchestrator=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             network_adapter_ids=None,  # No adapters specified
             max_attempts=99,
             debug_dir=None,
@@ -104,7 +107,8 @@ class TestCountWorkflowValidation:
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=mock_network_manager,
-            orchestrator=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             network_adapter_ids=[1, 2],  # Adapters specified
             max_attempts=99,
             debug_dir=None,
@@ -117,7 +121,8 @@ class TestCountWorkflowValidation:
 class TestCountWorkflowExecution:
     """Test execution phase of CountWorkflow."""
 
-    def test_run_creates_correct_upgrade_session(self):
+    @patch("autoraid.workflows.count_workflow.UpgradeOrchestrator")
+    def test_run_creates_correct_upgrade_session(self, mock_orchestrator_class):
         """Test workflow creates UpgradeSession with correct configuration."""
         # Arrange: Mock services
         mock_cache_service = Mock()
@@ -129,7 +134,7 @@ class TestCountWorkflowExecution:
         mock_window_service = Mock()
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
-        # Mock orchestrator to return controlled result
+        # Mock orchestrator instance to return controlled result
         mock_orchestrator = Mock()
         mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
             fail_count=5,
@@ -137,12 +142,14 @@ class TestCountWorkflowExecution:
             stop_reason=StopReason.MAX_ATTEMPTS_REACHED,
             debug_session_dir=None,
         )
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         workflow = CountWorkflow(
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
-            orchestrator=mock_orchestrator,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             network_adapter_ids=[1, 2],
             max_attempts=10,
             debug_dir=None,
@@ -188,7 +195,8 @@ class TestCountWorkflowExecution:
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
-            orchestrator=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             network_adapter_ids=None,
             max_attempts=99,
             debug_dir=None,

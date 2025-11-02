@@ -3,7 +3,6 @@ import click
 from pathlib import Path
 import sys
 import cv2
-from collections.abc import Callable
 from loguru import logger
 from dependency_injector.wiring import inject, Provide
 
@@ -18,6 +17,8 @@ from autoraid.services.cache_service import CacheService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.services.network import NetworkManager
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.workflows.count_workflow import CountWorkflow
 from autoraid.workflows.spend_workflow import SpendWorkflow
 from autoraid.utils.common import get_timestamp
@@ -53,9 +54,13 @@ def upgrade():
 def count(
     network_adapter_id: list[int],
     show_most_recent_gear: bool,
-    count_workflow_factory: Callable[..., CountWorkflow] = Provide[
-        Container.count_workflow_factory.provider
+    cache_service: CacheService = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionService = Provide[
+        Container.window_interaction_service
     ],
+    network_manager: NetworkManager = Provide[Container.network_manager],
+    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
 ):
     """Count the number of upgrade fails.
 
@@ -75,14 +80,19 @@ def count(
         cv2.destroyAllWindows()
         sys.exit(0)
 
-    # Execute count workflow using factory pattern
+    # Execute count workflow with direct construction
     try:
         # Get app_data from context
         app_data = ctx.obj["app_data"]
         debug_dir = app_data.debug_dir
 
-        # Create workflow instance with runtime parameters
-        workflow = count_workflow_factory(
+        # Construct workflow instance directly with injected services
+        workflow = CountWorkflow(
+            cache_service=cache_service,
+            window_interaction_service=window_interaction_service,
+            network_manager=network_manager,
+            screenshot_service=screenshot_service,
+            detector=detector,
             network_adapter_ids=list(network_adapter_id)
             if network_adapter_id
             else None,
@@ -123,21 +133,30 @@ def count(
 def spend(
     max_attempts: int,
     continue_upgrade: bool,
-    spend_workflow_factory: Callable[..., SpendWorkflow] = Provide[
-        Container.spend_workflow_factory.provider
+    cache_service: CacheService = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionService = Provide[
+        Container.window_interaction_service
     ],
+    network_manager: NetworkManager = Provide[Container.network_manager],
+    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
 ):
     """Upgrade the piece until the max number of fails is reached."""
     ctx = click.get_current_context()
 
-    # Execute spend workflow using factory pattern
+    # Execute spend workflow with direct construction
     try:
         # Get app_data from context
         app_data = ctx.obj["app_data"]
         debug_dir = app_data.debug_dir
 
-        # Create workflow instance with runtime parameters
-        workflow = spend_workflow_factory(
+        # Construct workflow instance directly with injected services
+        workflow = SpendWorkflow(
+            cache_service=cache_service,
+            window_interaction_service=window_interaction_service,
+            network_manager=network_manager,
+            screenshot_service=screenshot_service,
+            detector=detector,
             max_upgrade_attempts=max_attempts,
             continue_upgrade=continue_upgrade,
             debug_dir=debug_dir,

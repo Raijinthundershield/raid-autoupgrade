@@ -12,7 +12,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from autoraid.core.stop_conditions import (
+from autoraid.orchestration.stop_conditions import (
     ConnectionErrorCondition,
     MaxAttemptsCondition,
     StopConditionChain,
@@ -22,7 +22,9 @@ from autoraid.core.stop_conditions import (
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager, NetworkState
-from autoraid.services.upgrade_orchestrator import (
+from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
@@ -48,10 +50,11 @@ class SpendWorkflow:
 
     def __init__(
         self,
-        orchestrator: UpgradeOrchestrator,
         cache_service: CacheService,
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
+        screenshot_service: ScreenshotService,
+        detector: ProgressBarStateDetector,
         max_upgrade_attempts: int,
         continue_upgrade: bool = False,
         debug_dir: Path | None = None,
@@ -59,18 +62,20 @@ class SpendWorkflow:
         """Initialize SpendWorkflow.
 
         Args:
-            orchestrator: UpgradeOrchestrator for executing upgrade sessions
             cache_service: CacheService for retrieving cached regions
             window_interaction_service: WindowInteractionService for window operations
             network_manager: NetworkManager for network state validation
+            screenshot_service: Service for screenshot capture
+            detector: Detector for progress bar state detection
             max_upgrade_attempts: Maximum upgrade attempts to spend
             continue_upgrade: Whether to continue upgrading to next level after success
             debug_dir: Optional debug directory for logging
         """
-        self._orchestrator = orchestrator
         self._cache_service = cache_service
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
+        self._screenshot_service = screenshot_service
+        self._detector = detector
         self._max_upgrade_attempts = max_upgrade_attempts
         self._continue_upgrade = continue_upgrade
         self._debug_dir = debug_dir
@@ -95,6 +100,15 @@ class SpendWorkflow:
             self.WINDOW_TITLE
         )
         regions = self._cache_service.get_regions(current_size)
+
+        # Create orchestrator for this workflow
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=self._screenshot_service,
+            window_interaction_service=self._window_interaction_service,
+            cache_service=self._cache_service,
+            network_manager=self._network_manager,
+            detector=self._detector,
+        )
 
         upgrade_count = 0
         attempt_count = 0
@@ -134,7 +148,7 @@ class SpendWorkflow:
             )
 
             # Execute monitoring session
-            result = self._orchestrator.run_upgrade_session(session)
+            result = orchestrator.run_upgrade_session(session)
 
             # Update counters
             attempt_count += result.fail_count

@@ -3,18 +3,13 @@
 from dependency_injector import containers, providers
 import diskcache
 
-from autoraid.core.progress_bar_detector import ProgressBarStateDetector
-from autoraid.core.progress_bar_monitor import ProgressBarMonitor
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.services.app_data import AppData
 from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
 from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.upgrade_orchestrator import UpgradeOrchestrator
-from autoraid.workflows.count_workflow import CountWorkflow
-from autoraid.workflows.spend_workflow import SpendWorkflow
-from autoraid.workflows.debug_monitor_workflow import DebugMonitorWorkflow
 
 
 class Container(containers.DeclarativeContainer):
@@ -80,44 +75,4 @@ class Container(containers.DeclarativeContainer):
 
     progress_bar_detector = providers.Singleton(
         ProgressBarStateDetector,
-    )
-
-    # Factory services (new instance per operation)
-    progress_bar_monitor = providers.Factory(
-        ProgressBarMonitor,
-        detector=progress_bar_detector,
-    )
-
-    upgrade_orchestrator = providers.Factory(
-        UpgradeOrchestrator,
-        screenshot_service=screenshot_service,
-        window_interaction_service=window_interaction_service,
-        cache_service=cache_service,
-        network_manager=network_manager,
-        monitor=progress_bar_monitor,
-    )
-
-    # Workflow factories (new instances with runtime parameters)
-    count_workflow_factory = providers.Factory(
-        CountWorkflow,
-        cache_service=cache_service,
-        window_interaction_service=window_interaction_service,
-        network_manager=network_manager,
-        orchestrator=upgrade_orchestrator,
-    )
-
-    spend_workflow_factory = providers.Factory(
-        SpendWorkflow,
-        orchestrator=upgrade_orchestrator,
-        cache_service=cache_service,
-        window_interaction_service=window_interaction_service,
-        network_manager=network_manager,
-    )
-
-    debug_monitor_workflow_factory = providers.Factory(
-        DebugMonitorWorkflow,
-        orchestrator=upgrade_orchestrator,
-        cache_service=cache_service,
-        window_interaction_service=window_interaction_service,
-        network_manager=network_manager,
     )

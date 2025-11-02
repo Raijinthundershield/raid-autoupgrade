@@ -10,7 +10,7 @@ from pathlib import Path
 import cv2
 import pytest
 
-from autoraid.core.progress_bar_detector import (
+from autoraid.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )

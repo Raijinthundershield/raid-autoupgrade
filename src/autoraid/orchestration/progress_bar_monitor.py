@@ -9,7 +9,7 @@ from collections import deque
 import numpy as np
 from loguru import logger
 
-from autoraid.core.progress_bar_detector import (
+from autoraid.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )

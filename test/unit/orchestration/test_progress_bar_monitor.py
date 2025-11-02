@@ -3,10 +3,10 @@
 import numpy as np
 from unittest.mock import Mock
 
-from autoraid.core.progress_bar_monitor import (
+from autoraid.orchestration.progress_bar_monitor import (
     ProgressBarMonitor,
 )
-from autoraid.core.progress_bar_detector import (
+from autoraid.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )

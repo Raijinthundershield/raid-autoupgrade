@@ -9,9 +9,10 @@ import time
 from pathlib import Path
 from loguru import logger
 
-from autoraid.core.progress_bar_monitor import ProgressBarMonitor
-from autoraid.core.stop_conditions import StopConditionChain, StopReason
-from autoraid.core.debug_frame_logger import DebugFrameLogger
+from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitor
+from autoraid.orchestration.stop_conditions import StopConditionChain, StopReason
+from autoraid.orchestration.debug_frame_logger import DebugFrameLogger
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.services.cache_service import CacheService
@@ -56,16 +57,23 @@ class UpgradeOrchestrator:
         window_interaction_service: WindowInteractionService,
         cache_service: CacheService,
         network_manager: NetworkManager,
-        monitor: ProgressBarMonitor,
+        detector: ProgressBarStateDetector,
     ):
         """
         Initialize orchestrator with injected services.
+
+        Args:
+            screenshot_service: Service for capturing screenshots
+            window_interaction_service: Service for window operations
+            cache_service: Service for region caching
+            network_manager: Service for network adapter management
+            detector: Detector for progress bar state detection
         """
         self._screenshot_service = screenshot_service
         self._window_interaction_service = window_interaction_service
         self._cache_service = cache_service
         self._network_manager = network_manager
-        self._monitor = monitor
+        self._detector = detector
 
     def validate_prerequisites(self, session: UpgradeSession) -> None:
         logger.info("Validating orchestrator prerequisites")
@@ -98,6 +106,9 @@ class UpgradeOrchestrator:
         # Validate prerequisites first
         self.validate_prerequisites(session)
 
+        # Create fresh monitor for this session
+        monitor = ProgressBarMonitor(detector=self._detector)
+
         # Create debug logger if debug_dir is provided
         debug_logger = None
         if session.debug_dir is not None:
@@ -124,10 +135,10 @@ class UpgradeOrchestrator:
             )
 
             # Monitor loop
-            stop_reason = self._monitor_loop(session, debug_logger)
+            stop_reason = self._monitor_loop(session, monitor, debug_logger)
 
             # Get final state
-            final_state = self._monitor.get_state()
+            final_state = monitor.get_state()
 
             # Save debug summary if logger provided
             debug_dir = None
@@ -158,6 +169,7 @@ class UpgradeOrchestrator:
     def _monitor_loop(
         self,
         session: UpgradeSession,
+        monitor: ProgressBarMonitor,
         debug_logger: DebugFrameLogger | None = None,
     ) -> StopReason:
         logger.info("Starting progress bar monitoring loop")
@@ -173,8 +185,8 @@ class UpgradeOrchestrator:
             )
 
             # Process frame with monitor
-            current_state = self._monitor.process_frame(upgrade_bar_roi)
-            monitor_state = self._monitor.get_state()
+            current_state = monitor.process_frame(upgrade_bar_roi)
+            monitor_state = monitor.get_state()
 
             # Log progress on fail count changes
             if monitor_state.fail_count > prev_fail_count:

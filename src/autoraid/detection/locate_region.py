@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from pyscreeze import Box, ImageNotFoundException, locate
 
-template_dir = importlib.resources.files("autoraid") / "core" / "templates"
+template_dir = importlib.resources.files("autoraid") / "detection" / "templates"
 
 
 class MissingRegionException(Exception):

@@ -4,7 +4,6 @@ This module provides debug commands for monitoring and diagnosing AutoRaid behav
 """
 
 import sys
-from collections.abc import Callable
 
 import click
 from dependency_injector.wiring import Provide, inject
@@ -13,6 +12,11 @@ from loguru import logger
 from autoraid.container import Container
 from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
 from autoraid.workflows.debug_monitor_workflow import DebugMonitorWorkflow
+from autoraid.services.cache_service import CacheService
+from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.services.network import NetworkManager
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 
 
 @click.group()
@@ -60,9 +64,13 @@ def progressbar(
     max_frames: int | None,
     interval: float,
     disable_network: bool,
-    debug_monitor_workflow_factory: Callable[..., DebugMonitorWorkflow] = Provide[
-        Container.debug_monitor_workflow_factory.provider
+    cache_service: CacheService = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionService = Provide[
+        Container.window_interaction_service
     ],
+    network_manager: NetworkManager = Provide[Container.network_manager],
+    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
 ):
     """Monitor progress bar state and save diagnostic data.
 
@@ -83,8 +91,13 @@ def progressbar(
     if debug_dir is None:
         raise click.UsageError("Debug mode not enabled. Use --debug flag.")
 
-    # Create workflow with runtime parameters
-    workflow = debug_monitor_workflow_factory(
+    # Construct workflow instance directly with injected services
+    workflow = DebugMonitorWorkflow(
+        cache_service=cache_service,
+        window_interaction_service=window_interaction_service,
+        network_manager=network_manager,
+        screenshot_service=screenshot_service,
+        detector=detector,
         network_adapter_ids=list(network_adapter_id) if network_adapter_id else None,
         disable_network=disable_network,
         max_frames=max_frames,

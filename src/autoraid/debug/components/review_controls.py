@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from nicegui import ui
 
-from autoraid.core.progress_bar_detector import ProgressBarState
+from autoraid.detection.progress_bar_detector import ProgressBarState
 
 
 @dataclass

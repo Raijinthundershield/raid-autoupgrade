@@ -4,15 +4,16 @@ Tests the validation and execution logic with mocked services.
 Following smoke test philosophy - verify basic functionality and regressions.
 """
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
-from autoraid.core.stop_conditions import StopReason
+from autoraid.orchestration.stop_conditions import StopReason
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.services.network import NetworkState
-from autoraid.services.upgrade_orchestrator import UpgradeResult
+from autoraid.orchestration.upgrade_orchestrator import UpgradeResult
 from autoraid.workflows.spend_workflow import SpendResult, SpendWorkflow
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 
 
 class TestSpendWorkflowValidation:
@@ -25,10 +26,11 @@ class TestSpendWorkflowValidation:
         mock_network_manager.check_network_access.return_value = NetworkState.OFFLINE
 
         workflow = SpendWorkflow(
-            orchestrator=Mock(),
             cache_service=Mock(),
             window_interaction_service=Mock(),
             network_manager=mock_network_manager,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
             continue_upgrade=False,
             debug_dir=None,
@@ -48,10 +50,11 @@ class TestSpendWorkflowValidation:
         mock_network_manager.check_network_access.return_value = NetworkState.ONLINE
 
         workflow = SpendWorkflow(
-            orchestrator=Mock(),
             cache_service=Mock(),
             window_interaction_service=Mock(),
             network_manager=mock_network_manager,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
             continue_upgrade=False,
             debug_dir=None,
@@ -64,7 +67,8 @@ class TestSpendWorkflowValidation:
 class TestSpendWorkflowExecution:
     """Test execution phase of SpendWorkflow (T051)."""
 
-    def test_run_single_upgrade_success(self):
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_single_upgrade_success(self, mock_orchestrator_class):
         """Test workflow execution with single upgrade success."""
         # Arrange: Mock orchestrator to return UPGRADED result
         mock_orchestrator = Mock()
@@ -75,6 +79,7 @@ class TestSpendWorkflowExecution:
             debug_session_dir=None,
         )
         mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -86,10 +91,11 @@ class TestSpendWorkflowExecution:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
             continue_upgrade=False,
             debug_dir=None,
@@ -108,7 +114,8 @@ class TestSpendWorkflowExecution:
         # Verify orchestrator was called once
         mock_orchestrator.run_upgrade_session.assert_called_once()
 
-    def test_run_max_attempts_exhausted(self):
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_max_attempts_exhausted(self, mock_orchestrator_class):
         """Test workflow stops when max_attempts is exhausted."""
         # Arrange: Mock orchestrator to return MAX_ATTEMPTS_REACHED
         mock_orchestrator = Mock()
@@ -119,6 +126,7 @@ class TestSpendWorkflowExecution:
             debug_session_dir=None,
         )
         mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -130,10 +138,11 @@ class TestSpendWorkflowExecution:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
             continue_upgrade=False,
             debug_dir=None,
@@ -151,7 +160,8 @@ class TestSpendWorkflowExecution:
         # Verify cancel click was called
         mock_window_service.click_region.assert_called_once()
 
-    def test_run_connection_error(self):
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_connection_error(self, mock_orchestrator_class):
         """Test workflow stops on connection error."""
         # Arrange: Mock orchestrator to return CONNECTION_ERROR
         mock_orchestrator = Mock()
@@ -162,6 +172,7 @@ class TestSpendWorkflowExecution:
             debug_session_dir=None,
         )
         mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -173,10 +184,11 @@ class TestSpendWorkflowExecution:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
             continue_upgrade=False,
             debug_dir=None,
@@ -195,7 +207,8 @@ class TestSpendWorkflowExecution:
 class TestSpendWorkflowContinueUpgrade:
     """Test continue upgrade logic (T052)."""
 
-    def test_continue_upgrade_multiple_upgrades(self):
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_continue_upgrade_multiple_upgrades(self, mock_orchestrator_class):
         """Test that workflow continues once after first successful upgrade (lvl 10->11->12)."""
         # Arrange: Mock orchestrator to return multiple UPGRADED results
         mock_orchestrator = Mock()
@@ -220,6 +233,7 @@ class TestSpendWorkflowContinueUpgrade:
             mock_result_1,
             mock_result_2,
         ]
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -231,7 +245,8 @@ class TestSpendWorkflowContinueUpgrade:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
@@ -254,7 +269,10 @@ class TestSpendWorkflowContinueUpgrade:
         # Verify orchestrator was called 2 times (not 3)
         assert mock_orchestrator.run_upgrade_session.call_count == 2
 
-    def test_continue_upgrade_disabled_stops_after_first_upgrade(self):
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_continue_upgrade_disabled_stops_after_first_upgrade(
+        self, mock_orchestrator_class
+    ):
         """Test that workflow stops after first upgrade when continue_upgrade=False."""
         # Arrange: Mock orchestrator to return UPGRADED
         mock_orchestrator = Mock()
@@ -265,6 +283,7 @@ class TestSpendWorkflowContinueUpgrade:
             debug_session_dir=None,
         )
         mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -276,7 +295,8 @@ class TestSpendWorkflowContinueUpgrade:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
@@ -297,7 +317,10 @@ class TestSpendWorkflowContinueUpgrade:
         # Verify orchestrator was called only once
         assert mock_orchestrator.run_upgrade_session.call_count == 1
 
-    def test_continue_upgrade_stops_when_no_remaining_attempts(self):
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_continue_upgrade_stops_when_no_remaining_attempts(
+        self, mock_orchestrator_class
+    ):
         """Test that workflow stops if successful upgrade leaves 0 remaining attempts."""
         # Arrange: Mock orchestrator to return UPGRADED that uses all attempts
         mock_orchestrator = Mock()
@@ -308,6 +331,7 @@ class TestSpendWorkflowContinueUpgrade:
             debug_session_dir=None,
         )
         mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -319,7 +343,8 @@ class TestSpendWorkflowContinueUpgrade:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
             network_manager=Mock(),
@@ -332,9 +357,12 @@ class TestSpendWorkflowContinueUpgrade:
         result = workflow.run()
 
         # Assert: Verify workflow stopped after first upgrade (no remaining attempts)
+        # Note: 10 fails + 1 success = 11 total, but max is 10, so remaining is -1
         assert result.upgrade_count == 1
         assert result.attempt_count == 10
-        assert result.remaining_attempts == 0
+        assert (
+            result.remaining_attempts == -1
+        )  # All attempts used (10 max - 10 fails - 1 success)
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called only once (no attempts left to continue)

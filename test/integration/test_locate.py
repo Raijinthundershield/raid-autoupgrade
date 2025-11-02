@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from autoraid.core.locate_region import (
+from autoraid.detection.locate_region import (
     locate_progress_bar,
     locate_upgrade_button,
     upgrade_button_template,

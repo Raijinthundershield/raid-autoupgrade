@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from nicegui import ui
 
-from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.debug.models import AccuracyCalculator
 from autoraid.workflows.progressbar_monitor_workflow import ReviewedFrameMetadata
 

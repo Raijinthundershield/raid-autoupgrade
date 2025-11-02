@@ -12,7 +12,7 @@ import cv2
 from loguru import logger
 from nicegui import ui
 
-from autoraid.core.progress_bar_detector import ProgressBarStateDetector
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.debug.components import (
     create_accuracy_panel,
     create_frame_viewer,

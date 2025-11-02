@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from loguru import logger
 
-from autoraid.core.progress_bar_detector import ProgressBarState
+from autoraid.detection.progress_bar_detector import ProgressBarState
 from autoraid.utils.common import get_timestamp
 
 

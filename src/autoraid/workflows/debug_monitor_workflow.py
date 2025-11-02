@@ -11,7 +11,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from autoraid.core.stop_conditions import (
+from autoraid.orchestration.stop_conditions import (
     MaxFramesCondition,
     StopConditionChain,
     StopReason,
@@ -19,7 +19,9 @@ from autoraid.core.stop_conditions import (
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager, NetworkState
-from autoraid.services.upgrade_orchestrator import (
+from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
@@ -42,10 +44,11 @@ class DebugMonitorWorkflow:
 
     def __init__(
         self,
-        orchestrator: UpgradeOrchestrator,
         cache_service: CacheService,
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
+        screenshot_service: ScreenshotService,
+        detector: ProgressBarStateDetector,
         network_adapter_ids: list[int] | None = None,
         disable_network: bool = True,
         max_frames: int | None = None,
@@ -55,20 +58,22 @@ class DebugMonitorWorkflow:
         """Initialize debug monitor workflow.
 
         Args:
-            orchestrator: UpgradeOrchestrator for executing monitoring sessions
             cache_service: CacheService for retrieving cached regions
             window_interaction_service: WindowInteractionService for window operations
             network_manager: NetworkManager for network state validation
+            screenshot_service: Service for screenshot capture
+            detector: Detector for progress bar state detection
             network_adapter_ids: List of adapter IDs to disable/enable
             disable_network: Whether to disable network during monitoring
             max_frames: Maximum frames to capture (None = unlimited)
             check_interval: Time between frame captures in seconds
             debug_dir: Base directory for debug output (None = use default)
         """
-        self._orchestrator = orchestrator
         self._cache_service = cache_service
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
+        self._screenshot_service = screenshot_service
+        self._detector = detector
         self._network_adapter_ids = network_adapter_ids
         self._disable_network = disable_network
         self._max_frames = max_frames
@@ -144,9 +149,17 @@ class DebugMonitorWorkflow:
             debug_dir=output_dir / "progressbar_monitor",
         )
 
-        # Execute via orchestrator
+        # Create orchestrator and execute
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=self._screenshot_service,
+            window_interaction_service=self._window_interaction_service,
+            cache_service=self._cache_service,
+            network_manager=self._network_manager,
+            detector=self._detector,
+        )
+
         try:
-            result = self._orchestrator.run_upgrade_session(session)
+            result = orchestrator.run_upgrade_session(session)
         except KeyboardInterrupt:
             logger.info("Monitoring interrupted by user")
             result = None

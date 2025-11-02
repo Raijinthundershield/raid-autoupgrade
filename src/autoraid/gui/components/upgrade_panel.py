@@ -5,7 +5,6 @@ Provides Count and Spend upgrade workflow UI with real-time progress display.
 
 import asyncio
 from dataclasses import dataclass
-from collections.abc import Callable
 
 from dependency_injector.wiring import Provide, inject
 from loguru import logger
@@ -20,6 +19,11 @@ from autoraid.exceptions import (
 )
 from autoraid.logging_config import add_logger_sink
 from autoraid.services.app_data import AppData
+from autoraid.services.cache_service import CacheService
+from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.services.network import NetworkManager
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.workflows.count_workflow import CountWorkflow
 from autoraid.workflows.spend_workflow import SpendWorkflow
 
@@ -126,20 +130,24 @@ def handle_workflow_error(
 
 @inject
 def create_upgrade_panel(
-    count_workflow_factory: Callable[..., CountWorkflow] = Provide[
-        Container.count_workflow_factory.provider
+    cache_service: CacheService = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionService = Provide[
+        Container.window_interaction_service
     ],
-    spend_workflow_factory: Callable[..., SpendWorkflow] = Provide[
-        Container.spend_workflow_factory.provider
-    ],
+    network_manager: NetworkManager = Provide[Container.network_manager],
+    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
     debug: bool = False,
     app_data: AppData | None = None,
 ) -> None:
     """Create the upgrade workflows panel (Count + Spend).
 
     Args:
-        count_workflow_factory: Injected factory for creating CountWorkflow instances
-        spend_workflow_factory: Injected factory for creating SpendWorkflow instances
+        cache_service: Injected service for region caching
+        window_interaction_service: Injected service for window operations
+        network_manager: Injected service for network management
+        screenshot_service: Injected service for screenshot capture
+        detector: Injected detector for progress bar state detection
         debug: Enable debug logging (DEBUG level vs INFO level)
         app_data: Application data for directory configuration (optional)
     """
@@ -216,8 +224,13 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting count workflow from GUI")
 
-                        # Create workflow instance with runtime parameters
-                        workflow = count_workflow_factory(
+                        # Construct workflow instance directly with injected services
+                        workflow = CountWorkflow(
+                            cache_service=cache_service,
+                            window_interaction_service=window_interaction_service,
+                            network_manager=network_manager,
+                            screenshot_service=screenshot_service,
+                            detector=detector,
                             network_adapter_ids=selected_adapters,
                             max_attempts=MAX_COUNT_ATTEMPTS,
                             debug_dir=app_data.debug_dir if app_data else None,
@@ -335,8 +348,13 @@ def create_upgrade_panel(
                     try:
                         logger.info("Starting spend workflow from GUI")
 
-                        # Create workflow instance with runtime parameters
-                        workflow = spend_workflow_factory(
+                        # Construct workflow instance directly with injected services
+                        workflow = SpendWorkflow(
+                            cache_service=cache_service,
+                            window_interaction_service=window_interaction_service,
+                            network_manager=network_manager,
+                            screenshot_service=screenshot_service,
+                            detector=detector,
                             max_upgrade_attempts=max_attempts,
                             continue_upgrade=continue_upgrade,
                             debug_dir=app_data.debug_dir if app_data else None,

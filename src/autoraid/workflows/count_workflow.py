@@ -10,7 +10,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from autoraid.core.stop_conditions import (
+from autoraid.orchestration.stop_conditions import (
     StopReason,
     MaxAttemptsCondition,
     UpgradedCondition,
@@ -20,7 +20,9 @@ from autoraid.exceptions import WorkflowValidationError
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager, NetworkState
 from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.upgrade_orchestrator import (
+from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
@@ -52,7 +54,8 @@ class CountWorkflow:
         cache_service: CacheService,
         window_interaction_service: WindowInteractionService,
         network_manager: NetworkManager,
-        orchestrator: UpgradeOrchestrator,
+        screenshot_service: ScreenshotService,
+        detector: ProgressBarStateDetector,
         network_adapter_ids: list[int] | None = None,
         max_attempts: int = 99,
         debug_dir: Path | None = None,
@@ -63,7 +66,8 @@ class CountWorkflow:
             cache_service: Service for region caching
             window_interaction_service: Service for window validation
             network_manager: Service for network state checks
-            orchestrator: Orchestrator for upgrade session execution
+            screenshot_service: Service for screenshot capture
+            detector: Detector for progress bar state detection
             network_adapter_ids: List of adapter IDs to disable during counting
             max_attempts: Maximum number of fail attempts before stopping
             debug_dir: Optional directory for debug artifacts
@@ -71,7 +75,8 @@ class CountWorkflow:
         self._cache_service = cache_service
         self._window_interaction_service = window_interaction_service
         self._network_manager = network_manager
-        self._orchestrator = orchestrator
+        self._screenshot_service = screenshot_service
+        self._detector = detector
         self._network_adapter_ids = network_adapter_ids
         self._max_attempts = max_attempts
         self._debug_dir = debug_dir
@@ -151,8 +156,15 @@ class CountWorkflow:
             debug_dir=self._debug_dir / "count" if self._debug_dir else None,
         )
 
-        # Run upgrade session via orchestrator
-        result = self._orchestrator.run_upgrade_session(session)
+        # Create orchestrator and run session
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=self._screenshot_service,
+            window_interaction_service=self._window_interaction_service,
+            cache_service=self._cache_service,
+            network_manager=self._network_manager,
+            detector=self._detector,
+        )
+        result = orchestrator.run_upgrade_session(session)
 
         logger.info(
             f"Count workflow completed: {result.fail_count} fails, reason={result.stop_reason.value}"
