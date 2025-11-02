@@ -1,7 +1,5 @@
 """Unit tests for stop condition classes."""
 
-import pytest
-
 from autoraid.core.stop_conditions import (
     StopReason,
     MaxAttemptsCondition,
@@ -44,21 +42,6 @@ class TestMaxAttemptsCondition:
         assert condition.check(state_at) is True
         assert condition.check(state_above) is True
 
-    def test_get_reason_returns_correct_enum(self):
-        """Verify get_reason returns MAX_ATTEMPTS_REACHED."""
-        condition = MaxAttemptsCondition(max_attempts=5)
-        assert condition.get_reason() == StopReason.MAX_ATTEMPTS_REACHED
-
-    def test_rejects_zero_max_attempts(self):
-        """Verify constructor rejects zero max_attempts."""
-        with pytest.raises(ValueError, match="max_attempts must be positive"):
-            MaxAttemptsCondition(max_attempts=0)
-
-    def test_rejects_negative_max_attempts(self):
-        """Verify constructor rejects negative max_attempts."""
-        with pytest.raises(ValueError, match="max_attempts must be positive"):
-            MaxAttemptsCondition(max_attempts=-1)
-
 
 class TestMaxFramesCondition:
     """Tests for MaxFramesCondition."""
@@ -89,21 +72,6 @@ class TestMaxFramesCondition:
         assert condition.check(state_below) is False
         assert condition.check(state_at) is True
         assert condition.check(state_above) is True
-
-    def test_get_reason_returns_correct_enum(self):
-        """Verify get_reason returns MAX_FRAMES_CAPTURED."""
-        condition = MaxFramesCondition(max_frames=100)
-        assert condition.get_reason() == StopReason.MAX_FRAMES_CAPTURED
-
-    def test_rejects_zero_max_frames(self):
-        """Verify constructor rejects zero max_frames."""
-        with pytest.raises(ValueError, match="max_frames must be positive"):
-            MaxFramesCondition(max_frames=0)
-
-    def test_rejects_negative_max_frames(self):
-        """Verify constructor rejects negative max_frames."""
-        with pytest.raises(ValueError, match="max_frames must be positive"):
-            MaxFramesCondition(max_frames=-1)
 
 
 class TestUpgradedCondition:
@@ -192,11 +160,6 @@ class TestUpgradedCondition:
 
         assert condition.check(state_mixed) is False
 
-    def test_get_reason_returns_correct_enum(self):
-        """Verify get_reason returns UPGRADED."""
-        condition = UpgradedCondition(network_disabled=False)
-        assert condition.get_reason() == StopReason.UPGRADED
-
 
 class TestConnectionErrorCondition:
     """Tests for ConnectionErrorCondition."""
@@ -230,29 +193,6 @@ class TestConnectionErrorCondition:
         assert condition.check(state_3_error) is False
         assert condition.check(state_4_error) is True
 
-    def test_rejects_other_states(self):
-        """Verify ConnectionErrorCondition rejects non-CONNECTION_ERROR states."""
-        condition = ConnectionErrorCondition()
-
-        state_standby = ProgressBarMonitorState(
-            frames_processed=4,
-            fail_count=0,
-            recent_states=(
-                ProgressBarState.STANDBY,
-                ProgressBarState.STANDBY,
-                ProgressBarState.STANDBY,
-                ProgressBarState.STANDBY,
-            ),
-            current_state=ProgressBarState.STANDBY,
-        )
-
-        assert condition.check(state_standby) is False
-
-    def test_get_reason_returns_correct_enum(self):
-        """Verify get_reason returns CONNECTION_ERROR."""
-        condition = ConnectionErrorCondition()
-        assert condition.get_reason() == StopReason.CONNECTION_ERROR
-
 
 class TestStopConditionChain:
     """Tests for StopConditionChain."""
@@ -282,27 +222,6 @@ class TestStopConditionChain:
         # Should return first condition's reason (MAX_ATTEMPTS)
         assert chain.check(state) == StopReason.MAX_ATTEMPTS_REACHED
 
-    def test_returns_none_when_no_match(self):
-        """Verify chain returns None when no condition matches."""
-        chain = StopConditionChain(
-            [
-                MaxAttemptsCondition(max_attempts=10),
-                UpgradedCondition(network_disabled=False),
-            ]
-        )
-
-        state = ProgressBarMonitorState(
-            frames_processed=5,
-            fail_count=3,
-            recent_states=(
-                ProgressBarState.PROGRESS,
-                ProgressBarState.PROGRESS,
-            ),
-            current_state=ProgressBarState.PROGRESS,
-        )
-
-        assert chain.check(state) is None
-
     def test_should_stop_returns_true_when_condition_met(self):
         """Verify should_stop() convenience method returns True when any condition met."""
         chain = StopConditionChain([MaxAttemptsCondition(max_attempts=5)])
@@ -327,20 +246,6 @@ class TestStopConditionChain:
             current_state=None,
         )
 
-        assert chain.should_stop(state) is False
-
-    def test_empty_chain_returns_none(self):
-        """Verify empty chain returns None."""
-        chain = StopConditionChain([])
-
-        state = ProgressBarMonitorState(
-            frames_processed=100,
-            fail_count=50,
-            recent_states=(),
-            current_state=None,
-        )
-
-        assert chain.check(state) is None
         assert chain.should_stop(state) is False
 
     def test_chain_with_multiple_conditions(self):

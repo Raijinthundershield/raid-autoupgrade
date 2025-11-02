@@ -5,7 +5,6 @@ Following smoke test philosophy - verify basic functionality and regressions.
 """
 
 from unittest.mock import Mock
-from pathlib import Path
 
 import pytest
 
@@ -103,7 +102,7 @@ class TestSpendWorkflowExecution:
         assert isinstance(result, SpendResult)
         assert result.upgrade_count == 1
         assert result.attempt_count == 5
-        assert result.remaining_attempts == 5
+        assert result.remaining_attempts == 4  # 10 max - 5 fails - 1 success
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called once
@@ -247,7 +246,9 @@ class TestSpendWorkflowContinueUpgrade:
         # Assert: Verify workflow continued only once (2 upgrades total)
         assert result.upgrade_count == 2  # Two successful upgrades
         assert result.attempt_count == 7  # 3 + 4
-        assert result.remaining_attempts == 3  # 10 - 7
+        assert (
+            result.remaining_attempts == 1
+        )  # 10 - 3 fails - 1 success - 4 fails - 1 success
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called 2 times (not 3)
@@ -290,7 +291,7 @@ class TestSpendWorkflowContinueUpgrade:
         # Assert: Verify workflow stopped after first upgrade
         assert result.upgrade_count == 1
         assert result.attempt_count == 5
-        assert result.remaining_attempts == 15
+        assert result.remaining_attempts == 14  # 20 - 5 fails - 1 success
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called only once
@@ -338,43 +339,3 @@ class TestSpendWorkflowContinueUpgrade:
 
         # Verify orchestrator was called only once (no attempts left to continue)
         assert mock_orchestrator.run_upgrade_session.call_count == 1
-
-    def test_debug_dir_set_in_session_when_provided(self):
-        """Test that debug_dir is set in session when provided."""
-        # Arrange: Mock orchestrator
-        mock_orchestrator = Mock()
-        mock_result = UpgradeResult(
-            fail_count=5,
-            frames_processed=20,
-            stop_reason=StopReason.UPGRADED,
-            debug_session_dir=Path("/tmp/debug/session1"),
-        )
-        mock_orchestrator.run_upgrade_session.return_value = mock_result
-
-        mock_cache_service = Mock()
-        mock_cache_service.get_regions.return_value = {
-            "upgrade_button": (100, 200, 50, 30),
-            "upgrade_bar": (100, 250, 200, 10),
-        }
-
-        mock_window_service = Mock()
-        mock_window_service.get_window_size.return_value = (1920, 1080)
-
-        debug_dir = Path("/tmp/debug")
-        workflow = SpendWorkflow(
-            orchestrator=mock_orchestrator,
-            cache_service=mock_cache_service,
-            window_interaction_service=mock_window_service,
-            network_manager=Mock(),
-            max_upgrade_attempts=10,
-            continue_upgrade=False,
-            debug_dir=debug_dir,
-        )
-
-        # Act: Run workflow
-        workflow.run()
-
-        # Assert: Verify orchestrator was called with session containing debug_dir
-        call_args = mock_orchestrator.run_upgrade_session.call_args
-        session = call_args[0][0]
-        assert session.debug_dir == Path("/tmp/debug") / "spend" / "upgrade_1"

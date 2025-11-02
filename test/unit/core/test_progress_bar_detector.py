@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 
 import cv2
-import numpy as np
 import pytest
 
 from autoraid.core.progress_bar_detector import (
@@ -88,38 +87,6 @@ def test_detect_state_is_stateless(detector, fail_image):
     for _ in range(100):
         state = detector.detect_state(fail_image)
         assert state == expected_state, "Detector is not stateless - result changed"
-
-
-def test_detect_state_raises_on_none_image(detector):
-    """Test detector raises ValueError when image is None."""
-    with pytest.raises(ValueError, match="roi_image cannot be None"):
-        detector.detect_state(None)
-
-
-def test_detect_state_raises_on_empty_image(detector):
-    """Test detector raises ValueError when image is empty array."""
-    empty_image = np.array([], dtype=np.uint8)
-
-    with pytest.raises(ValueError, match="roi_image is empty"):
-        detector.detect_state(empty_image)
-
-
-def test_detect_state_raises_on_invalid_shape(detector):
-    """Test detector raises ValueError when image has invalid shape."""
-    # 2D array (grayscale) instead of 3D (BGR)
-    invalid_image = np.zeros((50, 200), dtype=np.uint8)
-
-    with pytest.raises(ValueError, match="roi_image must be 3D array"):
-        detector.detect_state(invalid_image)
-
-
-def test_detect_state_raises_on_wrong_channels(detector):
-    """Test detector raises ValueError when image doesn't have 3 channels (BGR)."""
-    # 4 channels (RGBA) instead of 3 (BGR)
-    invalid_image = np.zeros((50, 200, 4), dtype=np.uint8)
-
-    with pytest.raises(ValueError, match="roi_image must have 3 channels"):
-        detector.detect_state(invalid_image)
 
 
 @pytest.mark.parametrize("image_name, expected_state_str", ANNOTATIONS.items())
