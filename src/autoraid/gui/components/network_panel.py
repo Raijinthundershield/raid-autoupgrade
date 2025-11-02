@@ -5,12 +5,13 @@ from nicegui import app, ui
 from loguru import logger
 
 from autoraid.container import Container
-from autoraid.services.network import NetworkManager, NetworkState
+from autoraid.protocols import NetworkManagerProtocol
+from autoraid.services.network import NetworkState
 
 
 @inject
 def create_network_panel(
-    network_manager: NetworkManager = Provide[Container.network_manager],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
 ) -> None:
     """Create network adapter management UI section.
 

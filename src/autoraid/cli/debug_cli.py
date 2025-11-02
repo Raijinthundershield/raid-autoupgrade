@@ -12,11 +12,13 @@ from loguru import logger
 from autoraid.container import Container
 from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
 from autoraid.workflows.debug_monitor_workflow import DebugMonitorWorkflow
-from autoraid.services.cache_service import CacheService
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.network import NetworkManager
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.protocols import (
+    CacheProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+    NetworkManagerProtocol,
+    ProgressBarDetectorProtocol,
+)
 
 
 @click.group()
@@ -64,13 +66,13 @@ def progressbar(
     max_frames: int | None,
     interval: float,
     disable_network: bool,
-    cache_service: CacheService = Provide[Container.cache_service],
-    window_interaction_service: WindowInteractionService = Provide[
+    cache_service: CacheProtocol = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    network_manager: NetworkManager = Provide[Container.network_manager],
-    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
-    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
+    screenshot_service: ScreenshotProtocol = Provide[Container.screenshot_service],
+    detector: ProgressBarDetectorProtocol = Provide[Container.progress_bar_detector],
 ):
     """Monitor progress bar state and save diagnostic data.
 

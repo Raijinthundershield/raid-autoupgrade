@@ -13,12 +13,14 @@ from autoraid.exceptions import (
     UpgradeWorkflowError,
     WorkflowValidationError,
 )
-from autoraid.services.cache_service import CacheService
-from autoraid.services.locate_region_service import LocateRegionService
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.network import NetworkManager
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.protocols import (
+    CacheProtocol,
+    LocateRegionProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+    NetworkManagerProtocol,
+    ProgressBarDetectorProtocol,
+)
 from autoraid.workflows.count_workflow import CountWorkflow
 from autoraid.workflows.spend_workflow import SpendWorkflow
 from autoraid.utils.common import get_timestamp
@@ -54,13 +56,13 @@ def upgrade():
 def count(
     network_adapter_id: list[int],
     show_most_recent_gear: bool,
-    cache_service: CacheService = Provide[Container.cache_service],
-    window_interaction_service: WindowInteractionService = Provide[
+    cache_service: CacheProtocol = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    network_manager: NetworkManager = Provide[Container.network_manager],
-    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
-    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
+    screenshot_service: ScreenshotProtocol = Provide[Container.screenshot_service],
+    detector: ProgressBarDetectorProtocol = Provide[Container.progress_bar_detector],
 ):
     """Count the number of upgrade fails.
 
@@ -133,13 +135,13 @@ def count(
 def spend(
     max_attempts: int,
     continue_upgrade: bool,
-    cache_service: CacheService = Provide[Container.cache_service],
-    window_interaction_service: WindowInteractionService = Provide[
+    cache_service: CacheProtocol = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    network_manager: NetworkManager = Provide[Container.network_manager],
-    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
-    detector: ProgressBarStateDetector = Provide[Container.progress_bar_detector],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
+    screenshot_service: ScreenshotProtocol = Provide[Container.screenshot_service],
+    detector: ProgressBarDetectorProtocol = Provide[Container.progress_bar_detector],
 ):
     """Upgrade the piece until the max number of fails is reached."""
     ctx = click.get_current_context()
@@ -203,11 +205,11 @@ def region():
 @inject
 def regions_show(
     output_dir: str,
-    cache_service: CacheService = Provide[Container.cache_service],
-    window_interaction_service: WindowInteractionService = Provide[
+    cache_service: CacheProtocol = Provide[Container.cache_service],
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
+    screenshot_service: ScreenshotProtocol = Provide[Container.screenshot_service],
 ):
     """Show the currently cached regions within a screenshot of the current window.
 
@@ -244,8 +246,8 @@ def regions_show(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = get_timestamp()
-        region_cache_key = CacheService.create_regions_key(window_size)
-        screenshot_cache_key = CacheService.create_screenshot_key(window_size)
+        region_cache_key = cache_service.create_regions_key(window_size)
+        screenshot_cache_key = cache_service.create_screenshot_key(window_size)
 
         json_path = output_dir / f"{timestamp}-{region_cache_key}-regions.json"
         screenshot_path = (
@@ -297,11 +299,11 @@ def regions_show(
 @inject
 def regions_select(
     manual: bool,
-    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
-    window_interaction_service: WindowInteractionService = Provide[
+    screenshot_service: ScreenshotProtocol = Provide[Container.screenshot_service],
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    locate_region_service: LocateRegionService = Provide[
+    locate_region_service: LocateRegionProtocol = Provide[
         Container.locate_region_service
     ],
 ):

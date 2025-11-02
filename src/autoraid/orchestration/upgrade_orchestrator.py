@@ -12,11 +12,13 @@ from loguru import logger
 from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitor
 from autoraid.orchestration.stop_conditions import StopConditionChain, StopReason
 from autoraid.orchestration.debug_frame_logger import DebugFrameLogger
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.cache_service import CacheService
-from autoraid.services.network import NetworkManager
+from autoraid.protocols import (
+    ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+    CacheProtocol,
+    NetworkManagerProtocol,
+)
 from autoraid.utils.network_context import NetworkContext
 from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
 
@@ -53,11 +55,11 @@ class UpgradeOrchestrator:
 
     def __init__(
         self,
-        screenshot_service: ScreenshotService,
-        window_interaction_service: WindowInteractionService,
-        cache_service: CacheService,
-        network_manager: NetworkManager,
-        detector: ProgressBarStateDetector,
+        screenshot_service: ScreenshotProtocol,
+        window_interaction_service: WindowInteractionProtocol,
+        cache_service: CacheProtocol,
+        network_manager: NetworkManagerProtocol,
+        detector: ProgressBarDetectorProtocol,
     ):
         """
         Initialize orchestrator with injected services.

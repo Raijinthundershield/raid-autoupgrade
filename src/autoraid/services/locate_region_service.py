@@ -10,8 +10,7 @@ This service handles:
 import numpy as np
 from loguru import logger
 
-from autoraid.services.cache_service import CacheService
-from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.protocols import CacheProtocol, ScreenshotProtocol
 from autoraid.detection.locate_region import (
     locate_upgrade_button,
     locate_progress_bar,
@@ -30,7 +29,7 @@ class LocateRegionService:
     """
 
     def __init__(
-        self, cache_service: CacheService, screenshot_service: ScreenshotService
+        self, cache_service: CacheProtocol, screenshot_service: ScreenshotProtocol
     ) -> None:
         """Initialize LocateRegionService with dependencies.
 

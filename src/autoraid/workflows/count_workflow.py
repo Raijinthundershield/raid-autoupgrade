@@ -17,11 +17,14 @@ from autoraid.orchestration.stop_conditions import (
     StopConditionChain,
 )
 from autoraid.exceptions import WorkflowValidationError
-from autoraid.services.cache_service import CacheService
-from autoraid.services.network import NetworkManager, NetworkState
-from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.protocols import (
+    CacheProtocol,
+    NetworkManagerProtocol,
+    WindowInteractionProtocol,
+    ScreenshotProtocol,
+    ProgressBarDetectorProtocol,
+)
+from autoraid.services.network import NetworkState
 from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
@@ -51,11 +54,11 @@ class CountWorkflow:
 
     def __init__(
         self,
-        cache_service: CacheService,
-        window_interaction_service: WindowInteractionService,
-        network_manager: NetworkManager,
-        screenshot_service: ScreenshotService,
-        detector: ProgressBarStateDetector,
+        cache_service: CacheProtocol,
+        window_interaction_service: WindowInteractionProtocol,
+        network_manager: NetworkManagerProtocol,
+        screenshot_service: ScreenshotProtocol,
+        detector: ProgressBarDetectorProtocol,
         network_adapter_ids: list[int] | None = None,
         max_attempts: int = 99,
         debug_dir: Path | None = None,

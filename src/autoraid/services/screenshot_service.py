@@ -14,7 +14,7 @@ import pygetwindow
 from loguru import logger
 
 from autoraid.exceptions import WindowNotFoundException
-from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.protocols import WindowInteractionProtocol
 
 
 class ScreenshotService:
@@ -25,7 +25,7 @@ class ScreenshotService:
     - Extract regions of interest from screenshots
     """
 
-    def __init__(self, window_interaction_service: WindowInteractionService) -> None:
+    def __init__(self, window_interaction_service: WindowInteractionProtocol) -> None:
         """Initialize ScreenshotService with window interaction service dependency.
 
         Args:

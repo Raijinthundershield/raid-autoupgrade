@@ -9,10 +9,12 @@ from nicegui import ui
 
 from autoraid.container import Container
 from autoraid.exceptions import WindowNotFoundException
-from autoraid.services.cache_service import CacheService
-from autoraid.services.locate_region_service import LocateRegionService
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.protocols import (
+    CacheProtocol,
+    LocateRegionProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+)
 
 WINDOW_TITLE = "Raid: Shadow Legends"
 WINDOW_CHECK_INTERVAL = 5.0  # seconds
@@ -20,14 +22,14 @@ WINDOW_CHECK_INTERVAL = 5.0  # seconds
 
 @inject
 def create_region_panel(
-    locate_region_service: LocateRegionService = Provide[
+    locate_region_service: LocateRegionProtocol = Provide[
         Container.locate_region_service
     ],
-    screenshot_service: ScreenshotService = Provide[Container.screenshot_service],
-    window_interaction_service: WindowInteractionService = Provide[
+    screenshot_service: ScreenshotProtocol = Provide[Container.screenshot_service],
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    cache_service: CacheService = Provide[Container.cache_service],
+    cache_service: CacheProtocol = Provide[Container.cache_service],
 ) -> None:
     """Create region management UI section.
 

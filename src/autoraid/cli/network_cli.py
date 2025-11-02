@@ -9,7 +9,8 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 
 from autoraid.container import Container
-from autoraid.services.network import NetworkManager, NetworkAdapter, NetworkState
+from autoraid.protocols import NetworkManagerProtocol
+from autoraid.services.network import NetworkAdapter, NetworkState
 
 
 @click.group()
@@ -65,7 +66,9 @@ def find_adapter(adapters: list[NetworkAdapter], query: str) -> NetworkAdapter |
     return None
 
 
-def select_adapters(console: Console, network_manager: NetworkManager) -> list[str]:
+def select_adapters(
+    console: Console, network_manager: NetworkManagerProtocol
+) -> list[str]:
     """Let user select which adapters to toggle (CLI layer)."""
     adapters = network_manager.get_adapters()
     display_adapters(console, adapters)
@@ -98,7 +101,7 @@ def select_adapters(console: Console, network_manager: NetworkManager) -> list[s
 @network.command()
 @inject
 def list(
-    network_manager: NetworkManager = Provide[Container.network_manager],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
 ):
     """List all network adapters."""
     if not platform.system() == "Windows":
@@ -115,7 +118,7 @@ def list(
 @inject
 def disable(
     adapter: str | None,
-    network_manager: NetworkManager = Provide[Container.network_manager],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
 ):
     """Disable selected network adapters.
 
@@ -162,7 +165,7 @@ def disable(
 @inject
 def enable(
     adapter: str | None,
-    network_manager: NetworkManager = Provide[Container.network_manager],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
 ):
     """Enable selected network adapters.
 

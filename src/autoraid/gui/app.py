@@ -7,9 +7,12 @@ from autoraid.gui.components.network_panel import create_network_panel
 from autoraid.gui.components.region_panel import create_region_panel
 from autoraid.gui.components.upgrade_panel import create_upgrade_panel
 from autoraid.container import Container
-from autoraid.services.app_data import AppData
-from autoraid.services.window_interaction_service import WindowInteractionService
-from autoraid.services.network import NetworkManager, NetworkState
+from autoraid.protocols import (
+    WindowInteractionProtocol,
+    NetworkManagerProtocol,
+)
+from autoraid.services.app_data import AppData  # For DEFAULT_CACHE_DIR constant
+from autoraid.services.network import NetworkState
 from autoraid.exceptions import WindowNotFoundException
 
 WINDOW_TITLE = "Raid: Shadow Legends"
@@ -18,10 +21,10 @@ STATUS_UPDATE_INTERVAL = 1.0  # seconds
 
 @inject
 def create_header(
-    window_interaction_service: WindowInteractionService = Provide[
+    window_interaction_service: WindowInteractionProtocol = Provide[
         Container.window_interaction_service
     ],
-    network_manager: NetworkManager = Provide[Container.network_manager],
+    network_manager: NetworkManagerProtocol = Provide[Container.network_manager],
 ) -> None:
     """Create application header with title and status indicators.
 

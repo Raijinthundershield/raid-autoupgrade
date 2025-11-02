@@ -9,10 +9,8 @@ from collections import deque
 import numpy as np
 from loguru import logger
 
-from autoraid.detection.progress_bar_detector import (
-    ProgressBarState,
-    ProgressBarStateDetector,
-)
+from autoraid.detection.progress_bar_detector import ProgressBarState
+from autoraid.protocols import ProgressBarDetectorProtocol
 
 
 @dataclass(frozen=True)
@@ -41,7 +39,7 @@ class ProgressBarMonitor:
     - Upgrade counting (workflow-specific logic, handled by SpendWorkflow)
     """
 
-    def __init__(self, detector: ProgressBarStateDetector):
+    def __init__(self, detector: ProgressBarDetectorProtocol):
         """Initialize monitor with detector.
 
         Args:
