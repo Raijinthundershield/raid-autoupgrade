@@ -140,6 +140,10 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
    - **ScreenshotService** (Singleton): Captures window screenshots and extracts ROIs
    - **LocateRegionService** (Singleton): Detects and caches UI regions (upgrade bar, button)
    - **WindowInteractionService** (Singleton): Checks window existence, handles window activation and clicking
+     - Multi-strategy window activation with automatic fallback:
+       1. ALT key + SetForegroundWindow (invisible, bypasses UIPI restrictions)
+       2. Minimize/Restore trick (guaranteed fallback, visually disruptive)
+     - Solves User Interface Privilege Isolation (UIPI) issue when Raid runs with admin privileges via RSLHelper
    - **NetworkManager** (Singleton): Windows WMI-based network adapter control with automatic state waiting
 
 5. **Core Domain Logic** ([src/autoraid/core/](autoraid/src/autoraid/core/))
@@ -267,7 +271,7 @@ The GUI layer is a **thin presentation layer** that provides a native desktop in
 | **CacheService** | Singleton | Region/screenshot caching | disk_cache |
 | **ScreenshotService** | Singleton | Window screenshots, ROI extraction | None |
 | **LocateRegionService** | Singleton | Region detection (auto + manual) | cache_service, screenshot_service |
-| **WindowInteractionService** | Singleton | Window existence checking, activation, clicking | None |
+| **WindowInteractionService** | Singleton | Window existence checking, multi-strategy activation (ALT+SetForegroundWindow → minimize trick), clicking | None |
 | **NetworkManager** | Singleton | Network adapter management with automatic state waiting | None |
 | **ProgressBarStateDetector** | Singleton | Progress bar state detection from images | None (stateless CV layer) |
 | **ProgressBarMonitor** | Direct Construction | Frame processing, fail transition counting, state history tracking | progress_bar_detector |
@@ -407,8 +411,12 @@ except WorkflowValidationError as e:
 
 ## Important Constraints
 
-- **Windows Only**: Uses WMI for network adapter control and pywinauto for window management
-- **Admin Rights**: Required when Raid is launched via RSLHelper (which runs as admin)
+- **Windows Only**: Uses WMI for network adapter control and Win32 APIs for window management
+- **Admin Rights**: Not required for AutoRaid; UIPI handling allows non-admin AutoRaid to activate admin Raid window
+  - Window activation uses multi-strategy approach to bypass User Interface Privilege Isolation (UIPI):
+    1. ALT key + SetForegroundWindow (invisible, works across privilege boundaries)
+    2. Minimize/Restore trick (guaranteed fallback, visually disruptive)
+  - This solves the privilege mismatch when non-admin AutoRaid needs to activate admin Raid window (launched via RSLHelper)
 - **Window Size**: Must remain constant during operation; resizing invalidates cached regions
 - **Foreground Window**: Raid window is activated before each screenshot/click
 - **First-Attempt Success**: Tool does not handle upgrades that succeed on first try
