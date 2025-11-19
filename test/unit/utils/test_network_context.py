@@ -1,10 +1,11 @@
 """Unit tests for NetworkContext."""
 
-import pytest
 from unittest.mock import Mock
 
-from autoraid.utils.network_context import NetworkContext
+import pytest
+
 from autoraid.services.network import NetworkManager, NetworkState
+from autoraid.utils.network_context import NetworkContext
 
 
 class TestNetworkContext:

@@ -1,15 +1,15 @@
 """Unit tests for stop condition classes."""
 
+from autoraid.detection.progress_bar_detector import ProgressBarState
+from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitorState
 from autoraid.orchestration.stop_conditions import (
-    StopReason,
+    ConnectionErrorCondition,
     MaxAttemptsCondition,
     MaxFramesCondition,
-    UpgradedCondition,
-    ConnectionErrorCondition,
     StopConditionChain,
+    StopReason,
+    UpgradedCondition,
 )
-from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitorState
-from autoraid.detection.progress_bar_detector import ProgressBarState
 
 
 class TestMaxAttemptsCondition:

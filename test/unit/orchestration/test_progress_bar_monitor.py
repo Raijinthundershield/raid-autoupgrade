@@ -1,14 +1,15 @@
 """Unit tests for ProgressBarMonitor."""
 
-import numpy as np
 from unittest.mock import Mock
 
-from autoraid.orchestration.progress_bar_monitor import (
-    ProgressBarMonitor,
-)
+import numpy as np
+
 from autoraid.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
+)
+from autoraid.orchestration.progress_bar_monitor import (
+    ProgressBarMonitor,
 )
 
 

@@ -1,27 +1,28 @@
 """Unit tests for UpgradeOrchestrator."""
 
-import numpy as np
-import pytest
 from unittest.mock import Mock, patch
 
-from autoraid.orchestration.upgrade_orchestrator import (
-    UpgradeOrchestrator,
-    UpgradeSession,
-)
-from autoraid.orchestration.stop_conditions import (
-    StopConditionChain,
-    MaxAttemptsCondition,
-    StopReason,
-)
+import numpy as np
+import pytest
+
 from autoraid.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
+from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
+from autoraid.orchestration.stop_conditions import (
+    MaxAttemptsCondition,
+    StopConditionChain,
+    StopReason,
+)
+from autoraid.orchestration.upgrade_orchestrator import (
+    UpgradeOrchestrator,
+    UpgradeSession,
+)
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager
-from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
+from autoraid.services.screenshot_service import ScreenshotService
+from autoraid.services.window_interaction_service import WindowInteractionService
 
 
 class TestUpgradeOrchestrator:

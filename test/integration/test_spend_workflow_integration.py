@@ -7,9 +7,8 @@ Orchestrator is constructed internally by the workflow.
 
 from unittest.mock import Mock
 
-
-from autoraid.workflows.spend_workflow import SpendWorkflow
 from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.workflows.spend_workflow import SpendWorkflow
 
 
 class TestSpendWorkflowIntegration:

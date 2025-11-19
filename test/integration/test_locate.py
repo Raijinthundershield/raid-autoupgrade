@@ -1,17 +1,16 @@
 import json
-import cv2
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 
 from autoraid.detection.locate_region import (
     locate_progress_bar,
     locate_upgrade_button,
-    upgrade_button_template,
     progress_bar_template,
+    upgrade_button_template,
 )
-
 
 # Load annotations once
 IMAGE_DIR = Path(__file__).parent.parent / Path(

@@ -7,9 +7,9 @@ import pytest
 
 from autoraid.exceptions import WindowNotFoundException
 from autoraid.services.window_interaction_service import (
-    WindowInteractionService,
     SW_MINIMIZE,
     SW_RESTORE,
+    WindowInteractionService,
 )
 
 

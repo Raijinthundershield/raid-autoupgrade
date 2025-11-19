@@ -2,12 +2,12 @@
 
 from unittest.mock import Mock
 
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.gui.components.upgrade_panel import create_upgrade_panel
 from autoraid.services.cache_service import CacheService
-from autoraid.services.window_interaction_service import WindowInteractionService
 from autoraid.services.network import NetworkManager
 from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.services.window_interaction_service import WindowInteractionService
 
 
 def test_create_upgrade_panel_smoke():

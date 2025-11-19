@@ -1,10 +1,11 @@
 """Smoke tests for NetworkManager service."""
 
-import pytest
 from unittest.mock import patch
 
-from autoraid.services.network import NetworkManager, NetworkAdapter, NetworkState
+import pytest
+
 from autoraid.exceptions import NetworkAdapterError
+from autoraid.services.network import NetworkAdapter, NetworkManager, NetworkState
 
 
 @pytest.fixture

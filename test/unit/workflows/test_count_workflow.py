@@ -8,16 +8,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.exceptions import WorkflowValidationError
 from autoraid.orchestration.stop_conditions import (
-    StopReason,
     MaxAttemptsCondition,
+    StopReason,
     UpgradedCondition,
 )
-from autoraid.exceptions import WorkflowValidationError
-from autoraid.services.network import NetworkState
 from autoraid.orchestration.upgrade_orchestrator import UpgradeResult, UpgradeSession
+from autoraid.services.network import NetworkState
 from autoraid.workflows.count_workflow import CountResult, CountWorkflow
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 
 
 class TestCountWorkflowValidation:
