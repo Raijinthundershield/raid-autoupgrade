@@ -2,9 +2,9 @@ import click
 from diskcache import Cache
 from loguru import logger
 
-from autoraid.cli.upgrade_cli import upgrade
-from autoraid.cli.network_cli import network
 from autoraid.cli.debug_cli import debug
+from autoraid.cli.network_cli import network
+from autoraid.cli.upgrade_cli import upgrade
 from autoraid.container import Container
 from autoraid.logging_config import add_logger_sink
 from autoraid.services.app_data import AppData

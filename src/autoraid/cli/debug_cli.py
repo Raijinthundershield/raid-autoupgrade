@@ -11,14 +11,14 @@ from loguru import logger
 
 from autoraid.container import Container
 from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
-from autoraid.workflows.debug_monitor_workflow import DebugMonitorWorkflow
 from autoraid.protocols import (
     CacheProtocol,
-    ScreenshotProtocol,
-    WindowInteractionProtocol,
     NetworkManagerProtocol,
     ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
 )
+from autoraid.workflows.debug_monitor_workflow import DebugMonitorWorkflow
 
 
 @click.group()

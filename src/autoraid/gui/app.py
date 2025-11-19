@@ -1,19 +1,19 @@
 """Main NiceGUI application for AutoRaid desktop interface."""
 
-from nicegui import ui
 from dependency_injector.wiring import Provide, inject
+from nicegui import ui
 
+from autoraid.container import Container
+from autoraid.exceptions import WindowNotFoundException
 from autoraid.gui.components.network_panel import create_network_panel
 from autoraid.gui.components.region_panel import create_region_panel
 from autoraid.gui.components.upgrade_panel import create_upgrade_panel
-from autoraid.container import Container
 from autoraid.protocols import (
-    WindowInteractionProtocol,
     NetworkManagerProtocol,
+    WindowInteractionProtocol,
 )
 from autoraid.services.app_data import AppData  # For DEFAULT_CACHE_DIR constant
 from autoraid.services.network import NetworkState
-from autoraid.exceptions import WindowNotFoundException
 
 WINDOW_TITLE = "Raid: Shadow Legends"
 STATUS_UPDATE_INTERVAL = 1.0  # seconds

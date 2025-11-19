@@ -12,7 +12,6 @@ import cv2
 from loguru import logger
 from nicegui import ui
 
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.debug.components import (
     create_accuracy_panel,
     create_frame_viewer,
@@ -20,6 +19,7 @@ from autoraid.debug.components import (
     create_session_selector,
 )
 from autoraid.debug.models import ReviewSession
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 
 
 class ProgressBarReviewGUI:

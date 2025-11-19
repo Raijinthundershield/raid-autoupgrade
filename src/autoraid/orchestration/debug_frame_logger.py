@@ -4,9 +4,10 @@ This module provides optional debug data capture during monitoring
 without polluting the orchestrator.
 """
 
-from dataclasses import dataclass, asdict
-from pathlib import Path
 import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
 import cv2
 import numpy as np
 from loguru import logger

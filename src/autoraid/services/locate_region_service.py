@@ -10,12 +10,12 @@ This service handles:
 import numpy as np
 from loguru import logger
 
-from autoraid.protocols import CacheProtocol, ScreenshotProtocol
 from autoraid.detection.locate_region import (
-    locate_upgrade_button,
-    locate_progress_bar,
     MissingRegionException,
+    locate_progress_bar,
+    locate_upgrade_button,
 )
+from autoraid.protocols import CacheProtocol, ScreenshotProtocol
 from autoraid.utils.interaction import select_region_with_prompt
 
 

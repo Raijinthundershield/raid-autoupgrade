@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import warnings
 import socket
 import threading
 import time
+import warnings
 from dataclasses import dataclass
 from enum import StrEnum
 from urllib import request

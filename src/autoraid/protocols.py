@@ -10,7 +10,7 @@ All protocols are marked @runtime_checkable to support isinstance() validation.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 

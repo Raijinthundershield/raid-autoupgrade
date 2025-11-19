@@ -6,12 +6,14 @@ with internet verification and optional continue upgrade logic.
 """
 
 from __future__ import annotations
+
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
+from autoraid.exceptions import WorkflowValidationError
 from autoraid.orchestration.stop_conditions import (
     ConnectionErrorCondition,
     MaxAttemptsCondition,
@@ -19,19 +21,18 @@ from autoraid.orchestration.stop_conditions import (
     StopReason,
     UpgradedCondition,
 )
-from autoraid.exceptions import WorkflowValidationError
-from autoraid.protocols import (
-    CacheProtocol,
-    NetworkManagerProtocol,
-    ScreenshotProtocol,
-    ProgressBarDetectorProtocol,
-    WindowInteractionProtocol,
-)
-from autoraid.services.network import NetworkState
 from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
+from autoraid.protocols import (
+    CacheProtocol,
+    NetworkManagerProtocol,
+    ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+)
+from autoraid.services.network import NetworkState
 
 
 @dataclass(frozen=True)

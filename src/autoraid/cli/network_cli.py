@@ -1,12 +1,12 @@
-import click
 import platform
 import sys
 
-from dependency_injector.wiring import inject, Provide
+import click
+from dependency_injector.wiring import Provide, inject
 from loguru import logger
 from rich.console import Console
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.prompt import Prompt, Confirm
 
 from autoraid.container import Container
 from autoraid.protocols import NetworkManagerProtocol

@@ -1,14 +1,14 @@
 """Dependency injection container for AutoRaid services."""
 
-from dependency_injector import containers, providers
 import diskcache
+from dependency_injector import containers, providers
 
 from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.services.app_data import AppData
-from autoraid.services.network import NetworkManager
 from autoraid.services.cache_service import CacheService
-from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
+from autoraid.services.network import NetworkManager
+from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
 
 

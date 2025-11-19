@@ -1,30 +1,31 @@
 import json
-import click
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import click
 import cv2
+from dependency_injector.wiring import Provide, inject
 from loguru import logger
-from dependency_injector.wiring import inject, Provide
 
 from autoraid.container import Container
 from autoraid.exceptions import (
-    WindowNotFoundException,
     NetworkAdapterError,
     UpgradeWorkflowError,
+    WindowNotFoundException,
     WorkflowValidationError,
 )
 from autoraid.protocols import (
     CacheProtocol,
     LocateRegionProtocol,
-    ScreenshotProtocol,
-    WindowInteractionProtocol,
     NetworkManagerProtocol,
     ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
 )
-from autoraid.workflows.count_workflow import CountWorkflow
-from autoraid.workflows.spend_workflow import SpendWorkflow
 from autoraid.utils.common import get_timestamp
 from autoraid.utils.visualization import show_regions_in_image
+from autoraid.workflows.count_workflow import CountWorkflow
+from autoraid.workflows.spend_workflow import SpendWorkflow
 
 
 @click.group()

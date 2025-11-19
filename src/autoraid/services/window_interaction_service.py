@@ -16,7 +16,6 @@ from loguru import logger
 
 from autoraid.exceptions import WindowNotFoundException
 
-
 # Win32 Constants
 SW_MINIMIZE = 6
 SW_RESTORE = 9
@@ -265,8 +264,7 @@ class WindowInteractionService:
         windows = pygetwindow.getWindowsWithTitle(window_title)
         if not windows:
             raise WindowNotFoundException(
-                f'Window "{window_title}" not found. '
-                f"Ensure the application is running."
+                f'Window "{window_title}" not found. Ensure the application is running.'
             )
 
         window = windows[0]

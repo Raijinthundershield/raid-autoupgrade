@@ -5,12 +5,13 @@ to determine when to halt upgrade monitoring.
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+
 from loguru import logger
 
-from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitorState
 from autoraid.detection.progress_bar_detector import ProgressBarState
+from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitorState
 
 
 class StopReason(Enum):

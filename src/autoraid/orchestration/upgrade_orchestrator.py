@@ -4,23 +4,24 @@ This service orchestrates the upgrade monitoring process with configurable
 stop conditions and optional debug logging.
 """
 
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
 from pathlib import Path
+
 from loguru import logger
 
+from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
+from autoraid.orchestration.debug_frame_logger import DebugFrameLogger
 from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitor
 from autoraid.orchestration.stop_conditions import StopConditionChain, StopReason
-from autoraid.orchestration.debug_frame_logger import DebugFrameLogger
 from autoraid.protocols import (
+    CacheProtocol,
+    NetworkManagerProtocol,
     ProgressBarDetectorProtocol,
     ScreenshotProtocol,
     WindowInteractionProtocol,
-    CacheProtocol,
-    NetworkManagerProtocol,
 )
 from autoraid.utils.network_context import NetworkContext
-from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
 
 
 @dataclass(frozen=True)

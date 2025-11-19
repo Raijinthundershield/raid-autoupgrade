@@ -10,25 +10,25 @@ from pathlib import Path
 
 from loguru import logger
 
-from autoraid.orchestration.stop_conditions import (
-    StopReason,
-    MaxAttemptsCondition,
-    UpgradedCondition,
-    StopConditionChain,
-)
 from autoraid.exceptions import WorkflowValidationError
-from autoraid.protocols import (
-    CacheProtocol,
-    NetworkManagerProtocol,
-    WindowInteractionProtocol,
-    ScreenshotProtocol,
-    ProgressBarDetectorProtocol,
+from autoraid.orchestration.stop_conditions import (
+    MaxAttemptsCondition,
+    StopConditionChain,
+    StopReason,
+    UpgradedCondition,
 )
-from autoraid.services.network import NetworkState
 from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
+from autoraid.protocols import (
+    CacheProtocol,
+    NetworkManagerProtocol,
+    ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+)
+from autoraid.services.network import NetworkState
 
 
 @dataclass(frozen=True)

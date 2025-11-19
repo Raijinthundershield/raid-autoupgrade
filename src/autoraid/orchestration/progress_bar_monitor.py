@@ -4,8 +4,9 @@ This module provides a stateful monitor for progress bar state detection
 that is decoupled from stop condition evaluation.
 """
 
-from dataclasses import dataclass
 from collections import deque
+from dataclasses import dataclass
+
 import numpy as np
 from loguru import logger
 

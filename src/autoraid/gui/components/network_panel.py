@@ -1,8 +1,8 @@
 """Network adapter management panel for AutoRaid GUI."""
 
-from dependency_injector.wiring import inject, Provide
-from nicegui import app, ui
+from dependency_injector.wiring import Provide, inject
 from loguru import logger
+from nicegui import app, ui
 
 from autoraid.container import Container
 from autoraid.protocols import NetworkManagerProtocol

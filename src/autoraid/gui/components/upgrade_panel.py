@@ -12,23 +12,22 @@ from nicegui import app, ui
 
 from autoraid.container import Container
 from autoraid.exceptions import (
-    WindowNotFoundException,
     NetworkAdapterError,
     UpgradeWorkflowError,
+    WindowNotFoundException,
     WorkflowValidationError,
 )
 from autoraid.logging_config import add_logger_sink
 from autoraid.protocols import (
     AppDataProtocol,
     CacheProtocol,
-    ScreenshotProtocol,
-    WindowInteractionProtocol,
     NetworkManagerProtocol,
     ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
 )
 from autoraid.workflows.count_workflow import CountWorkflow
 from autoraid.workflows.spend_workflow import SpendWorkflow
-
 
 MAX_COUNT_ATTEMPTS = 99
 

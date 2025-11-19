@@ -5,8 +5,8 @@ and integrate with external dependencies.
 """
 
 from autoraid.services.cache_service import CacheService
-from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.locate_region_service import LocateRegionService
+from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.window_interaction_service import WindowInteractionService
 
 __all__ = [

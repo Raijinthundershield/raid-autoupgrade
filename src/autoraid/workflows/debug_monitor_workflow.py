@@ -6,29 +6,30 @@ diagnostic data (screenshots, ROIs, and state metadata) to disk.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
+from autoraid.exceptions import WorkflowValidationError
 from autoraid.orchestration.stop_conditions import (
     MaxFramesCondition,
     StopConditionChain,
     StopReason,
 )
-from autoraid.exceptions import WorkflowValidationError
-from autoraid.protocols import (
-    CacheProtocol,
-    NetworkManagerProtocol,
-    ScreenshotProtocol,
-    ProgressBarDetectorProtocol,
-    WindowInteractionProtocol,
-)
-from autoraid.services.network import NetworkState
 from autoraid.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
+from autoraid.protocols import (
+    CacheProtocol,
+    NetworkManagerProtocol,
+    ProgressBarDetectorProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+)
+from autoraid.services.network import NetworkState
 
 
 @dataclass(frozen=True)
