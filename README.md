@@ -59,11 +59,11 @@ autoraid --debug <command>
 ## Important Notes
 
 - **Windows only**: Uses WMI for network adapter control
-- **Administrator rights**: Required if Raid is launched via RSLHelper
+- **Administrator rights**: Required for WMI network adapter control
 - **Window size**: Keep Raid window size constant (regions cached per window size)
 - **Foreground window**: Raid window will activate and grab focus during operation
   - Hard multitask while tool is running (window repeatedly takes focus for screenshots and clicks)
-  - May briefly minimize/restore
+  - May briefly minimize/restore raid window
 - **First-try success**: Tool might have issues with upgrades that succeed on first attempt
 - **Cache folder**: Creates `cache-raid-autoupgrade/` in working directory
 

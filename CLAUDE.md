@@ -412,11 +412,11 @@ except WorkflowValidationError as e:
 ## Important Constraints
 
 - **Windows Only**: Uses WMI for network adapter control and Win32 APIs for window management
-- **Admin Rights**: Not required for AutoRaid; UIPI handling allows non-admin AutoRaid to activate admin Raid window
+- **Admin Rights**: Required for WMI network adapter control; handled by PyInstaller manifest during deployment
   - Window activation uses multi-strategy approach to bypass User Interface Privilege Isolation (UIPI):
     1. ALT key + SetForegroundWindow (invisible, works across privilege boundaries)
     2. Minimize/Restore trick (guaranteed fallback, visually disruptive)
-  - This solves the privilege mismatch when non-admin AutoRaid needs to activate admin Raid window (launched via RSLHelper)
+  - This solves potential privilege mismatches when AutoRaid needs to activate Raid window (launched via RSLHelper)
 - **Window Size**: Must remain constant during operation; resizing invalidates cached regions
 - **Foreground Window**: Raid window is activated before each screenshot/click
 - **First-Attempt Success**: Tool does not handle upgrades that succeed on first try
