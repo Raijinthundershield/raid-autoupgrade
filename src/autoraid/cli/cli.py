@@ -18,17 +18,24 @@ from autoraid.services.app_data import AppData
     default=False,
     help="Save screenshots and other information to debug directory within cache directory.",
 )
-def autoraid(debug: bool):
+@click.pass_context
+def autoraid(ctx: click.Context, debug: bool):
     """Raid: Shadow Legends auto-upgrade tool.
 
     This tool helps automate the process of upgrading equipment in Raid: Shadow Legends
     by monitoring upgrade attempts.
 
     """
+    ctx.ensure_object(dict)
+    ctx.obj["debug"] = debug
+
+    # gui manages its own services — skip the container and cache setup
+    if ctx.invoked_subcommand == "gui":
+        return
 
     # Create and configure DI container
     container = Container()
-    container.config.cache_dir.from_value(AppData.DEFAULT_CACHE_DIR)
+    container.config.cache_dir.from_value(AppData.DEFAULT_ROOT)
     container.config.debug.from_value(debug)
     container.wire()
 
@@ -39,15 +46,14 @@ def autoraid(debug: bool):
     # Initialize cache (still needed for backward compatibility)
     cache = Cache(str(app_data.cache_dir))
 
-    # Store in context
-    ctx = click.get_current_context()
-    ctx.obj = {
-        "cache": cache,
-        "cache_dir": app_data.cache_dir,
-        "container": container,
-        "app_data": app_data,
-        "debug": debug,
-    }
+    ctx.obj.update(
+        {
+            "cache": cache,
+            "cache_dir": app_data.cache_dir,
+            "container": container,
+            "app_data": app_data,
+        }
+    )
 
     # Configure logging based on debug mode
     logger.remove()  # Remove default handler
@@ -77,7 +83,7 @@ def gui(ctx):
     Opens a native desktop window with a graphical interface for managing
     upgrade workflows, network adapters, and UI regions.
     """
-    from autoraid.gui.app import main
+    from autoraid.gui.server import start
 
     debug = ctx.obj.get("debug", False)
-    main(debug=debug)
+    start(debug=debug)

@@ -24,6 +24,9 @@ dependencies = [
     "pyscreeze>=1.0.1",
     "dependency-injector>=4.44.0",
     "nicegui[native]>=2.10.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pywebview>=5.3.4",
 ]
 
 [project.scripts]
@@ -40,4 +43,5 @@ dev = [
     "pytest>=8.3.5",
     "pytest-cov>=7.0.0",
     "ruff>=0.11.8",
+    "httpx>=0.28.0",
 ]

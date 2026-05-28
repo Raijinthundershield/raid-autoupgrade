@@ -45,7 +45,7 @@ class Container(containers.DeclarativeContainer):
     # Singleton services (shared instance across application)
     app_data = providers.Singleton(
         AppData,
-        cache_dir=config.cache_dir,
+        root_dir=config.cache_dir,
         debug_enabled=config.debug,
     )
 
