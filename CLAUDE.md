@@ -34,9 +34,13 @@ See [docs/architecture.md](docs/architecture.md) for layer breakdown, DI contain
 - **Window size**: Constant during a session — regions are cached per size. Resizing invalidates cache.
 - **First-attempt success**: Not handled; tool assumes at least one fail before upgrade.
 
+## Engineering Principles
+
+Load [docs/engineering-principles.md](docs/engineering-principles.md) when making structural decisions: adding a module, splitting a class, wiring a dependency, or deciding where logic belongs.
+
 ## Testing
 
-Smoke tests, not full TDD. Mock service dependencies — the DI seams are designed for it. See `test/unit/` (per-layer) and `test/integration/` (workflow + mocked orchestrator).
+Load [docs/testing.md](docs/testing.md) when writing or reviewing tests.
 
 ## Agent skills
 
