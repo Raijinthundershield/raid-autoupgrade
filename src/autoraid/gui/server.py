@@ -14,6 +14,7 @@ import uvicorn
 import webview
 
 from autoraid.api.app import create_app
+from autoraid.jobs.run_fn import make_count_runner
 from autoraid.services.network import NetworkManager
 from autoraid.services.window_interaction_service import WindowInteractionService
 
@@ -28,8 +29,19 @@ def start(debug: bool = False) -> None:
 
     window_service = WindowInteractionService()
     network_manager = NetworkManager()
+    count_runner = make_count_runner(
+        cache_service=None,
+        window_service=window_service,
+        network_manager=network_manager,
+        screenshot_service=None,
+        detector=None,
+    )
 
-    app = create_app(window_service=window_service, network_manager=network_manager)
+    app = create_app(
+        window_service=window_service,
+        network_manager=network_manager,
+        count_runner=count_runner,
+    )
 
     if not dev_mode:
         from fastapi.staticfiles import StaticFiles

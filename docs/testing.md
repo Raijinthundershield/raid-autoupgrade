@@ -42,9 +42,9 @@ Tests that assert something which cannot plausibly be wrong — a constructor st
 | Orchestration | Stop condition logic, monitor state transitions | Detector, services |
 | Workflow | Validation rules, stop condition assembly | Orchestrator |
 | Service | Service behavior given its platform dependencies | Platform calls (WMI, Win32, diskcache) |
-| Job registry | Single-active-job lifecycle and event-queue ordering | Orchestrator |
+| Job registry | Single-active-job lifecycle and event-queue ordering | `run_fn` (pass a stub that pushes events directly) |
 | API routes | Request → status code, response body, dispatched collaborator | Collaborators, via `app.dependency_overrides` |
-| WebSocket | Typed job events arrive in order over the stream | The job producing events |
+| WebSocket | Typed job events arrive in order over the stream; stream closes after `done` | `JobRegistry.get_queue` — seed a `queue.Queue` with pre-built events |
 | Integration | Workflow → Orchestrator contract end-to-end | Platform services only |
 | Frontend reducer | `useJobStream` derived view state from a WS event sequence | Nothing — pure reducer |
 | Frontend coordinate math | Region-picker display-pixel → image-pixel mapping across scales | Nothing — pure function |
