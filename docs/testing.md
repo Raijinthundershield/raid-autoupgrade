@@ -42,34 +42,21 @@ Tests that assert something which cannot plausibly be wrong — a constructor st
 | Orchestration | Stop condition logic, monitor state transitions | Detector, services |
 | Workflow | Validation rules, stop condition assembly | Orchestrator |
 | Service | Service behavior given its platform dependencies | Platform calls (WMI, Win32, diskcache) |
-| Job registry | Single-active-job lifecycle: start-if-idle, busy → 409, cancel sets the event, event queue ordering | Orchestrator |
-| API routes | Request → status code, response body, and which workflow/service was invoked | Collaborators, via `app.dependency_overrides` |
-| WebSocket | Typed job events (`progress`/`log`/`done`/`error`) arrive in order over the stream | The job producing events |
+| Job registry | Single-active-job lifecycle and event-queue ordering | Orchestrator |
+| API routes | Request → status code, response body, dispatched collaborator | Collaborators, via `app.dependency_overrides` |
+| WebSocket | Typed job events arrive in order over the stream | The job producing events |
 | Integration | Workflow → Orchestrator contract end-to-end | Platform services only |
+| Frontend reducer | `useJobStream` derived view state from a WS event sequence | Nothing — pure reducer |
+| Frontend coordinate math | Region-picker display-pixel → image-pixel mapping across scales | Nothing — pure function |
+| Frontend panel | Panel calls the right endpoint on interaction; renders loading and error states | The HTTP API / WebSocket boundary |
 
-Mock at the route seam with FastAPI's `app.dependency_overrides` — substitute the provider, never patch internals. This is the API-layer equivalent of injecting a test double at the constructor.
+Substitute each dependency at its injection point — `app.dependency_overrides` for routes, constructor args elsewhere — never patch internals.
 
 ## Frontend testing
 
-The frontend (React/TypeScript) is tested with **Vitest** and **React Testing Library** (RTL). The contract philosophy above carries across the language boundary unchanged — only the tools and the location of the seam differ.
+The contract philosophy carries across the language boundary unchanged; only the location of the seam differs. On the client the seam is the **network boundary** — a component's collaborators are the HTTP API and the job WebSocket. Mock at that boundary and assert on what the user sees: rendered output and which endpoint was called, never component state, hook internals, or the query cache. The frontend layers are in the table above.
 
-**The seam is the network boundary.** On the client, a component's collaborators are the HTTP API and the job WebSocket. A contract test mocks `fetch`/the API client (or the `WebSocket`) and asks: given this server response or event sequence, does the component render the right thing and call the right endpoint? Mock at that boundary — never reach into component internals, hook state, or the TanStack Query cache.
-
-**RTL's "test what the user sees" is the client-side restatement of "test the contract, not the implementation."** Query by accessible role and visible text; assert on rendered output and on calls made to the mocked API; assert nothing about how the component achieves it.
-
-**What gets tested:**
-
-- **`useJobStream` reducer** — given a sequence of WS events, the derived view state is correct. Pure reducer; mock nothing.
-- **Region-picker coordinate math** — display-pixel → image-pixel mapping is correct across render scales. Pure function.
-- **Panels (light RTL pass)** — render the panel, assert it calls the right API on interaction, and that it renders loading and error states.
-
-**Frontend anti-patterns** (the client-side equivalents of the anti-patterns above):
-
-- Querying by CSS class or `data-testid` when an accessible role or visible text would work — couples the test to markup, not behavior.
-- Asserting on component state, hook internals, or the query cache rather than on what the user sees.
-- Snapshotting whole component trees — brittle, and breaks on any cosmetic change.
-
-**No end-to-end (Playwright) tests** for now: the platform (real Raid window, WMI) cannot run headless, so e2e coverage is inherently limited and low-ROI.
+No end-to-end tests for now: the platform (real Raid window, WMI) cannot run headless, so e2e coverage is inherently limited and low-ROI.
 
 ## Coverage
 
