@@ -2,6 +2,7 @@ from fastapi import Request
 
 from autoraid.jobs.registry import JobRegistry
 from autoraid.protocols import NetworkManagerProtocol, WindowInteractionProtocol
+from autoraid.services.settings_service import SettingsService
 
 
 def get_window_service(request: Request) -> WindowInteractionProtocol:
@@ -19,3 +20,7 @@ def get_job_registry(request: Request) -> JobRegistry:
 def get_count_runner(request: Request):
     """Return a factory: given adapter_ids, return a run_fn for the count workflow."""
     return request.app.state.count_runner
+
+
+def get_settings_service(request: Request) -> SettingsService:
+    return request.app.state.settings_service

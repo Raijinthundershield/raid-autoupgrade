@@ -10,18 +10,23 @@ import threading
 import time
 from pathlib import Path
 
+import diskcache
 import uvicorn
 import webview
 
 from autoraid.api.app import create_app
 from autoraid.jobs.run_fn import make_count_runner
 from autoraid.services.network import NetworkManager
+from autoraid.services.settings_service import SettingsService
 from autoraid.services.window_interaction_service import WindowInteractionService
 
 _HOST = "127.0.0.1"
 _PORT = 8765
 _DEV_URL = "http://localhost:5173"
 _DIST_DIR = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+_SETTINGS_CACHE_DIR = (
+    Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "AutoRaid" / "settings"
+)
 
 
 def start(debug: bool = False) -> None:
@@ -36,11 +41,14 @@ def start(debug: bool = False) -> None:
         screenshot_service=None,
         detector=None,
     )
+    settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
+    settings_service = SettingsService(cache=settings_cache)
 
     app = create_app(
         window_service=window_service,
         network_manager=network_manager,
         count_runner=count_runner,
+        settings_service=settings_service,
     )
 
     if not dev_mode:

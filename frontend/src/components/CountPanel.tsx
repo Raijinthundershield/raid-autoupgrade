@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useJobStream } from "../hooks/useJobStream";
 
-async function startCount(adapterIds: number[] | null): Promise<string> {
+async function startCount(adapterIds: string[] | null): Promise<string> {
   const res = await fetch("/api/workflows/count", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -15,7 +15,11 @@ async function startCount(adapterIds: number[] | null): Promise<string> {
 
 class ConflictError extends Error {}
 
-export function CountPanel() {
+interface Props {
+  adapterIds?: string[] | null;
+}
+
+export function CountPanel({ adapterIds = null }: Props) {
   const [jobId, setJobId] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const stream = useJobStream(jobId);
@@ -23,7 +27,7 @@ export function CountPanel() {
   async function handleStart() {
     setConflict(false);
     try {
-      const id = await startCount(null);
+      const id = await startCount(adapterIds ?? null);
       setJobId(id);
     } catch (e) {
       if (e instanceof ConflictError) setConflict(true);
