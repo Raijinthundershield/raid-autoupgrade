@@ -41,7 +41,7 @@ Load [docs/engineering-principles.md](docs/engineering-principles.md) when makin
 ## Testing
 
 Load [docs/testing.md](docs/testing.md) when writing or reviewing tests.
-Load [docs/testing_practical.md](docs/testing_practical.md) for concrete conventions: stub classes over `unittest.mock`, Protocol-conformant stubs, injection-point rules.
+Load [docs/testing_practical.md](docs/testing_practical.md) when writing test doubles or deciding where to inject them.
 
 ## Agent skills
 
