@@ -14,8 +14,8 @@ temp
 scripts/
 plans/
 scratchpad/
-.claude/agents
-.claude/settings.local.json
+.scratch/
+.claude/
 
 # Python-generated files
 __pycache__/
