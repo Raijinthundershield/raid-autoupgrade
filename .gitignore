@@ -18,6 +18,10 @@ plans/
 scratchpad/
 .scratch/
 .claude/
+.playwright-mcp/
+ui-current.png
+ui-fixed.png
+themes-deck.html
 
 # Python-generated files
 __pycache__/
