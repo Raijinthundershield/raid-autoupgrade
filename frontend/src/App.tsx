@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { StatusHeader } from "./components/StatusHeader";
+import { CalibrationBanner } from "./components/CalibrationBanner";
 import { CountPanel } from "./components/CountPanel";
 import { SpendPanel } from "./components/SpendPanel";
 import { NetworkPanel } from "./components/NetworkPanel";
@@ -36,6 +37,7 @@ export default function App() {
         {activeTab === "run" && (
           <div role="tabpanel" aria-label="Run" className="flex gap-6 p-6">
             <div className="flex flex-col flex-1 gap-6 min-w-0">
+              <CalibrationBanner onNavigateToCalibration={() => setActiveTab("calibration")} />
               <CountPanel adapterIds={adapterIds} />
               <SpendPanel />
             </div>

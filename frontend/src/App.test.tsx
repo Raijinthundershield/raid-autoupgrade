@@ -12,12 +12,17 @@ class _WebSocketStub {
 const STATUS = { raid_window_detected: false, network_online: false };
 const ADAPTERS = [{ id: "1", name: "Wi-Fi", enabled: true }];
 const SETTINGS = { selected_adapters: [], last_count_result: null };
+const VALID_REGIONS = {
+  regions: { upgrade_bar: [0, 0, 10, 10], upgrade_button: [0, 0, 10, 10] },
+  window_size_mismatch: false,
+};
 
 function makeFetchMock(overrides: Record<string, unknown> = {}) {
   const responses: Record<string, unknown> = {
     "/api/status": STATUS,
     "/api/adapters": ADAPTERS,
     "/api/settings": SETTINGS,
+    "/api/regions": VALID_REGIONS,
     ...overrides,
   };
   return vi.fn((url: string) => {
@@ -143,11 +148,26 @@ describe("App", () => {
   // Cycle 5 — Calibration tab renders RegionPanel
   // ---------------------------------------------------------------------------
 
-  it("Calibration tab renders RegionPanel", async () => {
+  it("Calibration tab renders RegionPanel in view mode when regions are cached", async () => {
     renderApp();
 
     await userEvent.click(screen.getByRole("tab", { name: /calibration/i }));
 
-    await screen.findByRole("button", { name: /draw upgrade bar/i });
+    await screen.findByRole("button", { name: /recalibrate/i });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 6 — CalibrationBanner: Count and Spend stay interactive when shown
+  // ---------------------------------------------------------------------------
+
+  it("shows calibration banner and keeps Count/Spend interactive when regions are missing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      makeFetchMock({ "/api/regions": { regions: null, window_size_mismatch: false } })
+    );
+    renderApp();
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: /start count/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start spend/i })).toBeInTheDocument();
   });
 });
