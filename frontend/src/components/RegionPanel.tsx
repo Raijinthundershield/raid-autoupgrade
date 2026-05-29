@@ -68,19 +68,6 @@ export function RegionPanel() {
       .catch(() => { setMode("draw"); });
   }, []);
 
-  useEffect(() => {
-    if (mode !== "view") return;
-    setCapturing(true);
-    setScreenshotError(false);
-    fetch("/api/screenshot")
-      .then(async (r) => {
-        if (!r.ok) { setScreenshotError(true); return; }
-        const blob = await r.blob();
-        setScreenshotUrl(URL.createObjectURL(blob));
-      })
-      .catch(() => setScreenshotError(true))
-      .finally(() => setCapturing(false));
-  }, [mode]);
 
   async function captureScreenshot() {
     setCapturing(true);
@@ -280,6 +267,14 @@ export function RegionPanel() {
 
       {mode === "view" && (
         <div className="flex gap-2 flex-wrap items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={captureScreenshot}
+            disabled={capturing}
+          >
+            {capturing ? "Capturing…" : screenshotUrl ? "Recapture" : "Capture Screenshot"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setMode("draw")}>
             Recalibrate
           </Button>

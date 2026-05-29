@@ -73,7 +73,24 @@ describe("RegionPanel", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Cycle 3 — Recalibrate transitions to draw mode
+  // Cycle 3 — view mode does NOT auto-fetch screenshot on mount
+  // ---------------------------------------------------------------------------
+
+  it("does not auto-fetch screenshot when opening in view mode", async () => {
+    const fetchMock = makeFetchMock({ regions: CACHED_REGIONS, window_size_mismatch: false });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<RegionPanel />);
+    await screen.findByRole("button", { name: /recalibrate/i });
+
+    const screenshotCalls = fetchMock.mock.calls.filter(([url]: [string]) =>
+      url.includes("/api/screenshot")
+    );
+    expect(screenshotCalls).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 4 — Recalibrate transitions to draw mode
   // ---------------------------------------------------------------------------
 
   it("Recalibrate button transitions to draw mode", async () => {
