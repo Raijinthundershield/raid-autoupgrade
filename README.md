@@ -13,48 +13,22 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
    uv run autoraid gui
    ```
 
-2. **Setup** (one-time):
-   - **Network Adapters**: Select which adapters to control turn off during counting (Wi-Fi, Ethernet, etc.)
-   - **UI Regions**: Click "Select Regions" to select upgrade bar and button locations
+2. **Calibrate regions** (whenever the Raid window is resized):
+   - Navigate to the upgrade screen in Raid
+   - Open the **Calibration tab**, click **Capture Screenshot**, then draw regions over the upgrade progress bar and upgrade button
+   - Regions are saved and reused across sessions — recalibrate if the window size changes
 
-3. **Workflow**:
-   - Navigate to the upgrade screen of a gear piece we want to upgrade
-   - **Count**: Click "Start Count" to count fails needed (network disabled automatically)
-   - Navigate to the upgrade screen of a gear piece we will spend upgrades on
-   - **Spend**: Click "Start Spend" to apply upgrades (max attempts auto-populated)
-   - Enable "Continue Upgrade" for level 10 gear to upgrade to level 12 if required.
+   ![Region Selection](docs/images/image_with_regions.png)
 
-![Region Selection](docs/images/image_with_regions.png)
+3. **Select network adapters** (one-time):
+   - In the **Run tab**, use the Network sidebar to choose which adapters to disable during counting (Wi-Fi, Ethernet, etc.)
 
-## Features
-
-- **Automatic Network Management**: Disable/enable adapters automatically during count workflow
-- **Computer Vision**: Auto-detect upgrade bar and button (currently not working), or select manually
-- **Real-time Logs**: Live progress updates in GUI log panel
-- **Persistent Settings**: Regions cached between sessions
-- **Continue Mode**: Automatically continue upgrading level 10+ gear
-
-## CLI Alternative
-
-For advanced users, CLI commands are available:
-
-```bash
-# List network adapters
-autoraid network list
-
-# Count upgrade fails
-autoraid upgrade count -n <adapter_ids>
-
-# Spend upgrade attempts
-autoraid upgrade spend --max-attempts <n_fails> [--continue-upgrade]
-
-# Manage regions
-autoraid upgrade region show          # View cached regions
-autoraid upgrade region select [-m]   # Select regions (auto or manual)
-
-# Debug mode
-autoraid --debug <command>
-```
+4. **Run an upgrade**:
+   - Navigate to the upgrade screen of the gear piece to count fails on
+   - In the **Count panel**, click **Start Count** — network is disabled automatically while counting
+   - Navigate to the upgrade screen of the gear piece to spend upgrades on
+   - In the **Spend panel**, click **Start Spend** — max attempts is auto-populated from the count
+   - Enable **Continue Upgrade** in the Spend panel for level 10 gear to upgrade to level 12 if required
 
 ## Important Notes
 
@@ -66,15 +40,6 @@ autoraid --debug <command>
   - May briefly minimize/restore raid window
 - **First-try success**: Tool might have issues with upgrades that succeed on first attempt
 - **Cache folder**: Creates `cache-raid-autoupgrade/` in working directory
-
-## Roadmap (slightly ordered)
-* Fix automatic detection of progress bar and upgrade button
-* Add automatic detection of piece level and whether it can continue to upgrade
-   - lvl 10 -> continue upgrade
-   - check to see if we spend upgrades on a piece with level <10 or >= 12
-* Make it possible to have the raid window in the background.
-    - Enable background screenshot
-    - Enable background clicking
 
 ## License & Disclaimer
 
