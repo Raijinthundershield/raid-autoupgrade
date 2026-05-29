@@ -6,6 +6,7 @@ with optional network adapter management.
 """
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from autoraid.orchestration.stop_conditions import (
     UpgradedCondition,
 )
 from autoraid.orchestration.upgrade_orchestrator import (
+    ProgressEvent,
     UpgradeOrchestrator,
     UpgradeSession,
 )
@@ -117,7 +119,11 @@ class CountWorkflow:
 
         logger.info("Count workflow validation completed successfully")
 
-    def run(self, cancel_event: threading.Event | None = None) -> CountResult:
+    def run(
+        self,
+        cancel_event: threading.Event | None = None,
+        on_progress: Callable[[ProgressEvent], None] | None = None,
+    ) -> CountResult:
         """Execute count workflow.
 
         Returns:
@@ -168,7 +174,9 @@ class CountWorkflow:
             network_manager=self._network_manager,
             detector=self._detector,
         )
-        result = orchestrator.run_upgrade_session(session, cancel_event=cancel_event)
+        result = orchestrator.run_upgrade_session(
+            session, cancel_event=cancel_event, on_progress=on_progress
+        )
 
         logger.info(
             f"Count workflow completed: {result.fail_count} fails, reason={result.stop_reason.value}"

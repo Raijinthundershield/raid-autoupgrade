@@ -7,6 +7,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from autoraid.orchestration.upgrade_orchestrator import ProgressEvent
 from autoraid.workflows.count_workflow import CountWorkflow
 
 
@@ -23,6 +24,20 @@ def _make_log_sink(q: _queue.Queue) -> Callable:
         )
 
     return sink
+
+
+def _make_progress_callback(q: _queue.Queue) -> Callable[[ProgressEvent], None]:
+    def on_progress(event: ProgressEvent) -> None:
+        q.put(
+            {
+                "type": "progress",
+                "fail_count": event.fail_count,
+                "frames": event.frames,
+                "state": event.state.value if event.state is not None else None,
+            }
+        )
+
+    return on_progress
 
 
 def make_count_runner(
@@ -60,7 +75,10 @@ def make_count_runner(
                 _make_log_sink(q), level="DEBUG" if log_debug else "INFO"
             )
             try:
-                result = workflow.run(cancel_event=cancel_event)
+                result = workflow.run(
+                    cancel_event=cancel_event,
+                    on_progress=_make_progress_callback(q),
+                )
                 return {
                     "fail_count": result.fail_count,
                     "stop_reason": result.stop_reason.value,

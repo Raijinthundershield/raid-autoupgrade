@@ -7,7 +7,9 @@ with internet verification and optional continue upgrade logic.
 
 from __future__ import annotations
 
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +24,7 @@ from autoraid.orchestration.stop_conditions import (
     UpgradedCondition,
 )
 from autoraid.orchestration.upgrade_orchestrator import (
+    ProgressEvent,
     UpgradeOrchestrator,
     UpgradeSession,
 )
@@ -96,7 +99,11 @@ class SpendWorkflow:
 
         logger.info("Spend workflow validation completed successfully")
 
-    def run(self) -> SpendResult:
+    def run(
+        self,
+        cancel_event: threading.Event | None = None,
+        on_progress: Callable[[ProgressEvent], None] | None = None,
+    ) -> SpendResult:
         logger.info("Starting spend workflow execution")
 
         # Get regions from cache
@@ -152,7 +159,9 @@ class SpendWorkflow:
             )
 
             # Execute monitoring session
-            result = orchestrator.run_upgrade_session(session)
+            result = orchestrator.run_upgrade_session(
+                session, cancel_event=cancel_event, on_progress=on_progress
+            )
 
             # Update counters
             attempt_count += result.fail_count

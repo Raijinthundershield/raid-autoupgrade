@@ -182,6 +182,41 @@ class TestCountWorkflowExecution:
         assert result.fail_count == 5
         assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
 
+    @patch("autoraid.workflows.count_workflow.UpgradeOrchestrator")
+    def test_run_passes_on_progress_to_orchestrator(self, mock_orchestrator_class):
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = {
+            "upgrade_button": (100, 200, 50, 30),
+            "upgrade_bar": (100, 250, 200, 10),
+        }
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+            fail_count=3,
+            frames_processed=50,
+            stop_reason=StopReason.MAX_ATTEMPTS_REACHED,
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        workflow = CountWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            network_adapter_ids=None,
+            max_attempts=99,
+        )
+
+        on_progress = Mock()
+        with patch.object(workflow, "validate"):
+            workflow.run(on_progress=on_progress)
+
+        _, kwargs = mock_orchestrator.run_upgrade_session.call_args
+        assert kwargs.get("on_progress") is on_progress
+
     def test_run_raises_when_regions_not_cached(self):
         """Test workflow raises error when regions not cached for current window size."""
         # Arrange

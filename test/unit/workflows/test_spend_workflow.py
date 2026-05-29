@@ -367,3 +367,73 @@ class TestSpendWorkflowContinueUpgrade:
 
         # Verify orchestrator was called only once (no attempts left to continue)
         assert mock_orchestrator.run_upgrade_session.call_count == 1
+
+
+class TestSpendWorkflowProgressAndCancel:
+    """Test cancel_event and on_progress threading in SpendWorkflow."""
+
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_passes_cancel_event_to_orchestrator(self, mock_orchestrator_class):
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+            fail_count=5, frames_processed=20, stop_reason=StopReason.UPGRADED
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = {
+            "upgrade_button": (100, 200, 50, 30),
+            "upgrade_bar": (100, 250, 200, 10),
+        }
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        import threading
+
+        cancel_event = threading.Event()
+
+        workflow = SpendWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        workflow.run(cancel_event=cancel_event)
+
+        _, kwargs = mock_orchestrator.run_upgrade_session.call_args
+        assert kwargs.get("cancel_event") is cancel_event
+
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_passes_on_progress_to_orchestrator(self, mock_orchestrator_class):
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+            fail_count=5, frames_processed=20, stop_reason=StopReason.UPGRADED
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = {
+            "upgrade_button": (100, 200, 50, 30),
+            "upgrade_bar": (100, 250, 200, 10),
+        }
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        on_progress = Mock()
+
+        workflow = SpendWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        workflow.run(on_progress=on_progress)
+
+        _, kwargs = mock_orchestrator.run_upgrade_session.call_args
+        assert kwargs.get("on_progress") is on_progress
