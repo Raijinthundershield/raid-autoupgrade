@@ -1,13 +1,5 @@
-"""Service for locating and managing UI regions in the Raid window.
+"""Service for locating and managing UI regions in the Raid window."""
 
-This service handles:
-- Automatic region detection using computer vision
-- Manual region selection when automatic detection fails
-- Caching of regions per window size
-- Integration with CacheService and ScreenshotService
-"""
-
-import numpy as np
 from loguru import logger
 
 from autoraid.detection.locate_region import (
@@ -16,91 +8,47 @@ from autoraid.detection.locate_region import (
     locate_upgrade_button,
 )
 from autoraid.protocols import CacheProtocol, ScreenshotProtocol
-from autoraid.utils.interaction import select_region_with_prompt
+
+import numpy as np
 
 
 class LocateRegionService:
-    """Service for region detection and selection.
+    """Service for region detection.
 
     Responsibilities:
-    - Locate UI regions automatically or manually
+    - Locate UI regions automatically via template matching
     - Cache regions per window size
-    - Orchestrate cache checking, auto-detection, and manual fallback
     """
 
     def __init__(
         self, cache_service: CacheProtocol, screenshot_service: ScreenshotProtocol
     ) -> None:
-        """Initialize LocateRegionService with dependencies.
-
-        Args:
-            cache_service: Service for caching regions
-            screenshot_service: Service for screenshot operations
-        """
         logger.debug("Initializing")
         self._cache_service = cache_service
         self._screenshot_service = screenshot_service
 
     def get_regions(
-        self, screenshot: np.ndarray, manual: bool = False, override_cache: bool = False
-    ) -> dict[str, tuple[int, int, int, int]]:
-        """Get regions for upgrade UI elements.
+        self, screenshot: np.ndarray, override_cache: bool = False
+    ) -> dict[str, tuple[int, int, int, int]] | None:
+        """Return cached regions, or attempt auto-detection.
 
-        Flow: check cache → auto-detect → manual fallback → cache result
-
-        Args:
-            screenshot: Screenshot of the Raid window
-            manual: If True, skip automatic detection and prompt for manual selection
-
-        Returns:
-            Dictionary mapping region names to (left, top, width, height) tuples
+        Returns None if no cached regions and auto-detection fails.
         """
-
         logger.info("Getting regions")
-        if not manual:
-            logger.warning(
-                "Automatic detection is currently not working. Forcing manual selection."
-            )
-            manual = True
 
         window_size = (screenshot.shape[0], screenshot.shape[1])
 
-        # Try to get cached regions
-        regions = None
         if not override_cache:
             regions = self._cache_service.get_regions(window_size)
+            if regions is not None:
+                return regions
 
-        # If cache is not found, proceed with detection/selection
-        if regions is None:
-            if not manual:
-                regions = self._try_automatic_detection(screenshot)
-
-            # Fall back to manual selection if automatic detection failed or if we are in manual mode
-            if regions is None:
-                regions = self._manual_selection(screenshot)
-
-            self._cache_service.set_regions(window_size, regions)
-            self._cache_service.set_screenshot(window_size, screenshot)
-
-        return regions
+        return self._try_automatic_detection(screenshot)
 
     def _try_automatic_detection(
         self, screenshot: np.ndarray
     ) -> dict[str, tuple[int, int, int, int]] | None:
-        """Try to automatically detect all required regions.
-
-        Args:
-            screenshot: Screenshot of the Raid window
-
-        Returns:
-            Dictionary of regions if all detected successfully, None otherwise
-        """
         logger.info("Attempting automatic detection")
-
-        region_prompts = {
-            "upgrade_bar": "Click and drag to select upgrade bar",
-            "upgrade_button": "Click and drag to select upgrade button",
-        }
 
         locate_funcs = {
             "upgrade_button": locate_upgrade_button,
@@ -108,47 +56,12 @@ class LocateRegionService:
         }
 
         regions = {}
-        failed_regions = []
-
-        for name, prompt in region_prompts.items():
-            logger.debug(f"Locating region: {name}")
+        for name, fn in locate_funcs.items():
             try:
-                logger.info(f"Automatic selection of {name}")
-                regions[name] = locate_funcs[name](screenshot)
+                regions[name] = fn(screenshot)
             except MissingRegionException:
-                logger.warning(f"Failed to locate {name}. Will need manual input.")
-                failed_regions.append(name)
-
-        # If any region failed, return None to trigger full manual selection
-        if failed_regions:
-            logger.info(f"Automatic detection failed for: {failed_regions}")
-            return None
+                logger.warning(f"Failed to locate {name}")
+                return None
 
         logger.info("Automatic detection successful")
-        return regions
-
-    def _manual_selection(
-        self, screenshot: np.ndarray
-    ) -> dict[str, tuple[int, int, int, int]]:
-        """Manually select all required regions via user prompts.
-
-        Args:
-            screenshot: Screenshot of the Raid window
-
-        Returns:
-            Dictionary of manually selected regions
-        """
-        logger.info("Starting manual region selection")
-
-        region_prompts = {
-            "upgrade_bar": "Click and drag to select upgrade bar",
-            "upgrade_button": "Click and drag to select upgrade button",
-        }
-
-        regions = {}
-        for name, prompt in region_prompts.items():
-            region = select_region_with_prompt(screenshot, prompt)
-            regions[name] = region
-
-        logger.info("Manual selection complete")
         return regions

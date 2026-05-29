@@ -48,8 +48,9 @@ Tests that assert something which cannot plausibly be wrong — a constructor st
 | WebSocket | Typed job events arrive in order over the stream; stream closes after `done` | `JobRegistry.get_queue` — seed a `queue.Queue` with pre-built events |
 | Integration | Workflow → Orchestrator contract end-to-end | Platform services only |
 | Frontend reducer | `useJobStream` derived view state from a WS event sequence | Nothing — pure reducer |
-| Frontend coordinate math | Region-picker display-pixel → image-pixel mapping across scales | Nothing — pure function |
+| Frontend coordinate math | `displayRectToImageRect` maps display-pixel rects to image-pixel rects across render scales | Nothing — pure function |
 | Frontend panel | Panel calls the right endpoint on interaction; renders loading and error states | The HTTP API / WebSocket boundary |
+| Regions route | `GET /api/screenshot` → PNG bytes; `PUT /api/regions` → `cache_service.set_regions` called with correct window size | `screenshot_service`, `window_service`, `cache_service` via `app.dependency_overrides` |
 
 Substitute each dependency at its injection point — `app.dependency_overrides` for routes, constructor args elsewhere — never patch internals.
 

@@ -28,7 +28,6 @@ class Container(containers.DeclarativeContainer):
             "autoraid.cli.debug_cli",
             "autoraid.gui.app",
             "autoraid.gui.components.network_panel",
-            "autoraid.gui.components.region_panel",
             "autoraid.gui.components.upgrade_panel",
         ]
     )

@@ -102,3 +102,19 @@ class CacheService:
         cache_key = self.create_screenshot_key(window_size)
         self._cache.set(cache_key, screenshot)
         logger.debug("Cached screenshot for window size {}", window_size)
+
+    def find_regions_any_size(self) -> tuple[tuple[int, int], dict] | None:
+        """Return (window_size, regions) for the first cached regions entry found.
+
+        Returns:
+            Tuple of (window_size, regions) or None if no regions are cached
+        """
+        for key in self._cache.iterkeys():
+            key_str = str(key)
+            if key_str.startswith("regions_"):
+                regions = self._cache.get(key)
+                if regions is not None:
+                    parts = key_str.split("_")
+                    if len(parts) == 3:
+                        return (int(parts[1]), int(parts[2])), regions
+        return None

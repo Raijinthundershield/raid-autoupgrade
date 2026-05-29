@@ -185,6 +185,16 @@ class CacheProtocol(Protocol):
         """
         ...
 
+    def find_regions_any_size(self) -> tuple[tuple[int, int], dict] | None:
+        """Return (window_size, regions) for any cached regions entry, regardless of size.
+
+        Used to detect stale cached regions when the current window size has changed.
+
+        Returns:
+            Tuple of (window_size, regions) if any cached regions exist, None otherwise
+        """
+        ...
+
 
 @runtime_checkable
 class ScreenshotProtocol(Protocol):

@@ -1,12 +1,25 @@
 from fastapi import Request
 
 from autoraid.jobs.registry import JobRegistry
-from autoraid.protocols import NetworkManagerProtocol, WindowInteractionProtocol
+from autoraid.protocols import (
+    CacheProtocol,
+    NetworkManagerProtocol,
+    ScreenshotProtocol,
+    WindowInteractionProtocol,
+)
 from autoraid.services.settings_service import SettingsService
 
 
 def get_window_service(request: Request) -> WindowInteractionProtocol:
     return request.app.state.window_service
+
+
+def get_screenshot_service(request: Request) -> ScreenshotProtocol:
+    return request.app.state.screenshot_service
+
+
+def get_cache_service(request: Request) -> CacheProtocol:
+    return request.app.state.cache_service
 
 
 def get_network_manager(request: Request) -> NetworkManagerProtocol:

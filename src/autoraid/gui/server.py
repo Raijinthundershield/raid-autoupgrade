@@ -16,7 +16,9 @@ import webview
 
 from autoraid.api.app import create_app
 from autoraid.jobs.run_fn import make_count_runner
+from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager
+from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.settings_service import SettingsService
 from autoraid.services.window_interaction_service import WindowInteractionService
 
@@ -27,13 +29,21 @@ _DIST_DIR = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
 _SETTINGS_CACHE_DIR = (
     Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "AutoRaid" / "settings"
 )
+_REGIONS_CACHE_DIR = (
+    Path(os.getenv("LOCALAPPDATA", "C:\\Users\\Default\\AppData\\Local"))
+    / "AutoRaid"
+    / "regions"
+)
 
 
 def start(debug: bool = False) -> None:
     dev_mode = os.environ.get("AUTORAID_DEV") == "1"
 
     window_service = WindowInteractionService()
+    screenshot_service = ScreenshotService(window_interaction_service=window_service)
     network_manager = NetworkManager()
+    regions_cache = diskcache.Cache(directory=str(_REGIONS_CACHE_DIR))
+    cache_service = CacheService(cache=regions_cache)
     count_runner = make_count_runner(
         cache_service=None,
         window_service=window_service,
@@ -49,6 +59,8 @@ def start(debug: bool = False) -> None:
         network_manager=network_manager,
         count_runner=count_runner,
         settings_service=settings_service,
+        screenshot_service=screenshot_service,
+        cache_service=cache_service,
     )
 
     if not dev_mode:

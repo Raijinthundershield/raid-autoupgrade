@@ -6,7 +6,6 @@ from nicegui import ui
 from autoraid.container import Container
 from autoraid.exceptions import WindowNotFoundException
 from autoraid.gui.components.network_panel import create_network_panel
-from autoraid.gui.components.region_panel import create_region_panel
 from autoraid.gui.components.upgrade_panel import create_upgrade_panel
 from autoraid.protocols import (
     NetworkManagerProtocol,
@@ -108,8 +107,6 @@ def main(debug: bool = False) -> None:
             create_header()
             ui.separator()
             create_upgrade_panel(debug=debug, app_data=app_data)
-            ui.separator()
-            create_region_panel()
             ui.separator()
             create_network_panel()
 
