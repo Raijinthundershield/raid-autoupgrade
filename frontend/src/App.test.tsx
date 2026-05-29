@@ -4,6 +4,31 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
+class _WebSocketStub {
+  addEventListener() {}
+  close() {}
+}
+
+const STATUS = { raid_window_detected: false, network_online: false };
+const ADAPTERS = [{ id: "1", name: "Wi-Fi", enabled: true }];
+const SETTINGS = { selected_adapters: [], last_count_result: null };
+
+function makeFetchMock(overrides: Record<string, unknown> = {}) {
+  const responses: Record<string, unknown> = {
+    "/api/status": STATUS,
+    "/api/adapters": ADAPTERS,
+    "/api/settings": SETTINGS,
+    ...overrides,
+  };
+  return vi.fn((url: string) => {
+    const key = Object.keys(responses).find((k) => url.includes(k));
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(key ? responses[key] : {}),
+    });
+  });
+}
+
 function renderApp() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -15,13 +40,8 @@ function renderApp() {
 
 describe("App", () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ raid_window_detected: false, network_online: false }),
-      })
-    );
+    vi.stubGlobal("WebSocket", _WebSocketStub);
+    vi.stubGlobal("fetch", makeFetchMock());
   });
 
   afterEach(() => vi.unstubAllGlobals());
@@ -66,5 +86,56 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Run" }));
     expect(screen.getByRole("tabpanel", { name: "Run" })).toBeInTheDocument();
     expect(screen.queryByRole("tabpanel", { name: "Calibration" })).not.toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 1 — Run tab renders CountPanel
+  // ---------------------------------------------------------------------------
+
+  it("Run tab shows a Start Count button", () => {
+    renderApp();
+    expect(screen.getByRole("button", { name: /start count/i })).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 2 — Run tab renders SpendPanel
+  // ---------------------------------------------------------------------------
+
+  it("Run tab shows a Start Spend button", () => {
+    renderApp();
+    expect(screen.getByRole("button", { name: /start spend/i })).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 3 — Run tab renders NetworkPanel sidebar
+  // ---------------------------------------------------------------------------
+
+  it("Run tab shows adapter names from the server", async () => {
+    renderApp();
+    await screen.findByText("Wi-Fi");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 4 — adapter selection wires from NetworkPanel to CountPanel
+  // ---------------------------------------------------------------------------
+
+  it("pre-selected adapter from settings is included in CountPanel POST body", async () => {
+    const fetchMock = makeFetchMock({
+      "/api/settings": { selected_adapters: ["1"], last_count_result: null },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderApp();
+    await screen.findByText("Wi-Fi"); // wait for NetworkPanel to load and call onSelectionChange
+
+    await userEvent.click(screen.getByRole("button", { name: /start count/i }));
+
+    const postCall = fetchMock.mock.calls.find(
+      ([url, init]: [string, RequestInit]) =>
+        url.includes("/api/workflows/count") && init?.method === "POST"
+    );
+    expect(postCall).toBeDefined();
+    const body = JSON.parse(postCall![1].body as string);
+    expect(body.adapter_ids).toEqual(["1"]);
   });
 });
