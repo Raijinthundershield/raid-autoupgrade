@@ -8,6 +8,7 @@ from autoraid.api.routes.adapters import router as adapters_router
 from autoraid.api.routes.count import router as count_router
 from autoraid.api.routes.regions import router as regions_router
 from autoraid.api.routes.settings import router as settings_router
+from autoraid.api.routes.spend import router as spend_router
 from autoraid.api.routes.status import router as status_router
 from autoraid.exceptions import (
     AutoRaidError,
@@ -29,6 +30,7 @@ def create_app(
     network_manager: Any = None,
     job_registry: JobRegistry | None = None,
     count_runner: Any = None,
+    spend_runner: Any = None,
     settings_service: Any = None,
     screenshot_service: Any = None,
     cache_service: Any = None,
@@ -41,6 +43,7 @@ def create_app(
             job_registry if job_registry is not None else JobRegistry()
         )
         app.state.count_runner = count_runner
+        app.state.spend_runner = spend_runner
         app.state.settings_service = settings_service
         app.state.screenshot_service = screenshot_service
         app.state.cache_service = cache_service
@@ -69,6 +72,7 @@ def create_app(
 
     app.include_router(status_router)
     app.include_router(count_router)
+    app.include_router(spend_router)
     app.include_router(regions_router)
     app.include_router(settings_router)
     app.include_router(adapters_router)

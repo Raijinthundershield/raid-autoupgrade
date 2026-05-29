@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CountPanel } from "./components/CountPanel";
 import { NetworkPanel } from "./components/NetworkPanel";
 import { RegionPanel } from "./components/RegionPanel";
+import { SpendPanel } from "./components/SpendPanel";
 import { StatusHeader } from "./components/StatusHeader";
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
       <main className="flex-1 p-6 space-y-8">
         <RegionPanel />
         <CountPanel adapterIds={adapterIds.length > 0 ? adapterIds : null} />
+        <SpendPanel />
         <NetworkPanel onSelectionChange={setAdapterIds} />
       </main>
     </div>

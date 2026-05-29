@@ -15,7 +15,7 @@ import uvicorn
 import webview
 
 from autoraid.api.app import create_app
-from autoraid.jobs.run_fn import make_count_runner
+from autoraid.jobs.run_fn import make_count_runner, make_spend_runner
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager
 from autoraid.services.screenshot_service import ScreenshotService
@@ -47,6 +47,9 @@ def start(debug: bool = False) -> None:
     _debug_root = (
         Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "AutoRaid" / "debug"
     )
+    settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
+    settings_service = SettingsService(cache=settings_cache)
+
     count_runner = make_count_runner(
         cache_service=None,
         window_service=window_service,
@@ -54,14 +57,22 @@ def start(debug: bool = False) -> None:
         screenshot_service=None,
         detector=None,
         debug_dir_root=_debug_root,
+        settings_service=settings_service,
     )
-    settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
-    settings_service = SettingsService(cache=settings_cache)
+    spend_runner = make_spend_runner(
+        cache_service=None,
+        window_service=window_service,
+        network_manager=network_manager,
+        screenshot_service=None,
+        detector=None,
+        debug_dir_root=_debug_root,
+    )
 
     app = create_app(
         window_service=window_service,
         network_manager=network_manager,
         count_runner=count_runner,
+        spend_runner=spend_runner,
         settings_service=settings_service,
         screenshot_service=screenshot_service,
         cache_service=cache_service,

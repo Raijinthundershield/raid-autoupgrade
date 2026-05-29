@@ -35,5 +35,10 @@ def get_count_runner(request: Request):
     return request.app.state.count_runner
 
 
+def get_spend_runner(request: Request):
+    """Return a factory: given max_upgrade_attempts/continue_upgrade, return a run_fn for the spend workflow."""
+    return request.app.state.spend_runner
+
+
 def get_settings_service(request: Request) -> SettingsService:
     return request.app.state.settings_service
