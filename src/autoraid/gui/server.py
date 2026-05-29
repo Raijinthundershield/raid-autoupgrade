@@ -15,6 +15,7 @@ import uvicorn
 import webview
 
 from autoraid.api.app import create_app
+from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
 from autoraid.jobs.run_fn import make_count_runner, make_spend_runner
 from autoraid.services.cache_service import CacheService
 from autoraid.services.network import NetworkManager
@@ -49,22 +50,23 @@ def start(debug: bool = False) -> None:
     )
     settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
     settings_service = SettingsService(cache=settings_cache)
+    detector = ProgressBarStateDetector()
 
     count_runner = make_count_runner(
-        cache_service=None,
+        cache_service=cache_service,
         window_service=window_service,
         network_manager=network_manager,
-        screenshot_service=None,
-        detector=None,
+        screenshot_service=screenshot_service,
+        detector=detector,
         debug_dir_root=_debug_root,
         settings_service=settings_service,
     )
     spend_runner = make_spend_runner(
-        cache_service=None,
+        cache_service=cache_service,
         window_service=window_service,
         network_manager=network_manager,
-        screenshot_service=None,
-        detector=None,
+        screenshot_service=screenshot_service,
+        detector=detector,
         debug_dir_root=_debug_root,
     )
 
