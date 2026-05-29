@@ -11,7 +11,7 @@ def _is_admin() -> bool:
         return False
 
 
-def _prompt_relaunch_as_admin() -> None:
+def _prompt_relaunch_as_admin(extra_args: list[str]) -> None:
     """Show a native dialog and re-launch with UAC elevation if the user agrees."""
     IDYES = 6
     MB_YESNO = 0x00000004
@@ -25,10 +25,12 @@ def _prompt_relaunch_as_admin() -> None:
         MB_YESNO | MB_ICONWARNING | MB_TOPMOST,
     )
     if result == IDYES:
-        params = " ".join(f'"{a}"' for a in sys.argv)
-        ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable, params, None, 1
-        )
+        # Re-launch the entry-point exe directly (sys.argv[0]) — not via the
+        # interpreter — so the elevated process runs the same command.
+        exe = sys.argv[0]
+        args = ["gui"] + extra_args
+        params = " ".join(f'"{a}"' for a in args)
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, params, None, 1)
     sys.exit(0)
 
 
@@ -39,10 +41,24 @@ def autoraid():
 
 @autoraid.command()
 @click.option("--debug", "-d", is_flag=True, default=False)
-def gui(debug: bool):
+@click.option(
+    "--dev", is_flag=True, default=False, help="Run against the Vite dev server."
+)
+def gui(debug: bool, dev: bool) -> None:
     """Launch the native desktop GUI."""
+    import os
+
+    if dev:
+        os.environ["AUTORAID_DEV"] = "1"
+
+    extra: list[str] = []
+    if debug:
+        extra.append("--debug")
+    if dev:
+        extra.append("--dev")
+
     if not _is_admin():
-        _prompt_relaunch_as_admin()
+        _prompt_relaunch_as_admin(extra)
 
     from autoraid.gui.server import start
 
