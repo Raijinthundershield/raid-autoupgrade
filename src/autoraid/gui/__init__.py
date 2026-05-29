@@ -1,1 +1,1 @@
-"""AutoRaid GUI module - native desktop interface using NiceGUI."""
+"""AutoRaid GUI module - native desktop interface."""
