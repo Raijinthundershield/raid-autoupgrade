@@ -2,10 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { displayRectToImageRect, type Rect } from "../utils/coordMath";
 import { Button } from "@/components/ui/button";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type RegionKey = "upgrade_bar" | "upgrade_button";
 
 interface CachedRegions {
@@ -18,10 +14,6 @@ interface RegionsResponse {
   window_size_mismatch: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const REGION_COLORS: Record<RegionKey, string> = {
   upgrade_bar: "#22c55e",
   upgrade_button: "#3b82f6",
@@ -32,10 +24,7 @@ const REGION_LABELS: Record<RegionKey, string> = {
   upgrade_button: "Upgrade Button",
 };
 
-function normalizeRect(
-  a: { x: number; y: number },
-  b: { x: number; y: number }
-): Rect {
+function normalizeRect(a: { x: number; y: number }, b: { x: number; y: number }): Rect {
   return {
     x: Math.round(Math.min(a.x, b.x)),
     y: Math.round(Math.min(a.y, b.y)),
@@ -44,33 +33,21 @@ function normalizeRect(
   };
 }
 
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function RegionPanel() {
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const [screenshotError, setScreenshotError] = useState(false);
   const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null);
   const [cachedRegions, setCachedRegions] = useState<CachedRegions | null>(null);
   const [windowSizeMismatch, setWindowSizeMismatch] = useState(false);
-
-  // Display-space rects drawn by the user this session
   const [drawn, setDrawn] = useState<Partial<Record<RegionKey, Rect>>>({});
   const [activeKey, setActiveKey] = useState<RegionKey | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
-
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [capturing, setCapturing] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-
-  // -------------------------------------------------------------------------
-  // Data loading
-  // -------------------------------------------------------------------------
 
   useEffect(() => {
     fetch("/api/regions")
@@ -88,10 +65,7 @@ export function RegionPanel() {
     setScreenshotError(false);
     try {
       const r = await fetch("/api/screenshot");
-      if (!r.ok) {
-        setScreenshotError(true);
-        return;
-      }
+      if (!r.ok) { setScreenshotError(true); return; }
       const blob = await r.blob();
       setScreenshotUrl(URL.createObjectURL(blob));
     } catch {
@@ -101,21 +75,15 @@ export function RegionPanel() {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Canvas drawing
-  // -------------------------------------------------------------------------
-
   useEffect(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
     if (!canvas || !img || !img.complete || !imageSize) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
     const displaySize = { w: canvas.width, h: canvas.height };
 
     function drawRect(rect: Rect, key: RegionKey, dashed = false) {
@@ -125,12 +93,10 @@ export function RegionPanel() {
       ctx!.strokeRect(rect.x, rect.y, rect.w, rect.h);
       ctx!.setLineDash([]);
       ctx!.fillStyle = REGION_COLORS[key];
-      ctx!.font = "bold 11px sans-serif";
+      ctx!.font = "bold 11px 'IBM Plex Mono', monospace";
       ctx!.fillText(REGION_LABELS[key], rect.x + 4, rect.y + 14);
     }
 
-    // Overlay cached regions scaled to display space (skip if user has redrawn that key)
-    // Stale regions (size mismatch) are shown dashed so the user can see where they were
     if (cachedRegions) {
       for (const key of ["upgrade_bar", "upgrade_button"] as RegionKey[]) {
         if (key in drawn) continue;
@@ -150,36 +116,25 @@ export function RegionPanel() {
       }
     }
 
-    // Overlay committed drawn regions
     for (const [k, rect] of Object.entries(drawn) as [RegionKey, Rect][]) {
       drawRect(rect, k);
     }
 
-    // In-progress drag rect
     if (dragStart && dragCurrent && activeKey) {
       drawRect(normalizeRect(dragStart, dragCurrent), activeKey, true);
     }
   }, [screenshotUrl, imageSize, cachedRegions, windowSizeMismatch, drawn, dragStart, dragCurrent, activeKey]);
 
-  // -------------------------------------------------------------------------
-  // Image load → set canvas dimensions
-  // -------------------------------------------------------------------------
-
   function handleImageLoad() {
     const img = imgRef.current;
     const canvas = canvasRef.current;
     if (!img || !canvas) return;
-
     const containerW = canvas.parentElement?.clientWidth ?? 800;
     const ratio = img.naturalHeight / img.naturalWidth;
     canvas.width = containerW;
     canvas.height = Math.round(containerW * ratio);
     setImageSize({ w: img.naturalWidth, h: img.naturalHeight });
   }
-
-  // -------------------------------------------------------------------------
-  // Mouse events
-  // -------------------------------------------------------------------------
 
   function canvasPoint(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!;
@@ -212,14 +167,9 @@ export function RegionPanel() {
     setActiveKey(null);
   }
 
-  // -------------------------------------------------------------------------
-  // Save
-  // -------------------------------------------------------------------------
-
   async function handleSave() {
     const canvas = canvasRef.current;
     if (!imageSize || !canvas) return;
-
     const displaySize = { w: canvas.width, h: canvas.height };
 
     function resolveRegion(key: RegionKey): [number, number, number, number] | null {
@@ -253,33 +203,29 @@ export function RegionPanel() {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Derived state
-  // -------------------------------------------------------------------------
-
   const hasValidCached = cachedRegions !== null && !windowSizeMismatch;
-  const hasBothDrawn =
-    drawn.upgrade_bar !== undefined && drawn.upgrade_button !== undefined;
-  const canSaveFinal =
-    hasBothDrawn || (hasValidCached && Object.keys(drawn).length > 0);
-
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
+  const hasBothDrawn = drawn.upgrade_bar !== undefined && drawn.upgrade_button !== undefined;
+  const canSaveFinal = hasBothDrawn || (hasValidCached && Object.keys(drawn).length > 0);
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
-        Regions
-      </h2>
-
       {windowSizeMismatch && (
-        <div className="bg-yellow-900/40 border border-yellow-600 text-yellow-300 text-sm px-3 py-2 rounded">
-          Window size changed — cached regions are invalid. Redraw both regions before saving.
+        <div
+          style={{
+            background: "oklch(0.72 0.15 68 / 0.07)",
+            border: "1px solid oklch(0.72 0.15 68 / 0.35)",
+            borderLeft: "3px solid oklch(0.72 0.15 68)",
+            borderRadius: "0.3rem",
+            padding: "0.55rem 0.875rem",
+            fontSize: "0.82rem",
+            color: "oklch(0.82 0.14 68)",
+            fontFamily: "'IBM Plex Mono', monospace",
+          }}
+        >
+          Window size changed — cached regions invalid. Redraw both regions before saving.
         </div>
       )}
 
-      {/* Hidden image element used to render to canvas */}
       {screenshotUrl && (
         <img
           ref={imgRef}
@@ -290,40 +236,48 @@ export function RegionPanel() {
         />
       )}
 
-      {/* Canvas */}
-      <div className="relative w-full bg-gray-900 rounded overflow-hidden">
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          background: "oklch(0.07 0.014 290)",
+          border: "1px solid oklch(0.215 0.024 290)",
+          borderRadius: "0.3rem",
+          overflow: "hidden",
+        }}
+      >
         <canvas
           ref={canvasRef}
-          className={`w-full block ${activeKey ? "cursor-crosshair" : "cursor-default"}`}
+          style={{ width: "100%", display: "block" }}
+          className={activeKey ? "cursor-crosshair" : "cursor-default"}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         />
         {!screenshotUrl && !screenshotError && !capturing && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm h-32">
+          <div className="canvas-placeholder">
             Navigate to the upgrade screen in Raid, then click Capture Screenshot.
           </div>
         )}
         {capturing && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm h-32">
-            Capturing…
-          </div>
+          <div className="canvas-placeholder">Capturing…</div>
         )}
         {screenshotError && (
-          <div className="absolute inset-0 flex items-center justify-center text-red-400 text-sm h-32">
-            Raid window not detected
+          <div
+            className="canvas-placeholder"
+            style={{ color: "oklch(0.78 0.18 27)" }}
+          >
+            Raid window not detected.
           </div>
         )}
       </div>
 
-      {/* Draw buttons + Save */}
       <div className="flex gap-2 flex-wrap items-center">
         <Button
           variant="outline"
           size="sm"
           onClick={captureScreenshot}
           disabled={capturing}
-          className="text-gray-300"
         >
           {capturing ? "Capturing…" : screenshotUrl ? "Recapture" : "Capture Screenshot"}
         </Button>
@@ -335,19 +289,13 @@ export function RegionPanel() {
             size="sm"
             onClick={() => setActiveKey((prev) => (prev === key ? null : key))}
             disabled={!screenshotUrl}
-            className={
-              activeKey === key
-                ? "bg-white text-gray-900 border-white"
-                : "text-gray-300"
-            }
             style={{
-              borderColor:
-                activeKey === key ? undefined : `${REGION_COLORS[key]}80`,
+              borderColor: activeKey === key ? undefined : `${REGION_COLORS[key]}60`,
+              background: activeKey === key ? REGION_COLORS[key] : undefined,
+              color: activeKey === key ? "#fff" : undefined,
             }}
           >
-            {drawn[key] !== undefined
-              ? `Redraw ${REGION_LABELS[key]}`
-              : `Draw ${REGION_LABELS[key]}`}
+            {drawn[key] !== undefined ? `Redraw ${REGION_LABELS[key]}` : `Draw ${REGION_LABELS[key]}`}
           </Button>
         ))}
 
@@ -356,13 +304,10 @@ export function RegionPanel() {
           onClick={handleSave}
           disabled={!canSaveFinal || saveState === "saving"}
         >
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "saved"
-              ? "Saved"
-              : saveState === "error"
-                ? "Error — retry"
-                : "Save Regions"}
+          {saveState === "saving" ? "Saving…"
+            : saveState === "saved" ? "Saved ✓"
+            : saveState === "error" ? "Error — retry"
+            : "Save Regions"}
         </Button>
       </div>
     </section>

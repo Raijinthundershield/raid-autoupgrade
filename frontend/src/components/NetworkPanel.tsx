@@ -51,29 +51,38 @@ export function NetworkPanel({ onSelectionChange }: Props) {
     saveSettings(next);
   }
 
+  if (adapters.length === 0) {
+    return (
+      <p
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: "0.75rem",
+          color: "oklch(0.42 0.03 285)",
+        }}
+      >
+        No adapters found.
+      </p>
+    );
+  }
+
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
-        Network Adapters
-      </h2>
-      <ul className="space-y-1">
-        {adapters.map((a) => (
-          <li key={a.id} className="flex items-center gap-3 text-sm">
-            <Checkbox
-              id={`adapter-${a.id}`}
-              aria-label={a.name}
-              checked={selected.includes(a.id)}
-              onCheckedChange={() => toggle(a.id)}
-            />
-            <Label htmlFor={`adapter-${a.id}`} className="cursor-pointer">
-              {a.name}
-            </Label>
-            <span className={`text-xs ${a.enabled ? "text-green-400" : "text-gray-500"}`}>
-              {a.enabled ? "online" : "offline"}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      {adapters.map((a) => (
+        <li key={a.id} className="adapter-row">
+          <Checkbox
+            id={`adapter-${a.id}`}
+            aria-label={a.name}
+            checked={selected.includes(a.id)}
+            onCheckedChange={() => toggle(a.id)}
+          />
+          <Label htmlFor={`adapter-${a.id}`} className="cursor-pointer flex-1">
+            {a.name}
+          </Label>
+          <span className={a.enabled ? "adapter-status-on" : "adapter-status-off"}>
+            {a.enabled ? "online" : "offline"}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }

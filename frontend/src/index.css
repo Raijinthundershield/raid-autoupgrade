@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -27,45 +28,27 @@
 
 @layer base {
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --radius: 0.625rem;
-  }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    /* Dark near-black with subtle violet undertone */
+    --background: oklch(0.07 0.014 290);
+    --foreground: oklch(0.93 0.01 285);
+    --card: oklch(0.105 0.014 290);
+    --card-foreground: oklch(0.93 0.01 285);
+    --popover: oklch(0.105 0.014 290);
+    --popover-foreground: oklch(0.93 0.01 285);
+    /* Amber / gold accent */
+    --primary: oklch(0.72 0.15 68);
+    --primary-foreground: oklch(0.09 0.01 290);
+    --secondary: oklch(0.165 0.018 290);
+    --secondary-foreground: oklch(0.88 0.01 285);
+    --muted: oklch(0.165 0.018 290);
+    --muted-foreground: oklch(0.52 0.028 285);
+    --accent: oklch(0.165 0.018 290);
+    --accent-foreground: oklch(0.93 0.01 285);
+    --destructive: oklch(0.62 0.23 27);
+    --border: oklch(0.215 0.024 290);
+    --input: oklch(0.185 0.022 290);
+    --ring: oklch(0.72 0.15 68);
+    --radius: 0.3rem;
   }
 }
 
@@ -75,5 +58,199 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    /* subtle dot-grid background */
+    background-image: radial-gradient(oklch(0.22 0.024 290 / 0.5) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
+}
+
+/* ─── Phase chrome ──────────────────────────────────────────────── */
+
+.phase-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.phase-num {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: oklch(0.72 0.15 68);
+}
+
+.phase-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: oklch(0.93 0.01 285);
+}
+
+.phase-rule {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    oklch(0.72 0.15 68 / 0.6),
+    oklch(0.72 0.15 68 / 0.1),
+    transparent
+  );
+  margin-bottom: 1.25rem;
+}
+
+/* ─── Status dots ───────────────────────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 5px currentColor; }
+  50%       { opacity: 0.45; box-shadow: 0 0 1px currentColor; }
+}
+
+.dot-online {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2ecc71;
+  color: #2ecc71;
+  animation: pulse-glow 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.dot-offline {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(0.32 0.025 290);
+  flex-shrink: 0;
+}
+
+/* ─── Stat card ─────────────────────────────────────────────────── */
+
+.stat-card {
+  background: oklch(0.105 0.014 290);
+  border: 1px solid oklch(0.215 0.024 290);
+  border-radius: 0.3rem;
+  padding: 0.75rem 1rem;
+  min-width: 5rem;
+}
+
+.stat-val {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: oklch(0.72 0.15 68);
+}
+
+.stat-lbl {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: oklch(0.52 0.028 285);
+  margin-top: 0.2rem;
+}
+
+/* ─── Log console ───────────────────────────────────────────────── */
+
+.log-console {
+  background: oklch(0.07 0.014 290);
+  border: 1px solid oklch(0.215 0.024 290);
+  border-radius: 0.3rem;
+  padding: 0.625rem 0.75rem;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 0.695rem;
+  max-height: 10.5rem;
+  overflow-y: auto;
+  line-height: 1.65;
+}
+
+.log-level { color: oklch(0.42 0.03 285); }
+.log-msg   { color: oklch(0.72 0.01 285); }
+
+/* ─── Result banners ────────────────────────────────────────────── */
+
+.banner-ok {
+  border: 1px solid oklch(0.55 0.16 145 / 0.6);
+  border-left: 3px solid oklch(0.55 0.16 145);
+  background: oklch(0.55 0.16 145 / 0.07);
+  border-radius: 0.3rem;
+  padding: 0.55rem 0.875rem;
+  font-size: 0.85rem;
+}
+
+.banner-ok-label {
+  font-weight: 600;
+  color: oklch(0.68 0.18 145);
+}
+
+.banner-err {
+  border: 1px solid oklch(0.62 0.23 27 / 0.6);
+  border-left: 3px solid oklch(0.62 0.23 27);
+  background: oklch(0.62 0.23 27 / 0.07);
+  border-radius: 0.3rem;
+  padding: 0.55rem 0.875rem;
+  font-size: 0.85rem;
+  color: oklch(0.78 0.18 27);
+}
+
+/* ─── Conflict badge ────────────────────────────────────────────── */
+
+.conflict-badge {
+  font-size: 0.75rem;
+  color: oklch(0.82 0.14 68);
+  background: oklch(0.72 0.15 68 / 0.09);
+  border: 1px solid oklch(0.72 0.15 68 / 0.28);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Canvas placeholder ────────────────────────────────────────── */
+
+.canvas-placeholder {
+  min-height: 7.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  color: oklch(0.42 0.03 285);
+  text-align: center;
+  padding: 1rem;
+}
+
+/* ─── Adapter list ──────────────────────────────────────────────── */
+
+.adapter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid oklch(0.215 0.024 290 / 0.4);
+  font-size: 0.875rem;
+}
+
+.adapter-row:last-child { border-bottom: none; }
+
+.adapter-status-on {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2ecc71;
+}
+
+.adapter-status-off {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: oklch(0.42 0.03 285);
 }

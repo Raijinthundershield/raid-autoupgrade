@@ -5,10 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-async function startSpend(
-  maxUpgradeAttempts: number,
-  continueUpgrade: boolean
-): Promise<string> {
+async function startSpend(maxUpgradeAttempts: number, continueUpgrade: boolean): Promise<string> {
   const res = await fetch("/api/workflows/spend", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -61,7 +58,7 @@ export function SpendPanel() {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 text-sm">
           <Label htmlFor="spend-max-attempts">Max attempts</Label>
           <Input
@@ -75,6 +72,7 @@ export function SpendPanel() {
             className="w-20"
           />
         </div>
+
         <div className="flex items-center gap-2">
           <Checkbox
             id="spend-continue-upgrade"
@@ -87,29 +85,25 @@ export function SpendPanel() {
             Continue upgrade
           </Label>
         </div>
+
         <Button
           onClick={handleStart}
           disabled={stream.status === "running" || !maxAttempts}
         >
           {stream.status === "running" ? "Spending…" : "Start Spend"}
         </Button>
+
         {jobId && stream.status === "running" && (
-          <Button
-            variant="destructive"
-            onClick={() => { void cancelSpend(jobId); }}
-          >
+          <Button variant="destructive" onClick={() => { void cancelSpend(jobId); }}>
             Stop
           </Button>
         )}
-        {conflict && (
-          <span className="text-yellow-400 text-sm">
-            A workflow is already running
-          </span>
-        )}
+
+        {conflict && <span className="conflict-badge">workflow already running</span>}
       </div>
 
       {stream.status !== "idle" && (
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="flex gap-3">
           <Stat label="Fails" value={stream.failCount} />
           <Stat label="Frames" value={stream.frames} />
           <Stat label="Bar state" value={stream.barState ?? "—"} />
@@ -117,30 +111,27 @@ export function SpendPanel() {
       )}
 
       {stream.logs.length > 0 && (
-        <div className="bg-gray-900 rounded p-3 font-mono text-xs space-y-0.5 max-h-48 overflow-y-auto">
+        <div className="log-console">
           {stream.logs.map((entry, i) => (
-            <div key={i} className="text-gray-300">
-              <span className="text-gray-500">[{entry.level}]</span> {entry.msg}
+            <div key={i}>
+              <span className="log-level">[{entry.level}]</span>{" "}
+              <span className="log-msg">{entry.msg}</span>
             </div>
           ))}
         </div>
       )}
 
       {stream.status === "done" && stream.result && (
-        <div className="border border-green-700 rounded p-3 text-sm">
-          <span className="font-semibold text-green-400">Done — </span>
-          <span>
-            {stream.result.upgrade_count as number} upgrade(s),{" "}
-            {stream.result.attempt_count as number} attempts,{" "}
-            stop reason: {stream.result.stop_reason as string}
-          </span>
+        <div className="banner-ok">
+          <span className="banner-ok-label">Done — </span>
+          {stream.result.upgrade_count as number} upgrade(s),{" "}
+          {stream.result.attempt_count as number} attempts, stop reason: {stream.result.stop_reason as string}
         </div>
       )}
 
       {stream.status === "error" && (
-        <div className="border border-red-700 rounded p-3 text-sm text-red-400">
-          <span className="font-semibold">Error: </span>
-          {stream.errorMessage}
+        <div className="banner-err">
+          <strong>Error: </strong>{stream.errorMessage}
         </div>
       )}
     </section>
@@ -149,9 +140,9 @@ export function SpendPanel() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-gray-900 rounded p-3">
-      <div className="text-gray-500 text-xs uppercase tracking-wide">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
+    <div className="stat-card">
+      <div className="stat-val">{value}</div>
+      <div className="stat-lbl">{label}</div>
     </div>
   );
 }
