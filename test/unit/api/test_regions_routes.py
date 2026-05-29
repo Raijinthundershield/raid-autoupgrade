@@ -25,6 +25,16 @@ class _WindowServiceStub:
         return self._size
 
 
+class _MissingWindowServiceStub:
+    def window_exists(self, window_title: str) -> bool:
+        return False
+
+    def get_window_size(self, window_title: str) -> tuple[int, int]:
+        from autoraid.exceptions import WindowNotFoundException
+
+        raise WindowNotFoundException("no window")
+
+
 class _CacheServiceStub:
     def __init__(self):
         self.set_regions_calls: list[tuple] = []
@@ -150,6 +160,26 @@ def test_put_regions_missing_field_returns_422():
 # ---------------------------------------------------------------------------
 # Behavior 9: PUT /api/regions wrong region length → 422
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Behavior 9b: PUT /api/regions → 404 when Raid window is absent
+# ---------------------------------------------------------------------------
+
+
+def test_put_regions_returns_404_when_window_missing():
+    app = create_app(window_service=_MissingWindowServiceStub())
+
+    with TestClient(app) as client:
+        response = client.put(
+            "/api/regions",
+            json={
+                "upgrade_bar": [10, 20, 300, 50],
+                "upgrade_button": [500, 600, 100, 80],
+            },
+        )
+
+    assert response.status_code == 404
 
 
 # ---------------------------------------------------------------------------

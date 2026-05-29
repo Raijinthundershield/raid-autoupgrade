@@ -124,7 +124,8 @@ export function RegionPanel() {
     }
 
     // Overlay cached regions scaled to display space (skip if user has redrawn that key)
-    if (cachedRegions && !windowSizeMismatch) {
+    // Stale regions (size mismatch) are shown dashed so the user can see where they were
+    if (cachedRegions) {
       for (const key of ["upgrade_bar", "upgrade_button"] as RegionKey[]) {
         if (key in drawn) continue;
         const r = cachedRegions[key];
@@ -137,7 +138,8 @@ export function RegionPanel() {
             w: Math.round((iw / imageSize.w) * displaySize.w),
             h: Math.round((ih / imageSize.h) * displaySize.h),
           },
-          key
+          key,
+          windowSizeMismatch
         );
       }
     }

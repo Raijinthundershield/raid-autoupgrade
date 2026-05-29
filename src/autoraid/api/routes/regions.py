@@ -73,7 +73,10 @@ def put_regions(
     window_service: WindowInteractionProtocol = Depends(get_window_service),
     cache_service: CacheProtocol = Depends(get_cache_service),
 ):
-    window_size = window_service.get_window_size(RAID_WINDOW_TITLE)
+    try:
+        window_size = window_service.get_window_size(RAID_WINDOW_TITLE)
+    except WindowNotFoundException:
+        raise HTTPException(status_code=404, detail="Raid window not found")
     regions = {
         "upgrade_bar": tuple(body.upgrade_bar),
         "upgrade_button": tuple(body.upgrade_button),
