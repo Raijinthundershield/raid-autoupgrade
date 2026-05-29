@@ -84,6 +84,24 @@
   }
 }
 
+/* ─── App header ────────────────────────────────────────────────── */
+
+.app-header {
+  background: var(--t-surface);
+  border-bottom: 1px solid var(--t-border);
+}
+
+/* ─── Canvas container ──────────────────────────────────────────── */
+
+.canvas-area {
+  position: relative;
+  width: 100%;
+  background: var(--t-surface2);
+  border: 1px solid var(--t-border);
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
 /* ─── Phase chrome ──────────────────────────────────────────────── */
 
 .phase-row {

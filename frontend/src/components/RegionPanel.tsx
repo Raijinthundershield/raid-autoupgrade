@@ -210,18 +210,7 @@ export function RegionPanel() {
   return (
     <section className="space-y-3">
       {windowSizeMismatch && (
-        <div
-          style={{
-            background: "oklch(0.72 0.15 68 / 0.07)",
-            border: "1px solid oklch(0.72 0.15 68 / 0.35)",
-            borderLeft: "3px solid oklch(0.72 0.15 68)",
-            borderRadius: "0.3rem",
-            padding: "0.55rem 0.875rem",
-            fontSize: "0.82rem",
-            color: "oklch(0.82 0.14 68)",
-            fontFamily: "'IBM Plex Mono', monospace",
-          }}
-        >
+        <div className="conflict-badge" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}>
           Window size changed — cached regions invalid. Redraw both regions before saving.
         </div>
       )}
@@ -236,16 +225,7 @@ export function RegionPanel() {
         />
       )}
 
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          background: "oklch(0.07 0.014 290)",
-          border: "1px solid oklch(0.215 0.024 290)",
-          borderRadius: "0.3rem",
-          overflow: "hidden",
-        }}
-      >
+      <div className="canvas-area">
         <canvas
           ref={canvasRef}
           style={{ width: "100%", display: "block" }}

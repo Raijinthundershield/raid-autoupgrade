@@ -21,7 +21,7 @@ function StatusBadge({ label, ok }: { label: string; ok: boolean }) {
           fontSize: "0.65rem",
           letterSpacing: "0.1em",
           textTransform: "uppercase" as const,
-          color: ok ? "oklch(0.93 0.01 285)" : "oklch(0.42 0.03 285)",
+          color: ok ? "var(--t-text)" : "var(--t-muted)",
         }}
       >
         {label}
@@ -38,21 +38,15 @@ export function StatusHeader() {
   });
 
   return (
-    <header
-      className="flex items-center justify-between px-6 py-3"
-      style={{
-        background: "oklch(0.085 0.014 290)",
-        borderBottom: "1px solid oklch(0.215 0.024 290)",
-      }}
-    >
+    <header className="app-header flex items-center justify-between px-6 py-3">
       <div className="flex items-center gap-3">
         <div
           style={{
             width: "3px",
             height: "1.4rem",
-            background: "oklch(0.72 0.15 68)",
+            background: "var(--t-accent)",
             borderRadius: "2px",
-            boxShadow: "0 0 8px oklch(0.72 0.15 68 / 0.5)",
+            boxShadow: "0 0 8px color-mix(in srgb, var(--t-accent) 50%, transparent)",
           }}
         />
         <span
