@@ -23,19 +23,26 @@ type DoneEvent = {
   result: Record<string, unknown>;
 };
 
-export type JobEvent = ProgressEvent | LogEvent | DoneEvent;
+type ErrorEvent = {
+  type: "error";
+  error: string;
+  message: string;
+};
+
+export type JobEvent = ProgressEvent | LogEvent | DoneEvent | ErrorEvent;
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 export interface JobStreamState {
-  status: "idle" | "running" | "done";
+  status: "idle" | "running" | "done" | "error";
   failCount: number;
   frames: number;
   barState: string | null;
   logs: Array<{ level: string; msg: string; ts: number }>;
   result: Record<string, unknown> | null;
+  errorMessage: string | null;
 }
 
 export const initialJobStreamState: JobStreamState = {
@@ -45,6 +52,7 @@ export const initialJobStreamState: JobStreamState = {
   barState: null,
   logs: [],
   result: null,
+  errorMessage: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -73,6 +81,8 @@ export function jobStreamReducer(
       };
     case "done":
       return { ...state, status: "done", result: event.result };
+    case "error":
+      return { ...state, status: "error", errorMessage: event.message };
   }
 }
 
@@ -91,7 +101,7 @@ export function useJobStream(jobId: string | null): JobStreamState {
     ws.onmessage = (e: MessageEvent) => {
       const event = JSON.parse(e.data as string) as JobEvent;
       dispatch(event);
-      if (event.type === "done") ws.close();
+      if (event.type === "done" || event.type === "error") ws.close();
     };
 
     return () => {

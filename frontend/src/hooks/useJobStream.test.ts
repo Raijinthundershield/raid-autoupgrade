@@ -61,4 +61,19 @@ describe("jobStreamReducer", () => {
     expect(next.status).toBe("done");
     expect(next.result).toEqual(result);
   });
+
+  // -------------------------------------------------------------------------
+  // Behavior 13: error event → status "error", errorMessage set
+  // -------------------------------------------------------------------------
+
+  it("error event sets status to error and stores errorMessage", () => {
+    const next = jobStreamReducer(initialJobStreamState, {
+      type: "error",
+      error: "RuntimeError",
+      message: "disk full",
+    });
+
+    expect(next.status).toBe("error");
+    expect(next.errorMessage).toBe("disk full");
+  });
 });

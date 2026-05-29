@@ -1,14 +1,27 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from autoraid.api.routes.adapters import router as adapters_router
 from autoraid.api.routes.count import router as count_router
 from autoraid.api.routes.regions import router as regions_router
 from autoraid.api.routes.settings import router as settings_router
 from autoraid.api.routes.status import router as status_router
+from autoraid.exceptions import (
+    AutoRaidError,
+    NetworkAdapterError,
+    WindowNotFoundException,
+    WorkflowValidationError,
+)
 from autoraid.jobs.registry import JobRegistry
+
+_EXCEPTION_STATUS: dict[type[AutoRaidError], int] = {
+    WindowNotFoundException: 409,
+    WorkflowValidationError: 422,
+    NetworkAdapterError: 502,
+}
 
 
 def create_app(
@@ -34,6 +47,26 @@ def create_app(
         yield
 
     app = FastAPI(lifespan=lifespan)
+
+    @app.exception_handler(AutoRaidError)
+    async def _autoraid_handler(request: Request, exc: AutoRaidError) -> JSONResponse:
+        status = _EXCEPTION_STATUS.get(type(exc), 500)
+        return JSONResponse(
+            status_code=status,
+            content={"error": type(exc).__name__, "message": str(exc), "detail": None},
+        )
+
+    @app.exception_handler(Exception)
+    async def _generic_handler(request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "InternalServerError",
+                "message": "An unexpected error occurred.",
+                "detail": None,
+            },
+        )
+
     app.include_router(status_router)
     app.include_router(count_router)
     app.include_router(regions_router)

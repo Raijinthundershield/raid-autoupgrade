@@ -1,6 +1,7 @@
 """Factory that builds the count workflow run_fn for JobRegistry.start_job."""
 
 import queue as _queue
+import threading
 from collections.abc import Callable
 
 from loguru import logger
@@ -29,11 +30,15 @@ def make_count_runner(
     network_manager,
     screenshot_service,
     detector,
-) -> Callable[[list[int] | None], Callable[[_queue.Queue], dict | None]]:
+) -> Callable[
+    [list[int] | None], Callable[[_queue.Queue, threading.Event], dict | None]
+]:
     """Return a factory: adapter_ids → run_fn for JobRegistry.start_job."""
 
-    def factory(adapter_ids: list[int] | None) -> Callable[[_queue.Queue], dict | None]:
-        def run_fn(q: _queue.Queue) -> dict | None:
+    def factory(
+        adapter_ids: list[int] | None,
+    ) -> Callable[[_queue.Queue, threading.Event], dict | None]:
+        def run_fn(q: _queue.Queue, cancel_event: threading.Event) -> dict | None:
             workflow = CountWorkflow(
                 cache_service=cache_service,
                 window_interaction_service=window_service,
@@ -44,7 +49,7 @@ def make_count_runner(
             )
             sink_id = logger.add(_make_log_sink(q))
             try:
-                result = workflow.run()
+                result = workflow.run(cancel_event=cancel_event)
                 return {
                     "fail_count": result.fail_count,
                     "stop_reason": result.stop_reason.value,

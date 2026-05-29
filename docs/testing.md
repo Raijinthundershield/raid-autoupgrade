@@ -45,7 +45,8 @@ Tests that assert something which cannot plausibly be wrong — a constructor st
 | Job registry | Single-active-job lifecycle and event-queue ordering | `run_fn` (pass a stub that pushes events directly) |
 | Settings service | Round-trip persistence of `selected_adapters` and `last_count_result` | `diskcache.Cache` (stub with a plain dict) |
 | API routes | Request → status code, response body, dispatched collaborator | Collaborators, via `app.dependency_overrides` |
-| WebSocket | Typed job events arrive in order over the stream; stream closes after `done` | `JobRegistry.get_queue` — seed a `queue.Queue` with pre-built events |
+| API exception handler | Domain exception → correct HTTP status and `{"error", "message", "detail"}` envelope | Override `get_count_runner` to raise from the factory call (pre-flight path) |
+| WebSocket | Typed job events arrive in order over the stream; stream closes after `done` or `error` | `JobRegistry.get_queue` — seed a `queue.Queue` with pre-built events |
 | Integration | Workflow → Orchestrator contract end-to-end | Platform services only |
 | Frontend reducer | `useJobStream` derived view state from a WS event sequence | Nothing — pure reducer |
 | Frontend coordinate math | `displayRectToImageRect` maps display-pixel rects to image-pixel rects across render scales | Nothing — pure function |

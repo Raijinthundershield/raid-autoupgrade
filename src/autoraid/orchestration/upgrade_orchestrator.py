@@ -4,6 +4,7 @@ This service orchestrates the upgrade monitoring process with configurable
 stop conditions and optional debug logging.
 """
 
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -105,6 +106,7 @@ class UpgradeOrchestrator:
     def run_upgrade_session(
         self,
         session: UpgradeSession,
+        cancel_event: threading.Event | None = None,
     ) -> UpgradeResult:
         # Validate prerequisites first
         self.validate_prerequisites(session)
@@ -138,7 +140,9 @@ class UpgradeOrchestrator:
             )
 
             # Monitor loop
-            stop_reason = self._monitor_loop(session, monitor, debug_logger)
+            stop_reason = self._monitor_loop(
+                session, monitor, debug_logger, cancel_event
+            )
 
             # Get final state
             final_state = monitor.get_state()
@@ -174,12 +178,16 @@ class UpgradeOrchestrator:
         session: UpgradeSession,
         monitor: ProgressBarMonitor,
         debug_logger: DebugFrameLogger | None = None,
+        cancel_event: threading.Event | None = None,
     ) -> StopReason:
         logger.info("Starting progress bar monitoring loop")
 
         prev_fail_count = 0
 
         while True:
+            if cancel_event is not None and cancel_event.is_set():
+                return StopReason.MANUAL_STOP
+
             # Capture screenshot and extract ROI
             screenshot = self._screenshot_service.take_screenshot(self.WINDOW_TITLE)
             upgrade_bar_roi = self._screenshot_service.extract_roi(

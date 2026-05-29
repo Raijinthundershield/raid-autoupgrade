@@ -13,6 +13,10 @@ async function startCount(adapterIds: string[] | null): Promise<string> {
   return data.job_id;
 }
 
+async function cancelCount(jobId: string): Promise<void> {
+  await fetch(`/api/workflows/${jobId}/cancel`, { method: "POST" });
+}
+
 class ConflictError extends Error {}
 
 interface Props {
@@ -44,6 +48,14 @@ export function CountPanel({ adapterIds = null }: Props) {
         >
           {stream.status === "running" ? "Counting…" : "Start Count"}
         </button>
+        {jobId && stream.status === "running" && (
+          <button
+            onClick={() => { void cancelCount(jobId); }}
+            className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded font-medium"
+          >
+            Stop
+          </button>
+        )}
         {conflict && (
           <span className="text-yellow-400 text-sm">
             A workflow is already running
@@ -76,6 +88,13 @@ export function CountPanel({ adapterIds = null }: Props) {
             {(stream.result.fail_count as number)} fails,{" "}
             stop reason: {stream.result.stop_reason as string}
           </span>
+        </div>
+      )}
+
+      {stream.status === "error" && (
+        <div className="border border-red-700 rounded p-3 text-sm text-red-400">
+          <span className="font-semibold">Error: </span>
+          {stream.errorMessage}
         </div>
       )}
     </section>

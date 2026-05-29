@@ -1,5 +1,5 @@
 """Contract tests for POST /api/workflows/count, GET /api/workflows/{job_id},
-and WS /ws/workflows/{job_id}."""
+WS /ws/workflows/{job_id}, and POST /api/workflows/{job_id}/cancel."""
 
 import queue
 
@@ -21,6 +21,14 @@ class _RegistryStub:
 class _ConflictRegistryStub:
     def start_job(self, run_fn) -> str:
         raise ConflictError("busy")
+
+
+class _CancelRegistryStub:
+    def __init__(self):
+        self.cancelled: list[str] = []
+
+    def cancel(self, job_id: str) -> None:
+        self.cancelled.append(job_id)
 
 
 # ---------------------------------------------------------------------------
@@ -138,3 +146,55 @@ def test_websocket_streams_events_in_order_and_closes_after_done():
     assert e2 == {"type": "progress", "fail_count": 3, "frames": 10, "state": "FAIL"}
     assert e3["type"] == "done"
     assert e3["result"]["fail_count"] == 3
+
+
+# ---------------------------------------------------------------------------
+# Behavior: POST /api/workflows/{job_id}/cancel → 204 (idempotent)
+# ---------------------------------------------------------------------------
+
+
+def test_cancel_job_returns_204():
+    stub = _CancelRegistryStub()
+    app = create_app()
+    app.dependency_overrides[get_job_registry] = lambda: stub
+
+    with TestClient(app) as client:
+        response = client.post("/api/workflows/some-job-id/cancel")
+
+    assert response.status_code == 204
+    assert stub.cancelled == ["some-job-id"]
+
+
+def test_cancel_unknown_job_also_returns_204():
+    stub = _CancelRegistryStub()
+    app = create_app()
+    app.dependency_overrides[get_job_registry] = lambda: stub
+
+    with TestClient(app) as client:
+        response = client.post("/api/workflows/ghost-job/cancel")
+
+    assert response.status_code == 204
+
+
+# ---------------------------------------------------------------------------
+# Behavior: WS closes after error event
+# ---------------------------------------------------------------------------
+
+
+def test_websocket_closes_after_error_event():
+    q: queue.Queue = queue.Queue()
+    q.put({"type": "log", "level": "INFO", "msg": "starting", "ts": 0})
+    q.put({"type": "error", "error": "RuntimeError", "message": "disk full"})
+
+    app = create_app()
+    app.dependency_overrides[get_job_registry] = lambda: _WSRegistryStub("job-err", q)
+
+    with TestClient(app) as client:
+        with client.websocket_connect("/ws/workflows/job-err") as ws:
+            e1 = ws.receive_json()
+            e2 = ws.receive_json()
+
+    assert e1["type"] == "log"
+    assert e2["type"] == "error"
+    assert e2["error"] == "RuntimeError"
+    assert e2["message"] == "disk full"

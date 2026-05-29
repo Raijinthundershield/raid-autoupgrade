@@ -39,6 +39,14 @@ def get_job(
     return {"job_id": state.job_id, "status": state.status, "result": state.result}
 
 
+@router.post("/api/workflows/{job_id}/cancel", status_code=204)
+def cancel_job(
+    job_id: str,
+    registry: JobRegistry = Depends(get_job_registry),
+):
+    registry.cancel(job_id)
+
+
 @router.websocket("/ws/workflows/{job_id}")
 async def ws_job(
     job_id: str,
@@ -56,6 +64,6 @@ async def ws_job(
     while True:
         event = await loop.run_in_executor(None, q.get)
         await websocket.send_json(event)
-        if event.get("type") == "done":
+        if event.get("type") in ("done", "error"):
             await websocket.close()
             return
