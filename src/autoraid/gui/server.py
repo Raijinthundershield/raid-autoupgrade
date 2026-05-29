@@ -13,6 +13,7 @@ from pathlib import Path
 import diskcache
 import uvicorn
 import webview
+from dotenv import load_dotenv
 
 from autoraid.api.app import create_app
 from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
@@ -23,9 +24,12 @@ from autoraid.services.screenshot_service import ScreenshotService
 from autoraid.services.settings_service import SettingsService
 from autoraid.services.window_interaction_service import WindowInteractionService
 
+load_dotenv()
+
 _HOST = "127.0.0.1"
-_PORT = 8765
-_DEV_URL = "http://localhost:5173"
+_PORT = int(os.getenv("AUTORAID_API_PORT", "8765"))
+_VITE_PORT = int(os.getenv("AUTORAID_VITE_PORT", "5173"))
+_DEV_URL = f"http://localhost:{_VITE_PORT}"
 _DIST_DIR = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
 _SETTINGS_CACHE_DIR = (
     Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "AutoRaid" / "settings"
