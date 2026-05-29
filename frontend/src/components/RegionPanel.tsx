@@ -63,6 +63,7 @@ export function RegionPanel() {
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
 
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [capturing, setCapturing] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -72,17 +73,6 @@ export function RegionPanel() {
   // -------------------------------------------------------------------------
 
   useEffect(() => {
-    fetch("/api/screenshot")
-      .then(async (r) => {
-        if (!r.ok) {
-          setScreenshotError(true);
-          return;
-        }
-        const blob = await r.blob();
-        setScreenshotUrl(URL.createObjectURL(blob));
-      })
-      .catch(() => setScreenshotError(true));
-
     fetch("/api/regions")
       .then(async (r) => {
         if (!r.ok) return;
@@ -92,6 +82,24 @@ export function RegionPanel() {
       })
       .catch(() => {});
   }, []);
+
+  async function captureScreenshot() {
+    setCapturing(true);
+    setScreenshotError(false);
+    try {
+      const r = await fetch("/api/screenshot");
+      if (!r.ok) {
+        setScreenshotError(true);
+        return;
+      }
+      const blob = await r.blob();
+      setScreenshotUrl(URL.createObjectURL(blob));
+    } catch {
+      setScreenshotError(true);
+    } finally {
+      setCapturing(false);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Canvas drawing
@@ -291,9 +299,14 @@ export function RegionPanel() {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         />
-        {!screenshotUrl && !screenshotError && (
+        {!screenshotUrl && !screenshotError && !capturing && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm h-32">
-            Loading screenshot…
+            Navigate to the upgrade screen in Raid, then click Capture Screenshot.
+          </div>
+        )}
+        {capturing && (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm h-32">
+            Capturing…
           </div>
         )}
         {screenshotError && (
@@ -305,6 +318,16 @@ export function RegionPanel() {
 
       {/* Draw buttons + Save */}
       <div className="flex gap-2 flex-wrap items-center">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={captureScreenshot}
+          disabled={capturing}
+          className="text-gray-300"
+        >
+          {capturing ? "Capturing…" : screenshotUrl ? "Recapture" : "Capture Screenshot"}
+        </Button>
+
         {(["upgrade_bar", "upgrade_button"] as RegionKey[]).map((key) => (
           <Button
             key={key}

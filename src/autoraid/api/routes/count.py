@@ -53,8 +53,8 @@ def cancel_job(
 async def ws_job(
     job_id: str,
     websocket: WebSocket,
-    registry: JobRegistry = Depends(get_job_registry),
 ):
+    registry: JobRegistry = websocket.app.state.job_registry
     q = registry.get_queue(job_id)
     if q is None:
         await websocket.close(code=4004)
