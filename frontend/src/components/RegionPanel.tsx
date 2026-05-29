@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { displayRectToImageRect, type Rect } from "../utils/coordMath";
+import { Button } from "@/components/ui/button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,9 +44,6 @@ function normalizeRect(
   };
 }
 
-function tupleToRect([x, y, w, h]: [number, number, number, number]): Rect {
-  return { x, y, w, h };
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -254,10 +252,6 @@ export function RegionPanel() {
   const hasValidCached = cachedRegions !== null && !windowSizeMismatch;
   const hasBothDrawn =
     drawn.upgrade_bar !== undefined && drawn.upgrade_button !== undefined;
-  const canSave =
-    hasBothDrawn ||
-    (hasValidCached && Object.keys(drawn).length > 0) ||
-    (hasValidCached && windowSizeMismatch === false && hasBothDrawn);
   const canSaveFinal =
     hasBothDrawn || (hasValidCached && Object.keys(drawn).length > 0);
 
@@ -312,15 +306,17 @@ export function RegionPanel() {
       {/* Draw buttons + Save */}
       <div className="flex gap-2 flex-wrap items-center">
         {(["upgrade_bar", "upgrade_button"] as RegionKey[]).map((key) => (
-          <button
+          <Button
             key={key}
+            variant="outline"
+            size="sm"
             onClick={() => setActiveKey((prev) => (prev === key ? null : key))}
             disabled={!screenshotUrl}
-            className={`px-3 py-1.5 text-sm rounded border transition-colors disabled:opacity-40 ${
+            className={
               activeKey === key
                 ? "bg-white text-gray-900 border-white"
-                : "border-gray-600 text-gray-300 hover:border-gray-400"
-            }`}
+                : "text-gray-300"
+            }
             style={{
               borderColor:
                 activeKey === key ? undefined : `${REGION_COLORS[key]}80`,
@@ -329,13 +325,13 @@ export function RegionPanel() {
             {drawn[key] !== undefined
               ? `Redraw ${REGION_LABELS[key]}`
               : `Draw ${REGION_LABELS[key]}`}
-          </button>
+          </Button>
         ))}
 
-        <button
+        <Button
+          size="sm"
           onClick={handleSave}
           disabled={!canSaveFinal || saveState === "saving"}
-          className="px-3 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saveState === "saving"
             ? "Saving…"
@@ -344,7 +340,7 @@ export function RegionPanel() {
               : saveState === "error"
                 ? "Error — retry"
                 : "Save Regions"}
-        </button>
+        </Button>
       </div>
     </section>
   );

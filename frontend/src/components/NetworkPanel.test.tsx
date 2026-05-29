@@ -71,7 +71,7 @@ describe("NetworkPanel", () => {
       ([url, init]) => url.includes("/api/settings") && init?.method === "PUT"
     );
     expect(putCall).toBeDefined();
-    const body = JSON.parse(putCall![1].body as string);
+    const body = JSON.parse(putCall![1]!.body as string);
     expect(body.selected_adapters).toContain("1");
   });
 });

@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { useJobStream } from "../hooks/useJobStream";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 async function startSpend(
   maxUpgradeAttempts: number,
@@ -58,9 +62,9 @@ export function SpendPanel() {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm">
-          <span>Max attempts</span>
-          <input
+        <div className="flex items-center gap-2 text-sm">
+          <Label htmlFor="spend-max-attempts">Max attempts</Label>
+          <Input
             id="spend-max-attempts"
             aria-label="Max attempts"
             type="number"
@@ -68,34 +72,34 @@ export function SpendPanel() {
             value={maxAttempts}
             onChange={(e) => setMaxAttempts(e.target.value)}
             disabled={stream.status === "running"}
-            className="w-20 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm"
+            className="w-20"
           />
-        </label>
-        <label className="flex items-center gap-2 text-sm select-none">
-          <input
-            type="checkbox"
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="spend-continue-upgrade"
             aria-label="Continue upgrade"
             checked={continueUpgrade}
-            onChange={(e) => setContinueUpgrade(e.target.checked)}
+            onCheckedChange={(v) => setContinueUpgrade(v === true)}
             disabled={stream.status === "running"}
-            className="accent-blue-500"
           />
-          Continue upgrade
-        </label>
-        <button
+          <Label htmlFor="spend-continue-upgrade" className="text-sm select-none cursor-pointer">
+            Continue upgrade
+          </Label>
+        </div>
+        <Button
           onClick={handleStart}
           disabled={stream.status === "running" || !maxAttempts}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded font-medium"
         >
           {stream.status === "running" ? "Spending…" : "Start Spend"}
-        </button>
+        </Button>
         {jobId && stream.status === "running" && (
-          <button
+          <Button
+            variant="destructive"
             onClick={() => { void cancelSpend(jobId); }}
-            className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded font-medium"
           >
             Stop
-          </button>
+          </Button>
         )}
         {conflict && (
           <span className="text-yellow-400 text-sm">

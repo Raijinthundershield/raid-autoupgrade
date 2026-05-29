@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface Adapter {
   id: string;
@@ -57,16 +59,15 @@ export function NetworkPanel({ onSelectionChange }: Props) {
       <ul className="space-y-1">
         {adapters.map((a) => (
           <li key={a.id} className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               id={`adapter-${a.id}`}
               aria-label={a.name}
               checked={selected.includes(a.id)}
-              onChange={() => toggle(a.id)}
+              onCheckedChange={() => toggle(a.id)}
             />
-            <label htmlFor={`adapter-${a.id}`} className="cursor-pointer">
+            <Label htmlFor={`adapter-${a.id}`} className="cursor-pointer">
               {a.name}
-            </label>
+            </Label>
             <span className={`text-xs ${a.enabled ? "text-green-400" : "text-gray-500"}`}>
               {a.enabled ? "online" : "offline"}
             </span>

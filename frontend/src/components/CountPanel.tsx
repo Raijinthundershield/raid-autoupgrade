@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useJobStream } from "../hooks/useJobStream";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 async function startCount(adapterIds: string[] | null, debug: boolean): Promise<string> {
   const res = await fetch("/api/workflows/count", {
@@ -42,30 +45,30 @@ export function CountPanel({ adapterIds = null }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-4">
-        <button
+        <Button
           onClick={handleStart}
           disabled={stream.status === "running"}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded font-medium"
         >
           {stream.status === "running" ? "Counting…" : "Start Count"}
-        </button>
-        <label className="flex items-center gap-2 text-sm select-none">
-          <input
-            type="checkbox"
+        </Button>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="count-debug-capture"
             checked={debugCapture}
-            onChange={(e) => setDebugCapture(e.target.checked)}
+            onCheckedChange={(v) => setDebugCapture(v === true)}
             disabled={stream.status === "running"}
-            className="accent-blue-500"
           />
-          Debug capture
-        </label>
+          <Label htmlFor="count-debug-capture" className="text-sm select-none cursor-pointer">
+            Debug capture
+          </Label>
+        </div>
         {jobId && stream.status === "running" && (
-          <button
+          <Button
+            variant="destructive"
             onClick={() => { void cancelCount(jobId); }}
-            className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded font-medium"
           >
             Stop
-          </button>
+          </Button>
         )}
         {conflict && (
           <span className="text-yellow-400 text-sm">
