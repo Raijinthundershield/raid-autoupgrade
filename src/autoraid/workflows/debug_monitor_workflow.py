@@ -42,7 +42,16 @@ class DebugMonitorResult:
 
 
 class DebugMonitorWorkflow:
-    """Debug workflow for monitoring progress bar and saving diagnostic data."""
+    """Debug workflow for monitoring progress bar and saving diagnostic data.
+
+    Note on redundancy (issue #8): debug *capture* (DebugFrameLogger attachment)
+    is now shared with CountWorkflow via its debug_dir parameter.  This workflow
+    is NOT redundant because it carries unique orchestration:
+      - MaxFramesCondition stop (N frames regardless of upgrade outcome)
+      - Configurable check_interval (CountWorkflow hardcodes 0.25 s)
+      - disable_network flag independent of adapter IDs
+    It is the right tool for CV diagnostics; CountWorkflow is for upgrade counting.
+    """
 
     WINDOW_TITLE = "Raid: Shadow Legends"
 

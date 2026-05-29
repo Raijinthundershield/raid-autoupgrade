@@ -11,7 +11,7 @@ def _runner_raising(exc_factory):
     """Return a count_runner dependency override whose factory raises exc_factory()."""
 
     def make_runner():
-        def factory(adapter_ids):
+        def factory(adapter_ids, debug=False, log_debug=False):
             raise exc_factory()
 
         return factory

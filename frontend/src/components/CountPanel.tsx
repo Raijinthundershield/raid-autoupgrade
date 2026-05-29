@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useJobStream } from "../hooks/useJobStream";
 
-async function startCount(adapterIds: string[] | null): Promise<string> {
+async function startCount(adapterIds: string[] | null, debug: boolean): Promise<string> {
   const res = await fetch("/api/workflows/count", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ adapter_ids: adapterIds }),
+    body: JSON.stringify({ adapter_ids: adapterIds, debug }),
   });
   if (res.status === 409) throw new ConflictError();
   if (!res.ok) throw new Error("failed to start count");
@@ -26,12 +26,13 @@ interface Props {
 export function CountPanel({ adapterIds = null }: Props) {
   const [jobId, setJobId] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  const [debugCapture, setDebugCapture] = useState(false);
   const stream = useJobStream(jobId);
 
   async function handleStart() {
     setConflict(false);
     try {
-      const id = await startCount(adapterIds ?? null);
+      const id = await startCount(adapterIds ?? null, debugCapture);
       setJobId(id);
     } catch (e) {
       if (e instanceof ConflictError) setConflict(true);
@@ -48,6 +49,16 @@ export function CountPanel({ adapterIds = null }: Props) {
         >
           {stream.status === "running" ? "Counting…" : "Start Count"}
         </button>
+        <label className="flex items-center gap-2 text-sm select-none">
+          <input
+            type="checkbox"
+            checked={debugCapture}
+            onChange={(e) => setDebugCapture(e.target.checked)}
+            disabled={stream.status === "running"}
+            className="accent-blue-500"
+          />
+          Debug capture
+        </label>
         {jobId && stream.status === "running" && (
           <button
             onClick={() => { void cancelCount(jobId); }}

@@ -44,12 +44,16 @@ def start(debug: bool = False) -> None:
     network_manager = NetworkManager()
     regions_cache = diskcache.Cache(directory=str(_REGIONS_CACHE_DIR))
     cache_service = CacheService(cache=regions_cache)
+    _debug_root = (
+        Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "AutoRaid" / "debug"
+    )
     count_runner = make_count_runner(
         cache_service=None,
         window_service=window_service,
         network_manager=network_manager,
         screenshot_service=None,
         detector=None,
+        debug_dir_root=_debug_root,
     )
     settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
     settings_service = SettingsService(cache=settings_cache)
