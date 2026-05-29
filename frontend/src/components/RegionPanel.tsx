@@ -33,7 +33,10 @@ function normalizeRect(a: { x: number; y: number }, b: { x: number; y: number })
   };
 }
 
+type Mode = "loading" | "view" | "draw";
+
 export function RegionPanel() {
+  const [mode, setMode] = useState<Mode>("loading");
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const [screenshotError, setScreenshotError] = useState(false);
   const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null);
@@ -52,13 +55,32 @@ export function RegionPanel() {
   useEffect(() => {
     fetch("/api/regions")
       .then(async (r) => {
-        if (!r.ok) return;
+        if (!r.ok) { setMode("draw"); return; }
         const data: RegionsResponse = await r.json();
         setWindowSizeMismatch(data.window_size_mismatch);
-        if (data.regions) setCachedRegions(data.regions);
+        if (data.regions) {
+          setCachedRegions(data.regions);
+          setMode("view");
+        } else {
+          setMode("draw");
+        }
       })
-      .catch(() => {});
+      .catch(() => { setMode("draw"); });
   }, []);
+
+  useEffect(() => {
+    if (mode !== "view") return;
+    setCapturing(true);
+    setScreenshotError(false);
+    fetch("/api/screenshot")
+      .then(async (r) => {
+        if (!r.ok) { setScreenshotError(true); return; }
+        const blob = await r.blob();
+        setScreenshotUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => setScreenshotError(true))
+      .finally(() => setCapturing(false));
+  }, [mode]);
 
   async function captureScreenshot() {
     setCapturing(true);
@@ -75,6 +97,7 @@ export function RegionPanel() {
     }
   }
 
+  // canvas redraw effect
   useEffect(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
@@ -198,6 +221,7 @@ export function RegionPanel() {
       setCachedRegions({ upgrade_bar: bar, upgrade_button: btn });
       setWindowSizeMismatch(false);
       setDrawn({});
+      setMode("view");
     } catch {
       setSaveState("error");
     }
@@ -206,6 +230,8 @@ export function RegionPanel() {
   const hasValidCached = cachedRegions !== null && !windowSizeMismatch;
   const hasBothDrawn = drawn.upgrade_bar !== undefined && drawn.upgrade_button !== undefined;
   const canSaveFinal = hasBothDrawn || (hasValidCached && Object.keys(drawn).length > 0);
+
+  if (mode === "loading") return null;
 
   return (
     <section className="space-y-3">
@@ -234,7 +260,7 @@ export function RegionPanel() {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         />
-        {!screenshotUrl && !screenshotError && !capturing && (
+        {!screenshotUrl && !screenshotError && !capturing && mode === "draw" && (
           <div className="canvas-placeholder">
             Navigate to the upgrade screen in Raid, then click Capture Screenshot.
           </div>
@@ -252,44 +278,54 @@ export function RegionPanel() {
         )}
       </div>
 
-      <div className="flex gap-2 flex-wrap items-center">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={captureScreenshot}
-          disabled={capturing}
-        >
-          {capturing ? "Capturing…" : screenshotUrl ? "Recapture" : "Capture Screenshot"}
-        </Button>
+      {mode === "view" && (
+        <div className="flex gap-2 flex-wrap items-center">
+          <Button variant="outline" size="sm" onClick={() => setMode("draw")}>
+            Recalibrate
+          </Button>
+        </div>
+      )}
 
-        {(["upgrade_bar", "upgrade_button"] as RegionKey[]).map((key) => (
+      {mode === "draw" && (
+        <div className="flex gap-2 flex-wrap items-center">
           <Button
-            key={key}
             variant="outline"
             size="sm"
-            onClick={() => setActiveKey((prev) => (prev === key ? null : key))}
-            disabled={!screenshotUrl}
-            style={{
-              borderColor: activeKey === key ? undefined : `${REGION_COLORS[key]}60`,
-              background: activeKey === key ? REGION_COLORS[key] : undefined,
-              color: activeKey === key ? "#fff" : undefined,
-            }}
+            onClick={captureScreenshot}
+            disabled={capturing}
           >
-            {drawn[key] !== undefined ? `Redraw ${REGION_LABELS[key]}` : `Draw ${REGION_LABELS[key]}`}
+            {capturing ? "Capturing…" : screenshotUrl ? "Recapture" : "Capture Screenshot"}
           </Button>
-        ))}
 
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={!canSaveFinal || saveState === "saving"}
-        >
-          {saveState === "saving" ? "Saving…"
-            : saveState === "saved" ? "Saved ✓"
-            : saveState === "error" ? "Error — retry"
-            : "Save Regions"}
-        </Button>
-      </div>
+          {(["upgrade_bar", "upgrade_button"] as RegionKey[]).map((key) => (
+            <Button
+              key={key}
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveKey((prev) => (prev === key ? null : key))}
+              disabled={!screenshotUrl}
+              style={{
+                borderColor: activeKey === key ? undefined : `${REGION_COLORS[key]}60`,
+                background: activeKey === key ? REGION_COLORS[key] : undefined,
+                color: activeKey === key ? "#fff" : undefined,
+              }}
+            >
+              {drawn[key] !== undefined ? `Redraw ${REGION_LABELS[key]}` : `Draw ${REGION_LABELS[key]}`}
+            </Button>
+          ))}
+
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={!canSaveFinal || saveState === "saving"}
+          >
+            {saveState === "saving" ? "Saving…"
+              : saveState === "saved" ? "Saved ✓"
+              : saveState === "error" ? "Error — retry"
+              : "Save Regions"}
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

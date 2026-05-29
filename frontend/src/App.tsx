@@ -3,6 +3,7 @@ import { StatusHeader } from "./components/StatusHeader";
 import { CountPanel } from "./components/CountPanel";
 import { SpendPanel } from "./components/SpendPanel";
 import { NetworkPanel } from "./components/NetworkPanel";
+import { RegionPanel } from "./components/RegionPanel";
 
 type Tab = "run" | "calibration";
 
@@ -44,7 +45,9 @@ export default function App() {
           </div>
         )}
         {activeTab === "calibration" && (
-          <div role="tabpanel" aria-label="Calibration" className="p-6" />
+          <div role="tabpanel" aria-label="Calibration" className="p-6 h-full">
+            <RegionPanel />
+          </div>
         )}
       </main>
     </div>

@@ -138,4 +138,16 @@ describe("App", () => {
     const body = JSON.parse(postCall![1].body as string);
     expect(body.adapter_ids).toEqual(["1"]);
   });
+
+  // ---------------------------------------------------------------------------
+  // Cycle 5 — Calibration tab renders RegionPanel
+  // ---------------------------------------------------------------------------
+
+  it("Calibration tab renders RegionPanel", async () => {
+    renderApp();
+
+    await userEvent.click(screen.getByRole("tab", { name: /calibration/i }));
+
+    await screen.findByRole("button", { name: /draw upgrade bar/i });
+  });
 });
