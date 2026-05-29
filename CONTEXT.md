@@ -26,7 +26,7 @@ _Avoid_: miss, failure, loss
 **Success**: An attempt that advances the gear piece one level. Detected by the progress bar entering and remaining in the Standby state.
 _Avoid_: upgraded, win, level-up
 
-**Fail Count**: The number of accumulated fails recorded during Count. Spent during Spend to guarantee a success on the target.
+**Fail Count**: The number of accumulated fails to be consumed during Spend. Typically recorded by running Count, but may be known in advance from a prior session or manual counting.
 _Avoid_: pity count, stack, charge
 
 ### Phases
@@ -47,6 +47,14 @@ _Avoid_: airplane mode, network-disabled
 
 **Online**: Network state during Spend — the adapter is enabled, allowing the game to process the success.
 _Avoid_: connected, network-enabled
+
+### Regions & Calibration
+
+**Region**: A cached bounding box (left, top, width, height) relative to the Raid window, identifying a UI element for CV detection or interaction. Two regions are tracked: the upgrade bar and the upgrade button. Regions are keyed by window size and become invalid if the window is resized.
+_Avoid_: area, zone, coordinate
+
+**Calibration**: The process of setting or verifying regions by drawing on a screenshot of the Raid window. Calibration is a prerequisite for Count and Spend but need not be repeated each session once regions are cached.
+_Avoid_: setup, configuration, region selection
 
 ### Progress Bar
 
