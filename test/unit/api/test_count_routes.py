@@ -137,8 +137,10 @@ def test_websocket_streams_events_in_order_and_closes_after_done():
     q.put({"type": "progress", "fail_count": 3, "frames": 10, "state": "FAIL"})
     q.put({"type": "done", "result": {"fail_count": 3, "stop_reason": "max_attempts"}})
 
-    app = create_app()
-    app.dependency_overrides[get_job_registry] = lambda: _WSRegistryStub("job-ws", q)
+    # The WS route reads the registry from app.state (a Request-typed
+    # dependency cannot be satisfied in a websocket route), so inject the stub
+    # the same way production wires it — via create_app — not dependency_overrides.
+    app = create_app(job_registry=_WSRegistryStub("job-ws", q))
 
     with TestClient(app) as client:
         with client.websocket_connect("/ws/workflows/job-ws") as ws:
@@ -190,8 +192,7 @@ def test_websocket_closes_after_error_event():
     q.put({"type": "log", "level": "INFO", "msg": "starting", "ts": 0})
     q.put({"type": "error", "error": "RuntimeError", "message": "disk full"})
 
-    app = create_app()
-    app.dependency_overrides[get_job_registry] = lambda: _WSRegistryStub("job-err", q)
+    app = create_app(job_registry=_WSRegistryStub("job-err", q))
 
     with TestClient(app) as client:
         with client.websocket_connect("/ws/workflows/job-err") as ws:
