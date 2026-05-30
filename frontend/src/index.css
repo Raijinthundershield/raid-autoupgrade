@@ -161,6 +161,12 @@
   color: var(--t-muted); margin-top: 0.2rem;
 }
 
+/* Fixed-width, left-aligned stat boxes so Count's 2 and Spend's 3 line up
+   column-wise across the two Run-tab rows instead of sizing to content. */
+.stat-row .stat-card {
+  width: 8rem; flex: none;
+}
+
 /* ─── Log console ───────────────────────────────────────────────── */
 
 .log-console {

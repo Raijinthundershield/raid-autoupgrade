@@ -41,6 +41,19 @@ describe("CountPanel", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Button-first layout: the primary button precedes its options, so the Count
+  // and Spend action rows line up.
+  // ---------------------------------------------------------------------------
+
+  it("renders the Start Count button before the Debug capture checkbox", () => {
+    render(<CountPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
+
+    const button = screen.getByRole("button", { name: /start count/i });
+    const checkbox = screen.getByRole("checkbox", { name: /debug capture/i });
+    expect(button.compareDocumentPosition(checkbox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------------
   // Network seam: Start POSTs the right body and registers the job via onStart.
   // ---------------------------------------------------------------------------
 

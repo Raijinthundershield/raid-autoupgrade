@@ -125,6 +125,22 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /start spend/i })).toBeInTheDocument();
   });
 
+  // ---------------------------------------------------------------------------
+  // Numbered phase headers above each panel — a Session reads Count → Spend.
+  // ---------------------------------------------------------------------------
+
+  it("shows numbered phase headers 01 / Count and 02 / Spend above the panels", () => {
+    renderApp();
+
+    const count = screen.getByText("Count", { selector: ".phase-title" });
+    expect(count).toBeInTheDocument();
+    expect(within(count.closest(".phase-row")!).getByText("01")).toBeInTheDocument();
+
+    const spend = screen.getByText("Spend", { selector: ".phase-title" });
+    expect(spend).toBeInTheDocument();
+    expect(within(spend.closest(".phase-row")!).getByText("02")).toBeInTheDocument();
+  });
+
   it("Run tab shows adapter names from the server", async () => {
     renderApp();
     await screen.findByText("Wi-Fi");

@@ -62,6 +62,10 @@ export function CountPanel({ adapterIds = null, stream, running, onStart, onStop
           </Button>
         )}
 
+        {conflict && <span className="conflict-badge">workflow already running</span>}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Checkbox
             id="count-debug-capture"
@@ -73,11 +77,9 @@ export function CountPanel({ adapterIds = null, stream, running, onStart, onStop
             Debug capture
           </Label>
         </div>
-
-        {conflict && <span className="conflict-badge">workflow already running</span>}
       </div>
 
-      <div className="flex gap-3">
+      <div className="stat-row flex gap-3">
         <StatCard label="Fails" value={stream.count.failCount} />
         <StatCard label="Frames" value={stream.count.frames} />
       </div>

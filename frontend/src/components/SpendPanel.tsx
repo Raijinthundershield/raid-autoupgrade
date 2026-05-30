@@ -69,6 +69,20 @@ export function SpendPanel({ stream, running, onStart, onStop }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={handleStart} disabled={running || !maxAttempts}>
+          {active && running ? "Spending…" : "Start Spend"}
+        </Button>
+
+        {active && running && (
+          <Button variant="destructive" onClick={onStop}>
+            Stop
+          </Button>
+        )}
+
+        {conflict && <span className="conflict-badge">workflow already running</span>}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 text-sm">
           <Label htmlFor="spend-max-attempts">Max attempts</Label>
           <Input
@@ -95,21 +109,9 @@ export function SpendPanel({ stream, running, onStart, onStop }: Props) {
             Continue upgrade
           </Label>
         </div>
-
-        <Button onClick={handleStart} disabled={running || !maxAttempts}>
-          {active && running ? "Spending…" : "Start Spend"}
-        </Button>
-
-        {active && running && (
-          <Button variant="destructive" onClick={onStop}>
-            Stop
-          </Button>
-        )}
-
-        {conflict && <span className="conflict-badge">workflow already running</span>}
       </div>
 
-      <div className="flex gap-3">
+      <div className="stat-row flex gap-3">
         <StatCard label="Attempts used" value={stream.spend.attemptsUsed} />
         <StatCard label="Remaining" value={stream.spend.remaining} />
         <StatCard label="Upgrades" value={stream.spend.upgrades} />

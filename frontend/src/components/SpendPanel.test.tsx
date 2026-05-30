@@ -55,6 +55,20 @@ describe("SpendPanel", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Button-first layout: the primary button precedes its options (matches Count,
+  // which already leads with its button), so the two action rows line up.
+  // ---------------------------------------------------------------------------
+
+  it("renders the Start Spend button before the Max attempts input", async () => {
+    render(<SpendPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
+    await waitFor(() => screen.getByLabelText(/max attempts/i));
+
+    const button = screen.getByRole("button", { name: /start spend/i });
+    const input = screen.getByLabelText(/max attempts/i);
+    expect(button.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------------
   // Prefill from the last Count result.
   // ---------------------------------------------------------------------------
 

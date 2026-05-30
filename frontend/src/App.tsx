@@ -10,6 +10,19 @@ import { useJobStream, type JobPhase } from "./hooks/useJobStream";
 
 type Tab = "run" | "calibration";
 
+// Numbered phase header above a Run-tab panel (a Session reads Count → Spend).
+function PhaseHeader({ num, title }: { num: string; title: string }) {
+  return (
+    <>
+      <div className="phase-row">
+        <span className="phase-num">{num}</span>
+        <span className="phase-title">{title}</span>
+      </div>
+      <div className="phase-rule" />
+    </>
+  );
+}
+
 async function cancelJob(jobId: string): Promise<void> {
   await fetch(`/api/workflows/${jobId}/cancel`, { method: "POST" });
 }
@@ -53,19 +66,25 @@ export default function App() {
           <div role="tabpanel" aria-label="Run" className="flex gap-6 p-6">
             <div className="flex flex-col flex-1 gap-6 min-w-0">
               <CalibrationBanner onNavigateToCalibration={() => setActiveTab("calibration")} />
-              <CountPanel
-                adapterIds={adapterIds}
-                stream={stream}
-                running={running}
-                onStart={(id) => setJob({ id, phase: "count" })}
-                onStop={handleStop}
-              />
-              <SpendPanel
-                stream={stream}
-                running={running}
-                onStart={(id) => setJob({ id, phase: "spend" })}
-                onStop={handleStop}
-              />
+              <div>
+                <PhaseHeader num="01" title="Count" />
+                <CountPanel
+                  adapterIds={adapterIds}
+                  stream={stream}
+                  running={running}
+                  onStart={(id) => setJob({ id, phase: "count" })}
+                  onStop={handleStop}
+                />
+              </div>
+              <div>
+                <PhaseHeader num="02" title="Spend" />
+                <SpendPanel
+                  stream={stream}
+                  running={running}
+                  onStart={(id) => setJob({ id, phase: "spend" })}
+                  onStop={handleStop}
+                />
+              </div>
             </div>
             <div className="w-64 shrink-0 flex flex-col gap-6">
               <div>
