@@ -238,33 +238,6 @@ export function RegionPanel() {
         />
       )}
 
-      <div className="canvas-area">
-        <canvas
-          ref={canvasRef}
-          style={{ width: "100%", display: "block" }}
-          className={activeKey ? "cursor-crosshair" : "cursor-default"}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-        />
-        {!screenshotUrl && !screenshotError && !capturing && mode === "draw" && (
-          <div className="canvas-placeholder">
-            Navigate to the upgrade screen in Raid, then click Capture Screenshot.
-          </div>
-        )}
-        {capturing && (
-          <div className="canvas-placeholder">Capturing…</div>
-        )}
-        {screenshotError && (
-          <div
-            className="canvas-placeholder"
-            style={{ color: "oklch(0.78 0.18 27)" }}
-          >
-            Raid window not detected.
-          </div>
-        )}
-      </div>
-
       {mode === "view" && (
         <div className="flex gap-2 flex-wrap items-center">
           <Button
@@ -321,6 +294,33 @@ export function RegionPanel() {
           </Button>
         </div>
       )}
+
+      <div className="canvas-area">
+        {!screenshotUrl && !screenshotError && !capturing && mode === "draw" && (
+          <div className="canvas-placeholder">
+            Navigate to the upgrade screen in Raid, then click Capture Screenshot.
+          </div>
+        )}
+        {capturing && (
+          <div className="canvas-placeholder">Capturing…</div>
+        )}
+        {screenshotError && (
+          <div
+            className="canvas-placeholder"
+            style={{ color: "oklch(0.78 0.18 27)" }}
+          >
+            Raid window not detected.
+          </div>
+        )}
+        <canvas
+          ref={canvasRef}
+          style={{ width: "100%", display: "block" }}
+          className={activeKey ? "cursor-crosshair" : "cursor-default"}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+        />
+      </div>
     </section>
   );
 }
