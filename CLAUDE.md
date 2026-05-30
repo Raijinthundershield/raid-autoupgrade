@@ -25,6 +25,25 @@ uv run ruff format .          # format
 uv run pre-commit run --all-files
 ```
 
+### Building the one-file Windows .exe locally
+
+Mirrors the `release.yml` CI steps. Run from the `autoraid/` directory:
+
+```powershell
+cd frontend; npm run build    # tsc -b && vite build → frontend/dist (bundled into the exe)
+cd ..
+uv sync                       # installs deps incl. pyinstaller (dev group)
+uv run pyinstaller raid-autoupgrade.spec --noconfirm   # → dist/RaidAutoupgrade.exe
+```
+
+All build config (one-file, windowed, UAC-admin manifest, `frontend/dist` bundling,
+version info read from `pyproject.toml`, `upx=False` for AV) lives in
+`raid-autoupgrade.spec` — not in CLI flags. `--noconfirm` just overwrites a prior
+`dist/`/`build/`; CI omits it (fresh runner). CI additionally renames the artifact
+to `RaidAutoupgrade-v{version}-win64.exe` and guards the tag against the pyproject
+version. The frontend build is mandatory first — a stale/missing `frontend/dist`
+bundles stale UI.
+
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for the layer breakdown (React → FastAPI → jobs → workflows), the composition-root wiring, progress bar detection thresholds, and the upgrade flow.
