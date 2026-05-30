@@ -1,5 +1,6 @@
 """Unit tests for UpgradeOrchestrator."""
 
+import threading
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -209,3 +210,154 @@ class TestUpgradeOrchestrator:
                 adapter_ids=[1, 2],
                 disable_network=True,
             )
+
+    # -------------------------------------------------------------------------
+    # Behavior: cancel_event set → monitor loop returns MANUAL_STOP immediately
+    # -------------------------------------------------------------------------
+
+    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    def test_cancel_event_stops_monitor_loop_with_manual_stop(self, mock_sleep):
+        mock_screenshot = Mock(spec=ScreenshotService)
+        mock_window = Mock(spec=WindowInteractionService)
+        mock_cache = Mock(spec=CacheService)
+        mock_network = Mock(spec=NetworkManager)
+        mock_detector = Mock(spec=ProgressBarStateDetector)
+
+        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
+        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
+        mock_screenshot.take_screenshot.return_value = fake_screenshot
+        mock_screenshot.extract_roi.return_value = fake_roi
+
+        mock_window.window_exists.return_value = True
+        mock_window.get_window_size.return_value = (800, 600)
+        mock_cache.get_regions.return_value = {
+            "upgrade_bar": (0, 0, 100, 50),
+            "upgrade_button": (0, 0, 100, 50),
+        }
+        mock_detector.detect_state.return_value = ProgressBarState.PROGRESS
+
+        cancel_event = threading.Event()
+        cancel_event.set()
+
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=mock_screenshot,
+            window_interaction_service=mock_window,
+            cache_service=mock_cache,
+            network_manager=mock_network,
+            detector=mock_detector,
+        )
+        session = UpgradeSession(
+            upgrade_bar_region=(0, 0, 100, 50),
+            upgrade_button_region=(0, 0, 100, 50),
+            stop_conditions=StopConditionChain([]),
+        )
+
+        result = orchestrator.run_upgrade_session(session, cancel_event=cancel_event)
+
+        assert result.stop_reason == StopReason.MANUAL_STOP
+        mock_detector.detect_state.assert_not_called()
+
+    # -------------------------------------------------------------------------
+    # Behavior: on_progress callback invoked each monitor-loop iteration
+    # -------------------------------------------------------------------------
+
+    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    def test_on_progress_called_once_per_loop_iteration(self, mock_sleep):
+        mock_screenshot = Mock(spec=ScreenshotService)
+        mock_window = Mock(spec=WindowInteractionService)
+        mock_cache = Mock(spec=CacheService)
+        mock_network = Mock(spec=NetworkManager)
+        mock_detector = Mock(spec=ProgressBarStateDetector)
+
+        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
+        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
+        mock_screenshot.take_screenshot.return_value = fake_screenshot
+        mock_screenshot.extract_roi.return_value = fake_roi
+
+        mock_window.window_exists.return_value = True
+        mock_window.get_window_size.return_value = (800, 600)
+        mock_cache.get_regions.return_value = {
+            "upgrade_bar": (0, 0, 100, 50),
+            "upgrade_button": (0, 0, 100, 50),
+        }
+
+        # Two iterations: PROGRESS → FAIL (triggers MaxAttemptsCondition with max=1)
+        mock_detector.detect_state.side_effect = [
+            ProgressBarState.PROGRESS,
+            ProgressBarState.FAIL,
+        ]
+
+        stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
+        events = []
+
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=mock_screenshot,
+            window_interaction_service=mock_window,
+            cache_service=mock_cache,
+            network_manager=mock_network,
+            detector=mock_detector,
+        )
+        session = UpgradeSession(
+            upgrade_bar_region=(0, 0, 100, 50),
+            upgrade_button_region=(0, 0, 100, 50),
+            stop_conditions=stop_conditions,
+        )
+
+        orchestrator.run_upgrade_session(session, on_progress=events.append)
+
+        assert len(events) == 2
+
+    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    def test_on_progress_events_carry_correct_data(self, mock_sleep):
+        mock_screenshot = Mock(spec=ScreenshotService)
+        mock_window = Mock(spec=WindowInteractionService)
+        mock_cache = Mock(spec=CacheService)
+        mock_network = Mock(spec=NetworkManager)
+        mock_detector = Mock(spec=ProgressBarStateDetector)
+
+        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
+        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
+        mock_screenshot.take_screenshot.return_value = fake_screenshot
+        mock_screenshot.extract_roi.return_value = fake_roi
+
+        mock_window.window_exists.return_value = True
+        mock_window.get_window_size.return_value = (800, 600)
+        mock_cache.get_regions.return_value = {
+            "upgrade_bar": (0, 0, 100, 50),
+            "upgrade_button": (0, 0, 100, 50),
+        }
+
+        mock_detector.detect_state.side_effect = [
+            ProgressBarState.PROGRESS,
+            ProgressBarState.FAIL,
+        ]
+
+        stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
+        events = []
+
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=mock_screenshot,
+            window_interaction_service=mock_window,
+            cache_service=mock_cache,
+            network_manager=mock_network,
+            detector=mock_detector,
+        )
+        session = UpgradeSession(
+            upgrade_bar_region=(0, 0, 100, 50),
+            upgrade_button_region=(0, 0, 100, 50),
+            stop_conditions=stop_conditions,
+        )
+
+        orchestrator.run_upgrade_session(session, on_progress=events.append)
+
+        from autoraid.orchestration.upgrade_orchestrator import ProgressEvent
+
+        first, second = events
+        assert isinstance(first, ProgressEvent)
+        assert first.frames == 1
+        assert first.fail_count == 0
+        assert first.state == ProgressBarState.PROGRESS
+
+        assert second.frames == 2
+        assert second.fail_count == 1
+        assert second.state == ProgressBarState.FAIL

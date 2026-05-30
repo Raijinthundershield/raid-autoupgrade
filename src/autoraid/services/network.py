@@ -209,8 +209,8 @@ class NetworkManager:
         valid_ids_set = {adapter.id for adapter in all_adapters}
 
         for adapter_id in adapter_ids:
-            if adapter_id in valid_ids_set:
-                valid_adapter_ids.append(adapter_id)
+            if str(adapter_id) in valid_ids_set:
+                valid_adapter_ids.append(str(adapter_id))
             else:
                 logger.warning(
                     f"Invalid adapter ID: {adapter_id}. Available IDs: {all_adapters}"

@@ -8,12 +8,71 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
+from autoraid.detection.progress_bar_detector import (
+    ProgressBarState,
+    ProgressBarStateDetector,
+)
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.orchestration.stop_conditions import StopReason
-from autoraid.orchestration.upgrade_orchestrator import UpgradeResult
+from autoraid.orchestration.upgrade_orchestrator import ProgressEvent, UpgradeResult
 from autoraid.services.network import NetworkState
-from autoraid.workflows.spend_workflow import SpendResult, SpendWorkflow
+from autoraid.workflows.spend_workflow import (
+    SpendProgress,
+    SpendResult,
+    SpendWorkflow,
+    enrich_spend_progress,
+)
+
+
+class TestEnrichSpendProgress:
+    """The pure enrichment function: session ProgressEvent + base loop totals
+    → cumulative Spend snapshot."""
+
+    def test_within_session_counts_up_used_and_down_remaining(self):
+        # Base totals at the start of a session: 2 attempts already used, 8 left,
+        # 1 upgrade so far. The orchestrator reports 3 fails this session.
+        event = ProgressEvent(fail_count=3, frames=40, state=ProgressBarState.FAIL)
+
+        snapshot = enrich_spend_progress(
+            attempt_count=2,
+            remaining_attempts=8,
+            upgrade_count=1,
+            event=event,
+        )
+
+        assert snapshot.attempts_used == 5  # 2 base + 3 this session
+        assert snapshot.remaining == 5  # 8 base - 3 this session
+        assert snapshot.upgrades == 1
+        assert snapshot.state is ProgressBarState.FAIL
+
+    def test_across_session_boundary_stays_monotonic(self):
+        # Session 1 (max 10): starts at base 0/10/0. Its last live frame reports
+        # 3 fails just before the piece upgrades.
+        last = enrich_spend_progress(
+            attempt_count=0,
+            remaining_attempts=10,
+            upgrade_count=0,
+            event=ProgressEvent(fail_count=3, frames=30, state=ProgressBarState.FAIL),
+        )
+        assert (last.attempts_used, last.remaining, last.upgrades) == (3, 7, 0)
+
+        # Session boundary: the upgrade consumed those 3 fails + 1 success, and
+        # the upgrade count ticks. The next session's base totals.
+        first = enrich_spend_progress(
+            attempt_count=3,  # 0 + 3 fails
+            remaining_attempts=6,  # 10 - 3 fails - 1 success
+            upgrade_count=1,
+            event=ProgressEvent(
+                fail_count=0, frames=31, state=ProgressBarState.PROGRESS
+            ),
+        )
+
+        # Crossing the boundary never regresses: used does not drop, remaining
+        # does not rise, upgrades does not drop.
+        assert first.attempts_used >= last.attempts_used
+        assert first.remaining <= last.remaining
+        assert first.upgrades >= last.upgrades
+        assert (first.attempts_used, first.remaining, first.upgrades) == (3, 6, 1)
 
 
 class TestSpendWorkflowValidation:
@@ -367,3 +426,106 @@ class TestSpendWorkflowContinueUpgrade:
 
         # Verify orchestrator was called only once (no attempts left to continue)
         assert mock_orchestrator.run_upgrade_session.call_count == 1
+
+
+class TestSpendWorkflowProgressAndCancel:
+    """Test cancel_event and on_progress threading in SpendWorkflow."""
+
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_passes_cancel_event_to_orchestrator(self, mock_orchestrator_class):
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+            fail_count=5, frames_processed=20, stop_reason=StopReason.UPGRADED
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = {
+            "upgrade_button": (100, 200, 50, 30),
+            "upgrade_bar": (100, 250, 200, 10),
+        }
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        import threading
+
+        cancel_event = threading.Event()
+
+        workflow = SpendWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        workflow.run(cancel_event=cancel_event)
+
+        _, kwargs = mock_orchestrator.run_upgrade_session.call_args
+        assert kwargs.get("cancel_event") is cancel_event
+
+    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_forwards_enriched_progress_reflecting_running_totals(
+        self, mock_orchestrator_class
+    ):
+        """As the orchestrator streams per-session ProgressEvents, the workflow
+        forwards cumulative SpendProgress snapshots whose attempts_used /
+        remaining / upgrades reflect the running loop totals — advancing across
+        a session boundary, not resetting each session."""
+        mock_orchestrator = Mock()
+
+        def fake_session(session, cancel_event=None, on_progress=None):
+            # The session number is implied by how many times we've been called.
+            call = mock_orchestrator.run_upgrade_session.call_count
+            if call == 1:
+                on_progress(
+                    ProgressEvent(fail_count=1, frames=10, state=ProgressBarState.FAIL)
+                )
+                return UpgradeResult(
+                    fail_count=1, frames_processed=10, stop_reason=StopReason.UPGRADED
+                )
+            on_progress(
+                ProgressEvent(fail_count=2, frames=20, state=ProgressBarState.FAIL)
+            )
+            return UpgradeResult(
+                fail_count=2, frames_processed=20, stop_reason=StopReason.UPGRADED
+            )
+
+        mock_orchestrator.run_upgrade_session.side_effect = fake_session
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = {
+            "upgrade_button": (100, 200, 50, 30),
+            "upgrade_bar": (100, 250, 200, 10),
+        }
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        received: list[SpendProgress] = []
+
+        workflow = SpendWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=Mock(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+            continue_upgrade=True,  # run a second session so totals advance
+        )
+
+        workflow.run(on_progress=received.append)
+
+        assert all(isinstance(s, SpendProgress) for s in received)
+        # Session 1 base 0/10/0, 1 fail → (1, 9, 0).
+        # Boundary: +1 fail, +1 success, +1 upgrade → base 1/8/1.
+        # Session 2 base 1/8/1, 2 fails → (3, 6, 1).
+        assert [(s.attempts_used, s.remaining, s.upgrades) for s in received] == [
+            (1, 9, 0),
+            (3, 6, 1),
+        ]
+        assert [s.state for s in received] == [
+            ProgressBarState.FAIL,
+            ProgressBarState.FAIL,
+        ]

@@ -1,0 +1,285 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ═══════════════════════════════════════════════════════════════════
+   THEME PALETTE — change this block to retheme the entire app.
+   Every color below is a semantic token; nothing elsewhere is
+   hard-coded to a specific color.
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  /* Slate — cool off-white light theme, blue accent */
+  --t-bg:         oklch(0.95 0.006 248);   /* page background    */
+  --t-surface:    oklch(0.995 0.002 248);  /* card / panel        */
+  --t-surface2:   oklch(0.975 0.004 248);  /* stat boxes, inputs  */
+  --t-border:     rgba(0, 0, 0, 0.09);
+  --t-accent:     oklch(0.50 0.22 268);    /* primary blue        */
+  --t-accent-fg:  oklch(0.99 0 0);         /* text on accent bg   */
+  --t-text:       oklch(0.18 0.02 248);    /* body text           */
+  --t-muted:      oklch(0.52 0.03 248);    /* secondary text      */
+  --t-green:      oklch(0.48 0.18 145);
+  --t-red:        oklch(0.52 0.22 25);
+  --t-grid:       rgba(0, 0, 0, 0.045);    /* dot-grid opacity    */
+}
+
+/* ─── Tailwind / shadcn variable mappings ────────────────────────── */
+/* These map the palette tokens above to Tailwind's color system.    */
+/* You should not need to touch this section when rethemes.          */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background:         var(--background);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:          var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-ring:               var(--ring);
+}
+
+@layer base {
+  :root {
+    --background:              var(--t-bg);
+    --foreground:              var(--t-text);
+    --card:                    var(--t-surface);
+    --card-foreground:         var(--t-text);
+    --popover:                 var(--t-surface);
+    --popover-foreground:      var(--t-text);
+    --primary:                 var(--t-accent);
+    --primary-foreground:      var(--t-accent-fg);
+    --secondary:               var(--t-surface2);
+    --secondary-foreground:    var(--t-text);
+    --muted:                   var(--t-surface2);
+    --muted-foreground:        var(--t-muted);
+    --accent:                  var(--t-surface2);
+    --accent-foreground:       var(--t-text);
+    --destructive:             var(--t-red);
+    --destructive-foreground:  var(--t-accent-fg);
+    --border:                  var(--t-border);
+    --input:                   var(--t-border);
+    --ring:                    var(--t-accent);
+    --radius:                  0.3rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background-image: radial-gradient(var(--t-grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+}
+
+/* ─── App header ────────────────────────────────────────────────── */
+
+.app-header {
+  background: var(--t-surface);
+  border-bottom: 1px solid var(--t-border);
+}
+
+/* ─── Canvas container ──────────────────────────────────────────── */
+
+.canvas-area {
+  position: relative;
+  width: 100%;
+  background: var(--t-surface2);
+  border: 1px solid var(--t-border);
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+/* ─── Phase chrome ──────────────────────────────────────────────── */
+
+.phase-row {
+  display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.6rem;
+}
+
+.phase-num {
+  font-family: 'Rajdhani', sans-serif; font-weight: 600;
+  font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--t-accent);
+}
+
+.phase-title {
+  font-family: 'Rajdhani', sans-serif; font-weight: 600;
+  font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--t-text);
+}
+
+.phase-rule {
+  height: 1px;
+  background: linear-gradient(to right, var(--t-accent), transparent);
+  opacity: 0.35; margin-bottom: 1.25rem;
+}
+
+/* ─── Status dots ───────────────────────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.dot-online {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--t-green); animation: pulse-glow 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.dot-offline {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--t-muted); opacity: 0.35; flex-shrink: 0;
+}
+
+/* ─── Stat card ─────────────────────────────────────────────────── */
+
+.stat-card {
+  background: var(--t-surface2); border: 1px solid var(--t-border);
+  border-radius: 0.3rem; padding: 0.75rem 1rem; min-width: 5rem;
+}
+
+.stat-val {
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+  font-size: 1.9rem; line-height: 1; color: var(--t-accent);
+}
+
+.stat-lbl {
+  font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--t-muted); margin-top: 0.2rem;
+}
+
+/* Fixed-width, left-aligned stat boxes so Count's 2 and Spend's 3 line up
+   column-wise across the two Run-tab rows instead of sizing to content. */
+.stat-row .stat-card {
+  width: 8rem; flex: none;
+}
+
+/* ─── Log console ───────────────────────────────────────────────── */
+
+.log-console {
+  background: var(--t-surface2); border: 1px solid var(--t-border);
+  border-radius: 0.3rem; padding: 0.625rem 0.75rem;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 0.695rem;
+  max-height: 10.5rem; overflow-y: auto; line-height: 1.65;
+}
+
+.log-level { color: var(--t-muted); }
+.log-msg   { color: var(--t-text); }
+
+/* ─── Result banners ────────────────────────────────────────────── */
+
+.banner-ok {
+  border: 1px solid var(--t-green); border-left: 3px solid var(--t-green);
+  background: color-mix(in srgb, var(--t-green) 8%, transparent);
+  border-radius: 0.3rem; padding: 0.55rem 0.875rem; font-size: 0.85rem;
+}
+
+.banner-ok-label { font-weight: 600; color: var(--t-green); }
+
+.banner-err {
+  border: 1px solid var(--t-red); border-left: 3px solid var(--t-red);
+  background: color-mix(in srgb, var(--t-red) 8%, transparent);
+  border-radius: 0.3rem; padding: 0.55rem 0.875rem; font-size: 0.85rem;
+  color: var(--t-red);
+}
+
+/* ─── Conflict badge ────────────────────────────────────────────── */
+
+.conflict-badge {
+  font-size: 0.75rem; color: var(--t-accent);
+  background: color-mix(in srgb, var(--t-accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--t-accent) 28%, transparent);
+  border-radius: 0.25rem; padding: 0.2rem 0.55rem;
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em;
+}
+
+/* ─── Canvas container ──────────────────────────────────────────── */
+
+.canvas-placeholder {
+  min-height: 7.5rem; display: flex; align-items: center;
+  justify-content: center; font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem; color: var(--t-muted);
+  text-align: center; padding: 1rem;
+}
+
+/* ─── Adapter list ──────────────────────────────────────────────── */
+
+.adapter-row {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.45rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--t-border) 50%, transparent);
+  font-size: 0.875rem;
+}
+.adapter-row:last-child { border-bottom: none; }
+
+.adapter-status-on {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--t-green);
+}
+
+.adapter-status-off {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--t-muted);
+}
+
+/* ─── Sidebar section label ─────────────────────────────────────── */
+
+.sidebar-section {
+  font-family: 'Rajdhani', sans-serif; font-weight: 600;
+  font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--t-accent); margin-bottom: 0.5rem;
+}
+
+/* ─── Progress Bar State card ───────────────────────────────────── */
+
+.pbs-card {
+  background: var(--t-surface2); border: 1px solid var(--t-border);
+  border-radius: 0.3rem; padding: 0.75rem 1rem;
+}
+
+.pbs-head {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;
+}
+
+.pbs-label {
+  font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--t-muted);
+}
+
+.pbs-value {
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+  font-size: 1.1rem; line-height: 1; color: var(--t-text);
+}
+
+.pbs-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0; background: var(--t-muted); opacity: 0.35;
+}
+.pbs-dot[data-state="progress"] {
+  background: oklch(0.78 0.15 80); opacity: 1;       /* amber */
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+.pbs-dot[data-state="fail"] {
+  background: var(--t-red); opacity: 1;               /* red */
+}
+.pbs-dot[data-state="standby"] {
+  background: var(--t-text); opacity: 1;              /* dark */
+}
+.pbs-dot[data-state="connection_error"] {
+  background: var(--t-red); opacity: 0.4;             /* dimmed red */
+}
+.pbs-dot[data-state="idle"] {
+  background: var(--t-muted); opacity: 0.35;          /* muted */
+}

@@ -4,12 +4,15 @@ This service orchestrates the upgrade monitoring process with configurable
 stop conditions and optional debug logging.
 """
 
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from loguru import logger
 
+from autoraid.detection.progress_bar_detector import ProgressBarState
 from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
 from autoraid.orchestration.debug_frame_logger import DebugFrameLogger
 from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitor
@@ -35,6 +38,15 @@ class UpgradeSession:
     network_adapter_ids: list[int] | None = None
     disable_network: bool = False
     debug_dir: Path | None = None
+
+
+@dataclass(frozen=True)
+class ProgressEvent:
+    """Progress snapshot emitted each monitor-loop iteration."""
+
+    fail_count: int
+    frames: int
+    state: ProgressBarState | None
 
 
 @dataclass(frozen=True)
@@ -105,6 +117,8 @@ class UpgradeOrchestrator:
     def run_upgrade_session(
         self,
         session: UpgradeSession,
+        cancel_event: threading.Event | None = None,
+        on_progress: Callable[[ProgressEvent], None] | None = None,
     ) -> UpgradeResult:
         # Validate prerequisites first
         self.validate_prerequisites(session)
@@ -138,7 +152,9 @@ class UpgradeOrchestrator:
             )
 
             # Monitor loop
-            stop_reason = self._monitor_loop(session, monitor, debug_logger)
+            stop_reason = self._monitor_loop(
+                session, monitor, debug_logger, cancel_event, on_progress
+            )
 
             # Get final state
             final_state = monitor.get_state()
@@ -174,12 +190,17 @@ class UpgradeOrchestrator:
         session: UpgradeSession,
         monitor: ProgressBarMonitor,
         debug_logger: DebugFrameLogger | None = None,
+        cancel_event: threading.Event | None = None,
+        on_progress: Callable[[ProgressEvent], None] | None = None,
     ) -> StopReason:
         logger.info("Starting progress bar monitoring loop")
 
         prev_fail_count = 0
 
         while True:
+            if cancel_event is not None and cancel_event.is_set():
+                return StopReason.MANUAL_STOP
+
             # Capture screenshot and extract ROI
             screenshot = self._screenshot_service.take_screenshot(self.WINDOW_TITLE)
             upgrade_bar_roi = self._screenshot_service.extract_roi(
@@ -190,6 +211,16 @@ class UpgradeOrchestrator:
             # Process frame with monitor
             current_state = monitor.process_frame(upgrade_bar_roi)
             monitor_state = monitor.get_state()
+
+            # Emit progress event
+            if on_progress is not None:
+                on_progress(
+                    ProgressEvent(
+                        fail_count=monitor_state.fail_count,
+                        frames=monitor_state.frames_processed,
+                        state=monitor_state.current_state,
+                    )
+                )
 
             # Log progress on fail count changes
             if monitor_state.fail_count > prev_fail_count:

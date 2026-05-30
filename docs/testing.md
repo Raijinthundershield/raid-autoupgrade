@@ -42,7 +42,24 @@ Tests that assert something which cannot plausibly be wrong — a constructor st
 | Orchestration | Stop condition logic, monitor state transitions | Detector, services |
 | Workflow | Validation rules, stop condition assembly | Orchestrator |
 | Service | Service behavior given its platform dependencies | Platform calls (WMI, Win32, diskcache) |
+| Job registry | Single-active-job lifecycle and event-queue ordering | `run_fn` (pass a stub that pushes events directly) |
+| Settings service | Round-trip persistence of `selected_adapters` and `last_count_result` | `diskcache.Cache` (stub with a plain dict) |
+| API routes | Request → status code, response body, dispatched collaborator | Collaborators, via `app.dependency_overrides` |
+| API exception handler | Domain exception → correct HTTP status and `{"error", "message", "detail"}` envelope | Override `get_count_runner` to raise from the factory call (pre-flight path) |
+| WebSocket | Typed job events arrive in order over the stream; stream closes after `done` or `error` | `JobRegistry.get_queue` — seed a `queue.Queue` with pre-built events |
 | Integration | Workflow → Orchestrator contract end-to-end | Platform services only |
+| Frontend reducer | `useJobStream` derived view state from a WS event sequence | Nothing — pure reducer |
+| Frontend coordinate math | `displayRectToImageRect` maps display-pixel rects to image-pixel rects across render scales | Nothing — pure function |
+| Frontend panel | Panel calls the right endpoint on interaction; renders loading and error states | The HTTP API / WebSocket boundary |
+| Regions route | `GET /api/screenshot` → PNG bytes; `PUT /api/regions` → `cache_service.set_regions` called with correct window size | `screenshot_service`, `window_service`, `cache_service` via `app.dependency_overrides` |
+
+Substitute each dependency at its injection point — `app.dependency_overrides` for routes, constructor args elsewhere — never patch internals.
+
+## Frontend testing
+
+The contract philosophy carries across the language boundary unchanged; only the location of the seam differs. On the client the seam is the **network boundary** — a component's collaborators are the HTTP API and the job WebSocket. Mock at that boundary and assert on what the user sees: rendered output and which endpoint was called, never component state, hook internals, or the query cache. The frontend layers are in the table above.
+
+No end-to-end tests for now: the platform (real Raid window, WMI) cannot run headless, so e2e coverage is inherently limited and low-ROI.
 
 ## Coverage
 

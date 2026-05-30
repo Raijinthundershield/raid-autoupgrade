@@ -8,6 +8,8 @@ Guidance for Claude Code working in this repo.
 
 Background on the trick: [docs/airplane-mode-trick.md](docs/airplane-mode-trick.md).
 
+Use .scratch for temporary docs.
+
 ## Commands
 
 Package manager is `uv`. All commands run from the `autoraid/` directory.
@@ -25,7 +27,7 @@ uv run pre-commit run --all-files
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for layer breakdown, DI container, progress bar detection thresholds, and the upgrade flow.
+See [docs/architecture.md](docs/architecture.md) for the layer breakdown (React → FastAPI → jobs → workflows), the composition-root wiring, progress bar detection thresholds, and the upgrade flow.
 
 ## Constraints
 
@@ -41,6 +43,7 @@ Load [docs/engineering-principles.md](docs/engineering-principles.md) when makin
 ## Testing
 
 Load [docs/testing.md](docs/testing.md) when writing or reviewing tests.
+Load [docs/testing_practical.md](docs/testing_practical.md) when writing test doubles or deciding where to inject them.
 
 ## Agent skills
 

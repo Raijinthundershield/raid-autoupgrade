@@ -1,14 +1,16 @@
 # program generated files
 cache-raid-autoupgrade/
+test_cache/
 cache/
 cache.db
 ragions.json
 screenshot.png
-*.jpg
-*.jpeg
-*.png
-temp
+temp/
 .nicegui/
+
+# detection templates and test fixture images are machine-local, not committed
+src/autoraid/detection/templates/
+test/fixtures/images/
 
 # Misc
 scripts/
@@ -16,6 +18,10 @@ plans/
 scratchpad/
 .scratch/
 .claude/
+.playwright-mcp/
+ui-current.png
+ui-fixed.png
+themes-deck.html
 
 # Python-generated files
 __pycache__/
@@ -26,6 +32,7 @@ wheels/
 *.egg-info
 *.egg
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 *.log
