@@ -2,14 +2,12 @@ import { useState } from "react";
 import type { JobStreamState } from "../hooks/useJobStream";
 import { StatCard } from "./StatCard";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
-async function startCount(adapterIds: string[] | null, debug: boolean): Promise<string> {
+async function startCount(adapterIds: string[] | null): Promise<string> {
   const res = await fetch("/api/workflows/count", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ adapter_ids: adapterIds, debug }),
+    body: JSON.stringify({ adapter_ids: adapterIds }),
   });
   if (res.status === 409) throw new ConflictError();
   if (!res.ok) throw new Error("failed to start count");
@@ -34,7 +32,6 @@ interface Props {
 
 export function CountPanel({ adapterIds = null, stream, running, onStart, onStop }: Props) {
   const [conflict, setConflict] = useState(false);
-  const [debugCapture, setDebugCapture] = useState(false);
 
   // This panel's phase is the active one only when a Count is the running job.
   const active = stream.phase === "count";
@@ -42,7 +39,7 @@ export function CountPanel({ adapterIds = null, stream, running, onStart, onStop
   async function handleStart() {
     setConflict(false);
     try {
-      const id = await startCount(adapterIds ?? null, debugCapture);
+      const id = await startCount(adapterIds ?? null);
       onStart(id);
     } catch (e) {
       if (e instanceof ConflictError) setConflict(true);
@@ -63,20 +60,6 @@ export function CountPanel({ adapterIds = null, stream, running, onStart, onStop
         )}
 
         {conflict && <span className="conflict-badge">workflow already running</span>}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="count-debug-capture"
-            checked={debugCapture}
-            onCheckedChange={(v) => setDebugCapture(v === true)}
-            disabled={running}
-          />
-          <Label htmlFor="count-debug-capture" className="text-sm select-none cursor-pointer">
-            Debug capture
-          </Label>
-        </div>
       </div>
 
       <div className="stat-row flex gap-3">

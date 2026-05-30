@@ -54,16 +54,20 @@ def make_count_runner(
     workflow_class=CountWorkflow,
     settings_service=None,
 ) -> Callable[
-    [list[int] | None, bool],
+    [list[int] | None],
     Callable[[_queue.Queue, threading.Event], dict | None],
 ]:
-    """Return a factory: (adapter_ids, debug) → run_fn for JobRegistry.start_job."""
+    """Return a factory: (adapter_ids,) → run_fn for JobRegistry.start_job.
+
+    Debug-frame capture is gated by ``debug_dir_root``: the composition root
+    passes a root only when the GUI is launched with ``--debug``; otherwise it
+    is ``None`` and no debug artifacts are written.
+    """
 
     def factory(
         adapter_ids: list[int] | None,
-        debug: bool = False,
     ) -> Callable[[_queue.Queue, threading.Event], dict | None]:
-        debug_dir = debug_dir_root / "count" if (debug and debug_dir_root) else None
+        debug_dir = debug_dir_root / "count" if debug_dir_root else None
 
         def run_fn(q: _queue.Queue, cancel_event: threading.Event) -> dict | None:
             workflow = workflow_class(
@@ -106,7 +110,6 @@ def make_spend_runner(
     network_manager,
     screenshot_service,
     detector,
-    debug_dir_root: Path | None = None,
     workflow_class=SpendWorkflow,
 ) -> Callable[
     [int, bool],

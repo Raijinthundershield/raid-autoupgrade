@@ -39,8 +39,8 @@ class _CancelRegistryStub:
 def test_post_count_returns_job_id():
     app = create_app()
     app.dependency_overrides[get_job_registry] = lambda: _RegistryStub(job_id="job-abc")
-    app.dependency_overrides[get_count_runner] = (
-        lambda: lambda adapter_ids, debug=False: (lambda q, cancel_event: None)
+    app.dependency_overrides[get_count_runner] = lambda: lambda adapter_ids: (
+        lambda q, cancel_event: None
     )
 
     with TestClient(app) as client:
@@ -58,8 +58,8 @@ def test_post_count_returns_job_id():
 def test_post_count_when_busy_returns_409():
     app = create_app()
     app.dependency_overrides[get_job_registry] = lambda: _ConflictRegistryStub()
-    app.dependency_overrides[get_count_runner] = (
-        lambda: lambda adapter_ids, debug=False: (lambda q, cancel_event: None)
+    app.dependency_overrides[get_count_runner] = lambda: lambda adapter_ids: (
+        lambda q, cancel_event: None
     )
 
     with TestClient(app) as client:
@@ -202,7 +202,9 @@ def test_websocket_closes_after_error_event():
 
 
 # ---------------------------------------------------------------------------
-# Behavior: POST with debug=true → factory receives debug=True
+# Behavior: POST forwards adapter_ids to the runner factory (debug-frame
+# capture is no longer a per-request flag; it's gated by the --debug CLI flag
+# at the composition root).
 # ---------------------------------------------------------------------------
 
 
@@ -212,30 +214,18 @@ class _CapturingRunnerStub:
     def __init__(self):
         self.calls: list[dict] = []
 
-    def __call__(self, adapter_ids, debug=False):
-        self.calls.append({"adapter_ids": adapter_ids, "debug": debug})
+    def __call__(self, adapter_ids):
+        self.calls.append({"adapter_ids": adapter_ids})
         return lambda q, cancel_event: None
 
 
-def test_post_count_with_debug_true_passes_debug_to_runner():
+def test_post_count_forwards_adapter_ids_to_runner():
     stub = _CapturingRunnerStub()
     app = create_app()
     app.dependency_overrides[get_job_registry] = lambda: _RegistryStub()
     app.dependency_overrides[get_count_runner] = lambda: stub
 
     with TestClient(app) as client:
-        client.post("/api/workflows/count", json={"adapter_ids": None, "debug": True})
+        client.post("/api/workflows/count", json={"adapter_ids": [1, 3]})
 
-    assert stub.calls[0]["debug"] is True
-
-
-def test_post_count_debug_defaults_to_false():
-    stub = _CapturingRunnerStub()
-    app = create_app()
-    app.dependency_overrides[get_job_registry] = lambda: _RegistryStub()
-    app.dependency_overrides[get_count_runner] = lambda: stub
-
-    with TestClient(app) as client:
-        client.post("/api/workflows/count", json={"adapter_ids": None})
-
-    assert stub.calls[0]["debug"] is False
+    assert stub.calls[0]["adapter_ids"] == [1, 3]

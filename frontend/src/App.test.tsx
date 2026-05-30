@@ -240,7 +240,6 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /counting…/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /start spend/i })).toBeDisabled();
     expect(screen.getByLabelText(/max attempts/i)).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: /debug capture/i })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: /continue upgrade/i })).toBeDisabled();
   });
 

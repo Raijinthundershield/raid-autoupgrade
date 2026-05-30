@@ -127,8 +127,12 @@ def _run(debug: bool = False) -> None:
     network_manager = NetworkManager()
     regions_cache = diskcache.Cache(directory=str(_REGIONS_CACHE_DIR))
     cache_service = CacheService(cache=regions_cache)
+    # Debug-frame capture is opt-in via the --debug CLI flag. Without it, no
+    # root is wired and workflows write no debug artifacts.
     _debug_root = (
         Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "RaidAutoupgrade" / "debug"
+        if debug
+        else None
     )
     settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
     settings_service = SettingsService(cache=settings_cache)
@@ -149,7 +153,6 @@ def _run(debug: bool = False) -> None:
         network_manager=network_manager,
         screenshot_service=screenshot_service,
         detector=detector,
-        debug_dir_root=_debug_root,
     )
 
     app = create_app(
