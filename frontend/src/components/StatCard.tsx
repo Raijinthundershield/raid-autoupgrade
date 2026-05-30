@@ -1,5 +1,6 @@
-// Shared presentational box used by the Run-tab panels. One concept, one
-// component — including the phase-independent Progress Bar State box.
+// Shared presentational box used by the Run-tab panels for their per-phase
+// result numbers (Count: Fails/Frames; Spend: Attempts used/Remaining/Upgrades).
+// The phase-independent Progress Bar State has its own sidebar card (ADR-0002).
 export function StatCard({
   label,
   value,

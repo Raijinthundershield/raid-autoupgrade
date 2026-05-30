@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useJobStream } from "../hooks/useJobStream";
+import type { JobStreamState } from "../hooks/useJobStream";
 import { StatCard } from "./StatCard";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,18 +21,27 @@ async function startSpend(maxUpgradeAttempts: number, continueUpgrade: boolean):
   return data.job_id;
 }
 
-async function cancelSpend(jobId: string): Promise<void> {
-  await fetch(`/api/workflows/${jobId}/cancel`, { method: "POST" });
-}
-
 class ConflictError extends Error {}
 
-export function SpendPanel() {
-  const [jobId, setJobId] = useState<string | null>(null);
+interface Props {
+  // The single shared run stream, owned by the Run tab (ADR-0002).
+  stream: JobStreamState;
+  // True while ANY job runs — disables this panel's controls even when the
+  // running job is the other phase (makes the 409 path nearly unreachable).
+  running: boolean;
+  // Register the started job with the Run tab.
+  onStart: (jobId: string) => void;
+  // Cancel the active job.
+  onStop: () => void;
+}
+
+export function SpendPanel({ stream, running, onStart, onStop }: Props) {
   const [conflict, setConflict] = useState(false);
   const [maxAttempts, setMaxAttempts] = useState<string>("");
   const [continueUpgrade, setContinueUpgrade] = useState(false);
-  const stream = useJobStream(jobId);
+
+  // This panel's phase is the active one only when a Spend is the running job.
+  const active = stream.phase === "spend";
 
   useEffect(() => {
     fetch("/api/settings")
@@ -51,7 +60,7 @@ export function SpendPanel() {
     setConflict(false);
     try {
       const id = await startSpend(attempts, continueUpgrade);
-      setJobId(id);
+      onStart(id);
     } catch (e) {
       if (e instanceof ConflictError) setConflict(true);
     }
@@ -69,7 +78,7 @@ export function SpendPanel() {
             min={1}
             value={maxAttempts}
             onChange={(e) => setMaxAttempts(e.target.value)}
-            disabled={stream.status === "running"}
+            disabled={running}
             className="w-20"
           />
         </div>
@@ -80,22 +89,19 @@ export function SpendPanel() {
             aria-label="Continue upgrade"
             checked={continueUpgrade}
             onCheckedChange={(v) => setContinueUpgrade(v === true)}
-            disabled={stream.status === "running"}
+            disabled={running}
           />
           <Label htmlFor="spend-continue-upgrade" className="text-sm select-none cursor-pointer">
             Continue upgrade
           </Label>
         </div>
 
-        <Button
-          onClick={handleStart}
-          disabled={stream.status === "running" || !maxAttempts}
-        >
-          {stream.status === "running" ? "Spending…" : "Start Spend"}
+        <Button onClick={handleStart} disabled={running || !maxAttempts}>
+          {active && running ? "Spending…" : "Start Spend"}
         </Button>
 
-        {jobId && stream.status === "running" && (
-          <Button variant="destructive" onClick={() => { void cancelSpend(jobId); }}>
+        {active && running && (
+          <Button variant="destructive" onClick={onStop}>
             Stop
           </Button>
         )}
@@ -104,13 +110,12 @@ export function SpendPanel() {
       </div>
 
       <div className="flex gap-3">
-        <StatCard label="Attempts used" value={stream.attemptsUsed} />
-        <StatCard label="Remaining" value={stream.remaining} />
-        <StatCard label="Upgrades" value={stream.upgrades} />
-        <StatCard label="Progress Bar State" value={stream.barState ?? "—"} />
+        <StatCard label="Attempts used" value={stream.spend.attemptsUsed} />
+        <StatCard label="Remaining" value={stream.spend.remaining} />
+        <StatCard label="Upgrades" value={stream.spend.upgrades} />
       </div>
 
-      {stream.logs.length > 0 && (
+      {active && stream.logs.length > 0 && (
         <div className="log-console">
           {stream.logs.map((entry, i) => (
             <div key={i}>
@@ -121,7 +126,7 @@ export function SpendPanel() {
         </div>
       )}
 
-      {stream.status === "done" && stream.result && (
+      {active && stream.status === "done" && stream.result && (
         <div className="banner-ok">
           <span className="banner-ok-label">Done — </span>
           {stream.result.upgrade_count as number} upgrade(s),{" "}
@@ -129,7 +134,7 @@ export function SpendPanel() {
         </div>
       )}
 
-      {stream.status === "error" && (
+      {active && stream.status === "error" && (
         <div className="banner-err">
           <strong>Error: </strong>{stream.errorMessage}
         </div>

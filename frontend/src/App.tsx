@@ -4,13 +4,28 @@ import { CalibrationBanner } from "./components/CalibrationBanner";
 import { CountPanel } from "./components/CountPanel";
 import { SpendPanel } from "./components/SpendPanel";
 import { NetworkPanel } from "./components/NetworkPanel";
+import { ProgressBarStateCard } from "./components/ProgressBarStateCard";
 import { RegionPanel } from "./components/RegionPanel";
+import { useJobStream, type JobPhase } from "./hooks/useJobStream";
 
 type Tab = "run" | "calibration";
+
+async function cancelJob(jobId: string): Promise<void> {
+  await fetch(`/api/workflows/${jobId}/cancel`, { method: "POST" });
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("run");
   const [adapterIds, setAdapterIds] = useState<string[]>([]);
+
+  // The Run tab owns the single active job and the one shared stream (ADR-0002).
+  const [job, setJob] = useState<{ id: string; phase: JobPhase } | null>(null);
+  const stream = useJobStream(job?.id ?? null, job?.phase ?? "count");
+  const running = stream.status === "running";
+
+  function handleStop() {
+    if (job) void cancelJob(job.id);
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -38,11 +53,26 @@ export default function App() {
           <div role="tabpanel" aria-label="Run" className="flex gap-6 p-6">
             <div className="flex flex-col flex-1 gap-6 min-w-0">
               <CalibrationBanner onNavigateToCalibration={() => setActiveTab("calibration")} />
-              <CountPanel adapterIds={adapterIds} />
-              <SpendPanel />
+              <CountPanel
+                adapterIds={adapterIds}
+                stream={stream}
+                running={running}
+                onStart={(id) => setJob({ id, phase: "count" })}
+                onStop={handleStop}
+              />
+              <SpendPanel
+                stream={stream}
+                running={running}
+                onStart={(id) => setJob({ id, phase: "spend" })}
+                onStop={handleStop}
+              />
             </div>
-            <div className="w-64 shrink-0">
-              <NetworkPanel onSelectionChange={setAdapterIds} />
+            <div className="w-64 shrink-0 flex flex-col gap-6">
+              <div>
+                <h3 className="sidebar-section">Network</h3>
+                <NetworkPanel onSelectionChange={setAdapterIds} />
+              </div>
+              <ProgressBarStateCard barState={stream.barState} />
             </div>
           </div>
         )}

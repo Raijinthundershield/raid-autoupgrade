@@ -1,8 +1,13 @@
 ---
-status: accepted
+status: superseded by 0002
 ---
 
 # Frontend keeps independent per-panel job streams despite a single active job
+
+> **Superseded by [0002](0002-shared-run-stream.md).** The "lift to one shared
+> active-job stream" option below was the named trigger ("If we later want
+> shared run state across the Run tab, revisit"), and we took it when adding the
+> shared Progress Bar State box to the sidebar.
 
 The backend `JobRegistry` enforces exactly one active job at a time (one `_active_job` slot; a second start raises `ConflictError`). The frontend, however, gives `CountPanel` and `SpendPanel` each their own `useJobStream(jobId)` and renders the phase-independent **Bar state** box once per panel rather than from a single shared stream.
 

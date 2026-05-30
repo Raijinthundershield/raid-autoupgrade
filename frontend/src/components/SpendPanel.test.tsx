@@ -1,209 +1,66 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SpendPanel } from "./SpendPanel";
+import { initialJobStreamState, type JobStreamState } from "../hooks/useJobStream";
 
-// A WebSocket stub the test can drive: it records every instance so a test can
-// reach in and fire onmessage as if the server streamed an event.
-const sockets: _WebSocketStub[] = [];
+// The Run tab owns the stream now; SpendPanel reads it from a prop. SpendPanel
+// keeps two network collaborators: GET /api/settings (max-attempts prefill) and
+// POST /api/workflows/spend. Tests mock at that boundary and assert on output.
 
-class _WebSocketStub {
-  onmessage: ((e: { data: string }) => void) | null = null;
-  constructor() {
-    sockets.push(this);
-  }
-  addEventListener() {}
-  close() {}
-  emit(event: unknown) {
-    act(() => this.onmessage?.({ data: JSON.stringify(event) }));
-  }
+function streamWith(overrides: Partial<JobStreamState> = {}): JobStreamState {
+  return { ...initialJobStreamState, ...overrides };
+}
+
+function noop() {}
+
+function stubSettings(last_count_result: { fail_count: number } | null = null) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ selected_adapters: [], last_count_result }),
+    })
+  );
 }
 
 describe("SpendPanel", () => {
-  beforeEach(() => {
-    sockets.length = 0;
-    vi.stubGlobal("WebSocket", _WebSocketStub);
-  });
+  beforeEach(() => stubSettings());
   afterEach(() => vi.unstubAllGlobals());
 
   // ---------------------------------------------------------------------------
-  // Idle: the outcome boxes are always visible, showing 0 / 0 / 0 / — before run
+  // Reads its Spend slice from the injected stream; no Progress Bar State box.
   // ---------------------------------------------------------------------------
 
-  it("renders Attempts used / Remaining / Upgrades / Progress Bar State boxes with placeholders before any run", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({ selected_adapters: [], last_count_result: null }),
-      })
+  it("renders Attempts used / Remaining / Upgrades from the stream's spend slice", async () => {
+    render(
+      <SpendPanel
+        stream={streamWith({ spend: { attemptsUsed: 3, remaining: 7, upgrades: 1 } })}
+        running={false}
+        onStart={noop}
+        onStop={noop}
+      />
     );
-
-    render(<SpendPanel />);
     await waitFor(() => screen.getByLabelText(/max attempts/i));
 
-    const used = screen.getByText("Attempts used").closest(".stat-card") as HTMLElement;
-    const remaining = screen.getByText("Remaining").closest(".stat-card") as HTMLElement;
-    const upgrades = screen.getByText("Upgrades").closest(".stat-card") as HTMLElement;
-    const bar = screen
-      .getByText("Progress Bar State")
-      .closest(".stat-card") as HTMLElement;
+    expect(within(screen.getByText("Attempts used").closest(".stat-card")!).getByText("3")).toBeInTheDocument();
+    expect(within(screen.getByText("Remaining").closest(".stat-card")!).getByText("7")).toBeInTheDocument();
+    expect(within(screen.getByText("Upgrades").closest(".stat-card")!).getByText("1")).toBeInTheDocument();
+  });
 
-    expect(within(used).getByText("0")).toBeInTheDocument();
-    expect(within(remaining).getByText("0")).toBeInTheDocument();
-    expect(within(upgrades).getByText("0")).toBeInTheDocument();
-    expect(within(bar).getByText("—")).toBeInTheDocument();
+  it("does not render a Progress Bar State box (it moved to the sidebar)", async () => {
+    render(<SpendPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
+    await waitFor(() => screen.getByLabelText(/max attempts/i));
+    expect(screen.queryByText("Progress Bar State")).not.toBeInTheDocument();
   });
 
   // ---------------------------------------------------------------------------
-  // Live: streamed progress updates Attempts used / Remaining / Upgrades / Bar
-  // ---------------------------------------------------------------------------
-
-  it("updates the outcome boxes live as progress events stream in", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({ selected_adapters: [], last_count_result: null }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ job_id: "spend-1" }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<SpendPanel />);
-    await waitFor(() => screen.getByLabelText(/max attempts/i));
-    await userEvent.type(screen.getByLabelText(/max attempts/i), "10");
-    await userEvent.click(screen.getByRole("button", { name: /start spend/i }));
-
-    await waitFor(() => expect(sockets).toHaveLength(1));
-    sockets[0].emit({
-      type: "progress",
-      attempts_used: 3,
-      remaining: 7,
-      upgrades: 1,
-      state: "FAIL",
-    });
-
-    const used = screen.getByText("Attempts used").closest(".stat-card") as HTMLElement;
-    const remaining = screen.getByText("Remaining").closest(".stat-card") as HTMLElement;
-    const upgrades = screen.getByText("Upgrades").closest(".stat-card") as HTMLElement;
-    const bar = screen
-      .getByText("Progress Bar State")
-      .closest(".stat-card") as HTMLElement;
-    expect(within(used).getByText("3")).toBeInTheDocument();
-    expect(within(remaining).getByText("7")).toBeInTheDocument();
-    expect(within(upgrades).getByText("1")).toBeInTheDocument();
-    expect(within(bar).getByText("FAIL")).toBeInTheDocument();
-  });
-
-  // ---------------------------------------------------------------------------
-  // Running-state UI: Spending…, Stop, and disabled inputs once a run starts
-  // ---------------------------------------------------------------------------
-
-  it("shows the running UI (Spending…, Stop, disabled inputs) once a run starts", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({ selected_adapters: [], last_count_result: null }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ job_id: "spend-1" }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<SpendPanel />);
-    await waitFor(() => screen.getByLabelText(/max attempts/i));
-    await userEvent.type(screen.getByLabelText(/max attempts/i), "10");
-    await userEvent.click(screen.getByRole("button", { name: /start spend/i }));
-
-    // Running UI is driven purely by the start transition — no progress yet.
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /spending…/i })).toBeInTheDocument()
-    );
-    expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/max attempts/i)).toBeDisabled();
-    expect(screen.getByLabelText(/continue upgrade/i)).toBeDisabled();
-  });
-
-  // ---------------------------------------------------------------------------
-  // Reset: starting a second run clears the prior run's boxes and log lines
-  // ---------------------------------------------------------------------------
-
-  it("resets boxes to placeholders and clears logs when a new run starts", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({ selected_adapters: [], last_count_result: null }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ job_id: "spend-1" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ job_id: "spend-2" }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<SpendPanel />);
-    await waitFor(() => screen.getByLabelText(/max attempts/i));
-    await userEvent.type(screen.getByLabelText(/max attempts/i), "10");
-
-    // First run: stream some progress and a log line, then finish.
-    await userEvent.click(screen.getByRole("button", { name: /start spend/i }));
-    await waitFor(() => expect(sockets).toHaveLength(1));
-    sockets[0].emit({
-      type: "progress",
-      attempts_used: 5,
-      remaining: 5,
-      upgrades: 2,
-      state: "FAIL",
-    });
-    sockets[0].emit({ type: "log", level: "INFO", msg: "first run line", ts: 1 });
-    sockets[0].emit({
-      type: "done",
-      result: { upgrade_count: 2, attempt_count: 5, stop_reason: "upgraded" },
-    });
-    expect(screen.getByText("first run line")).toBeInTheDocument();
-
-    // Second run begins with a fresh jobId.
-    await userEvent.click(screen.getByRole("button", { name: /start spend/i }));
-    await waitFor(() => expect(sockets).toHaveLength(2));
-
-    const used = screen.getByText("Attempts used").closest(".stat-card") as HTMLElement;
-    const remaining = screen.getByText("Remaining").closest(".stat-card") as HTMLElement;
-    const upgrades = screen.getByText("Upgrades").closest(".stat-card") as HTMLElement;
-    expect(within(used).getByText("0")).toBeInTheDocument();
-    expect(within(remaining).getByText("0")).toBeInTheDocument();
-    expect(within(upgrades).getByText("0")).toBeInTheDocument();
-    expect(screen.queryByText("first run line")).not.toBeInTheDocument();
-  });
-
-  // ---------------------------------------------------------------------------
-  // Behavior: on mount, fetches /api/settings and pre-fills max attempts
+  // Prefill from the last Count result.
   // ---------------------------------------------------------------------------
 
   it("pre-fills max attempts from last_count_result.fail_count on mount", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          selected_adapters: [],
-          last_count_result: { fail_count: 7, stop_reason: "max_attempts_reached" },
-        }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<SpendPanel />);
+    stubSettings({ fail_count: 7 });
+    render(<SpendPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
 
     await waitFor(() => {
       const input = screen.getByLabelText(/max attempts/i) as HTMLInputElement;
@@ -211,19 +68,8 @@ describe("SpendPanel", () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // Behavior: when no last_count_result, max attempts input is empty or 0
-  // ---------------------------------------------------------------------------
-
   it("leaves max attempts empty when last_count_result is null", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ selected_adapters: [], last_count_result: null }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<SpendPanel />);
+    render(<SpendPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
 
     await waitFor(() => {
       const input = screen.getByLabelText(/max attempts/i) as HTMLInputElement;
@@ -232,46 +78,79 @@ describe("SpendPanel", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Behavior: Start button POSTs to /api/workflows/spend with correct body
+  // Network seam: Start POSTs the right body and registers the job via onStart.
   // ---------------------------------------------------------------------------
 
-  it("POSTs max_upgrade_attempts and continue_upgrade to /api/workflows/spend", async () => {
+  it("POSTs max_upgrade_attempts and continue_upgrade, and reports job id via onStart", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
-        // GET /api/settings
         ok: true,
-        json: () =>
-          Promise.resolve({ selected_adapters: [], last_count_result: null }),
+        json: () => Promise.resolve({ selected_adapters: [], last_count_result: null }),
       })
       .mockResolvedValueOnce({
-        // POST /api/workflows/spend
         ok: true,
         json: () => Promise.resolve({ job_id: "spend-1" }),
       });
     vi.stubGlobal("fetch", fetchMock);
+    const onStart = vi.fn();
 
-    render(<SpendPanel />);
-
-    // wait for settings fetch to complete
+    render(<SpendPanel stream={streamWith()} running={false} onStart={onStart} onStop={noop} />);
     await waitFor(() => screen.getByLabelText(/max attempts/i));
 
-    const input = screen.getByLabelText(/max attempts/i);
-    await userEvent.clear(input);
-    await userEvent.type(input, "10");
-
-    const continueCheckbox = screen.getByLabelText(/continue upgrade/i);
-    await userEvent.click(continueCheckbox);
-
+    await userEvent.type(screen.getByLabelText(/max attempts/i), "10");
+    await userEvent.click(screen.getByLabelText(/continue upgrade/i));
     await userEvent.click(screen.getByRole("button", { name: /start spend/i }));
 
     const postCall = fetchMock.mock.calls.find(
-      ([url, init]) =>
-        url.includes("/api/workflows/spend") && init?.method === "POST"
+      ([url, init]) => url.includes("/api/workflows/spend") && init?.method === "POST"
     );
     expect(postCall).toBeDefined();
     const body = JSON.parse(postCall![1].body as string);
     expect(body.max_upgrade_attempts).toBe(10);
     expect(body.continue_upgrade).toBe(true);
+    expect(onStart).toHaveBeenCalledWith("spend-1");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Shared disable: while ANY job runs, this panel's controls are disabled.
+  // ---------------------------------------------------------------------------
+
+  it("disables its controls when a job is running (even another phase's)", async () => {
+    // A Count is the active phase, but the Spend panel must still be disabled.
+    render(
+      <SpendPanel
+        stream={streamWith({ status: "running", phase: "count" })}
+        running={true}
+        onStart={noop}
+        onStop={noop}
+      />
+    );
+    await waitFor(() => screen.getByLabelText(/max attempts/i));
+
+    expect(screen.getByRole("button", { name: /start spend/i })).toBeDisabled();
+    expect(screen.getByLabelText(/max attempts/i)).toBeDisabled();
+    expect(screen.getByLabelText(/continue upgrade/i)).toBeDisabled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Running UI for this phase: Spending… + Stop, and Stop cancels via onStop.
+  // ---------------------------------------------------------------------------
+
+  it("shows Spending… and a Stop that cancels when Spend is the running phase", async () => {
+    const onStop = vi.fn();
+    render(
+      <SpendPanel
+        stream={streamWith({ status: "running", phase: "spend" })}
+        running={true}
+        onStart={noop}
+        onStop={onStop}
+      />
+    );
+    await waitFor(() => screen.getByLabelText(/max attempts/i));
+
+    expect(screen.getByRole("button", { name: /spending…/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /stop/i }));
+    expect(onStop).toHaveBeenCalled();
   });
 });
