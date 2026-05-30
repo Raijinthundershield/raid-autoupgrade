@@ -42,10 +42,16 @@ export function NetworkPanel({ onSelectionChange }: Props) {
     });
   }, []);
 
+  const live = new Set(adapters.map((a) => a.id));
+  const hasMissingSelection = selected.some((id) => !live.has(id));
+
   function toggle(id: string) {
-    const next = selected.includes(id)
-      ? selected.filter((x) => x !== id)
-      : [...selected, id];
+    // Drop any stale ids (saved selections with no live adapter) so a fresh
+    // selection clears the missing-adapter warning.
+    const base = selected.filter((x) => live.has(x));
+    const next = base.includes(id)
+      ? base.filter((x) => x !== id)
+      : [...base, id];
     setSelected(next);
     onSelectionChange(next);
     saveSettings(next);
@@ -66,23 +72,30 @@ export function NetworkPanel({ onSelectionChange }: Props) {
   }
 
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-      {adapters.map((a, i) => (
-        <li key={a.id} className="adapter-row">
-          <Checkbox
-            id={`adapter-${i}`}
-            aria-label={a.name}
-            checked={selected.includes(a.id)}
-            onCheckedChange={() => toggle(a.id)}
-          />
-          <Label htmlFor={`adapter-${i}`} className="cursor-pointer flex-1">
-            {a.name}
-          </Label>
-          <span className={a.enabled ? "adapter-status-on" : "adapter-status-off"}>
-            {a.enabled ? "online" : "offline"}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      {hasMissingSelection && (
+        <p role="alert" className="adapter-missing-warning">
+          A previously saved adapter is no longer present. Select an adapter below.
+        </p>
+      )}
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {adapters.map((a, i) => (
+          <li key={a.id} className="adapter-row">
+            <Checkbox
+              id={`adapter-${i}`}
+              aria-label={a.name}
+              checked={selected.includes(a.id)}
+              onCheckedChange={() => toggle(a.id)}
+            />
+            <Label htmlFor={`adapter-${i}`} className="cursor-pointer flex-1">
+              {a.name}
+            </Label>
+            <span className={a.enabled ? "adapter-status-on" : "adapter-status-off"}>
+              {a.enabled ? "online" : "offline"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

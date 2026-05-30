@@ -115,4 +115,77 @@ describe("NetworkPanel", () => {
     // munged DOM id.
     expect(body.selected_adapters).toEqual([PNP]);
   });
+
+  // ---------------------------------------------------------------------------
+  // Behavior 9 (#31): a saved selection that matches no live adapter is flagged
+  // ---------------------------------------------------------------------------
+
+  it("flags a saved selection that matches no live adapter", async () => {
+    vi.stubGlobal(
+      "fetch",
+      makeFetch({
+        "/api/adapters": ADAPTERS,
+        "/api/settings": { selected_adapters: ["gone"], last_count_result: null },
+      })
+    );
+
+    render(<NetworkPanel onSelectionChange={() => {}} />);
+
+    await screen.findByText("Wi-Fi");
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Behavior 10 (#31): a saved selection matching a live adapter is not flagged
+  // ---------------------------------------------------------------------------
+
+  it("does not flag a saved selection that matches a live adapter", async () => {
+    vi.stubGlobal(
+      "fetch",
+      makeFetch({
+        "/api/adapters": ADAPTERS,
+        "/api/settings": { selected_adapters: ["1"], last_count_result: null },
+      })
+    );
+
+    render(<NetworkPanel onSelectionChange={() => {}} />);
+
+    await screen.findByText("Wi-Fi");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Behavior 11 (#31): selecting a live adapter prunes the stale id from the
+  // saved selection and clears the warning
+  // ---------------------------------------------------------------------------
+
+  it("prunes the stale id and clears the warning when a live adapter is selected", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes("/api/adapters")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(ADAPTERS) });
+      }
+      if (url.includes("/api/settings") && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ selected_adapters: ["gone"], last_count_result: null }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<NetworkPanel onSelectionChange={() => {}} />);
+    await screen.findByText("Wi-Fi");
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Wi-Fi/i }));
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) => url.includes("/api/settings") && init?.method === "PUT"
+    );
+    const body = JSON.parse(putCall![1]!.body as string);
+    expect(body.selected_adapters).toEqual(["1"]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
