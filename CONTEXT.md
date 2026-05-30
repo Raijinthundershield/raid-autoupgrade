@@ -42,6 +42,9 @@ _Avoid_: run, operation, workflow
 
 ### Network State
 
+**Adapter**: The physical network interface the user selects to disable during Count and re-enable for Spend. A saved selection refers to the same physical adapter across sessions, regardless of how the operating system orders or re-enumerates its interfaces.
+_Avoid_: NIC, network card, connection, device
+
 **Offline**: Network state during Count — the adapter is disabled, preventing the game from reaching the server.
 _Avoid_: airplane mode, network-disabled
 
