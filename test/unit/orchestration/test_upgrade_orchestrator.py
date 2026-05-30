@@ -213,6 +213,99 @@ class TestUpgradeOrchestrator:
                 disable_network=True,
             )
 
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.NetworkContext")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
+    def test_require_offline_aborts_when_network_still_reachable(
+        self, mock_sleep, mock_network_context
+    ):
+        """A require_offline session must not click upgrade while the network is
+        still reachable — that would spend a real attempt. It raises and never
+        clicks."""
+        from raid_autoupgrade.services.network import NetworkState
+
+        mock_screenshot = Mock(spec=ScreenshotService)
+        mock_window = Mock(spec=WindowInteractionService)
+        mock_cache = Mock(spec=CacheService)
+        mock_network = Mock(spec=NetworkManager)
+        mock_detector = Mock(spec=ProgressBarStateDetector)
+
+        mock_window.window_exists.return_value = True
+        mock_window.get_window_size.return_value = (800, 600)
+        mock_cache.get_regions.return_value = {
+            "upgrade_bar": (0, 0, 100, 50),
+            "upgrade_button": (0, 0, 100, 50),
+        }
+        # Network still up after adapter setup (e.g. wrong adapter selected).
+        mock_network.check_network_access.return_value = NetworkState.ONLINE
+
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=mock_screenshot,
+            window_interaction_service=mock_window,
+            cache_service=mock_cache,
+            network_manager=mock_network,
+            detector=mock_detector,
+        )
+        session = UpgradeSession(
+            upgrade_bar_region=(0, 0, 100, 50),
+            upgrade_button_region=(0, 0, 100, 50),
+            stop_conditions=StopConditionChain([]),
+            require_offline=True,
+        )
+
+        with pytest.raises(WorkflowValidationError, match="still reachable"):
+            orchestrator.run_upgrade_session(session)
+
+        mock_window.click_region.assert_not_called()
+        mock_detector.detect_state.assert_not_called()
+
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
+    def test_require_offline_proceeds_when_offline(self, mock_sleep):
+        """A require_offline session proceeds normally once the network is
+        confirmed offline."""
+        from raid_autoupgrade.services.network import NetworkState
+
+        mock_screenshot = Mock(spec=ScreenshotService)
+        mock_window = Mock(spec=WindowInteractionService)
+        mock_cache = Mock(spec=CacheService)
+        mock_network = Mock(spec=NetworkManager)
+        mock_detector = Mock(spec=ProgressBarStateDetector)
+
+        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
+        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
+        mock_screenshot.take_screenshot.return_value = fake_screenshot
+        mock_screenshot.extract_roi.return_value = fake_roi
+
+        mock_window.window_exists.return_value = True
+        mock_window.get_window_size.return_value = (800, 600)
+        mock_cache.get_regions.return_value = {
+            "upgrade_bar": (0, 0, 100, 50),
+            "upgrade_button": (0, 0, 100, 50),
+        }
+        mock_network.check_network_access.return_value = NetworkState.OFFLINE
+        mock_detector.detect_state.side_effect = [
+            ProgressBarState.PROGRESS,
+            ProgressBarState.FAIL,
+        ]
+
+        orchestrator = UpgradeOrchestrator(
+            screenshot_service=mock_screenshot,
+            window_interaction_service=mock_window,
+            cache_service=mock_cache,
+            network_manager=mock_network,
+            detector=mock_detector,
+        )
+        session = UpgradeSession(
+            upgrade_bar_region=(0, 0, 100, 50),
+            upgrade_button_region=(0, 0, 100, 50),
+            stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
+            require_offline=True,
+        )
+
+        result = orchestrator.run_upgrade_session(session)
+
+        mock_window.click_region.assert_called_once()
+        assert result.fail_count == 1
+
     # -------------------------------------------------------------------------
     # Behavior: cancel_event set → monitor loop returns MANUAL_STOP immediately
     # -------------------------------------------------------------------------

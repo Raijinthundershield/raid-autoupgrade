@@ -144,11 +144,19 @@ class SpendWorkflow:
     ) -> SpendResult:
         logger.info("Starting spend workflow execution")
 
+        # Pre-flight validation (spend requires internet to save upgrades).
+        self.validate()
+
         # Get regions from cache
         current_size = self._window_interaction_service.get_window_size(
             self.WINDOW_TITLE
         )
         regions = self._cache_service.get_regions(current_size)
+        if regions is None:
+            raise WorkflowValidationError(
+                f"No regions cached for window size {current_size}. "
+                "Please select regions using 'raid_autoupgrade upgrade region select'."
+            )
 
         # Create orchestrator for this workflow
         orchestrator = UpgradeOrchestrator(

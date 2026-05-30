@@ -27,6 +27,7 @@ from raid_autoupgrade.protocols import (
     ScreenshotProtocol,
     WindowInteractionProtocol,
 )
+from raid_autoupgrade.services.network import NetworkState
 from raid_autoupgrade.utils.network_context import NetworkContext
 
 
@@ -40,6 +41,7 @@ class UpgradeSession:
     check_interval: float = 0.25
     network_adapter_ids: list[int] | None = None
     disable_network: bool = False
+    require_offline: bool = False
     debug_dir: Path | None = None
 
 
@@ -147,6 +149,20 @@ class UpgradeOrchestrator:
             adapter_ids=session.network_adapter_ids,
             disable_network=session.disable_network,
         ):
+            # Refuse to start an offline-only session while the network is still
+            # reachable. Counting online would spend real upgrade attempts and
+            # could upgrade the piece. This runs after adapters are disabled, so
+            # it also catches the case where the wrong adapter was selected.
+            if (
+                session.require_offline
+                and self._network_manager.check_network_access() == NetworkState.ONLINE
+            ):
+                raise WorkflowValidationError(
+                    "Network is still reachable after adapter setup. Refusing to "
+                    "start counting, which must run offline to avoid spending real "
+                    "upgrade attempts. Select the adapter(s) that provide internet."
+                )
+
             # Click upgrade button to start
             logger.info("Clicking upgrade button to start monitoring")
             self._window_interaction_service.click_region(

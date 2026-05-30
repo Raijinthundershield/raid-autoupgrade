@@ -134,6 +134,10 @@ class CountWorkflow:
             f"count_workflow(adapters={self._network_adapter_ids}, max_attempts={self._max_attempts})"
         )
 
+        # Pre-flight validation (network configuration). The orchestrator
+        # additionally confirms the network is offline before clicking.
+        self.validate()
+
         # Get regions from cache
         current_size = self._window_interaction_service.get_window_size(
             self.WINDOW_TITLE
@@ -163,6 +167,7 @@ class CountWorkflow:
             check_interval=0.25,
             network_adapter_ids=self._network_adapter_ids,
             disable_network=self._network_adapter_ids is not None,
+            require_offline=True,
             debug_dir=self._debug_dir / "count" if self._debug_dir else None,
         )
 

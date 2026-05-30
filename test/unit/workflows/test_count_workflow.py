@@ -171,6 +171,7 @@ class TestCountWorkflowExecution:
         assert session.check_interval == 0.25
         assert session.network_adapter_ids == [1, 2]
         assert session.disable_network is True
+        assert session.require_offline is True
         assert session.debug_dir is None
 
         # Verify stop conditions
@@ -184,6 +185,44 @@ class TestCountWorkflowExecution:
         assert isinstance(result, CountResult)
         assert result.fail_count == 5
         assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
+
+    @patch("raid_autoupgrade.workflows.count_workflow.UpgradeOrchestrator")
+    def test_run_validates_before_counting(self, mock_orchestrator_class):
+        """run() must run the network safety check first: online + no adapter →
+        raise, and never construct/run the orchestrator (which would click
+        upgrade online and spend a real attempt)."""
+        mock_orchestrator = Mock()
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        mock_network_manager = Mock()
+        mock_network_manager.check_network_access.return_value = NetworkState.ONLINE
+
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = {
+            "upgrade_button": (100, 200, 50, 30),
+            "upgrade_bar": (100, 250, 200, 10),
+        }
+
+        workflow = CountWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=mock_network_manager,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            network_adapter_ids=None,  # online + no adapter → unsafe
+            max_attempts=99,
+        )
+
+        with pytest.raises(
+            WorkflowValidationError,
+            match="Internet access detected but no network adapter specified",
+        ):
+            workflow.run()
+
+        mock_orchestrator.run_upgrade_session.assert_not_called()
 
     @patch("raid_autoupgrade.workflows.count_workflow.UpgradeOrchestrator")
     def test_run_passes_on_progress_to_orchestrator(self, mock_orchestrator_class):

@@ -27,6 +27,14 @@ from raid_autoupgrade.workflows.spend_workflow import (
 )
 
 
+def _online_network_manager() -> Mock:
+    """A NetworkManager mock that reports internet ON, so SpendWorkflow.run()
+    passes its pre-flight validation (spend requires internet)."""
+    manager = Mock()
+    manager.check_network_access.return_value = NetworkState.ONLINE
+    return manager
+
+
 class TestEnrichSpendProgress:
     """The pure enrichment function: session ProgressEvent + base loop totals
     → cumulative Spend snapshot."""
@@ -130,6 +138,62 @@ class TestSpendWorkflowExecution:
     """Test execution phase of SpendWorkflow (T051)."""
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_aborts_when_offline(self, mock_orchestrator_class):
+        """run() must validate up front: no internet → raise, never touch the
+        orchestrator (spend needs internet to persist upgrades)."""
+        mock_orchestrator = Mock()
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_network_manager = Mock()
+        mock_network_manager.check_network_access.return_value = NetworkState.OFFLINE
+
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        workflow = SpendWorkflow(
+            cache_service=Mock(),
+            window_interaction_service=mock_window_service,
+            network_manager=mock_network_manager,
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        with pytest.raises(WorkflowValidationError, match="No internet access"):
+            workflow.run()
+
+        mock_orchestrator.run_upgrade_session.assert_not_called()
+
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_run_raises_when_regions_not_cached(self, mock_orchestrator_class):
+        """run() raises a clear error when no regions are cached for the window
+        size, instead of crashing on regions[...] indexing."""
+        mock_orchestrator = Mock()
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        mock_cache_service = Mock()
+        mock_cache_service.get_regions.return_value = None
+
+        mock_window_service = Mock()
+        mock_window_service.get_window_size.return_value = (1920, 1080)
+
+        workflow = SpendWorkflow(
+            cache_service=mock_cache_service,
+            window_interaction_service=mock_window_service,
+            network_manager=_online_network_manager(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        with pytest.raises(
+            WorkflowValidationError, match="No regions cached for window size"
+        ):
+            workflow.run()
+
+        mock_orchestrator.run_upgrade_session.assert_not_called()
+
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_single_upgrade_success(self, mock_orchestrator_class):
         """Test workflow execution with single upgrade success."""
         # Arrange: Mock orchestrator to return UPGRADED result
@@ -155,7 +219,7 @@ class TestSpendWorkflowExecution:
         workflow = SpendWorkflow(
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             screenshot_service=Mock(),
             detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
@@ -202,7 +266,7 @@ class TestSpendWorkflowExecution:
         workflow = SpendWorkflow(
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             screenshot_service=Mock(),
             detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
@@ -248,7 +312,7 @@ class TestSpendWorkflowExecution:
         workflow = SpendWorkflow(
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             screenshot_service=Mock(),
             detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
@@ -311,7 +375,7 @@ class TestSpendWorkflowContinueUpgrade:
             detector=Mock(spec=ProgressBarStateDetector),
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             max_upgrade_attempts=10,
             continue_upgrade=True,  # Enable continue mode (only continues once)
             debug_dir=None,
@@ -361,7 +425,7 @@ class TestSpendWorkflowContinueUpgrade:
             detector=Mock(spec=ProgressBarStateDetector),
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             max_upgrade_attempts=20,
             continue_upgrade=False,  # Disable continue mode
             debug_dir=None,
@@ -409,7 +473,7 @@ class TestSpendWorkflowContinueUpgrade:
             detector=Mock(spec=ProgressBarStateDetector),
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             max_upgrade_attempts=10,
             continue_upgrade=True,  # Enable continue mode
             debug_dir=None,
@@ -457,7 +521,7 @@ class TestSpendWorkflowProgressAndCancel:
         workflow = SpendWorkflow(
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             screenshot_service=Mock(),
             detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
@@ -511,7 +575,7 @@ class TestSpendWorkflowProgressAndCancel:
         workflow = SpendWorkflow(
             cache_service=mock_cache_service,
             window_interaction_service=mock_window_service,
-            network_manager=Mock(),
+            network_manager=_online_network_manager(),
             screenshot_service=Mock(),
             detector=Mock(spec=ProgressBarStateDetector),
             max_upgrade_attempts=10,
