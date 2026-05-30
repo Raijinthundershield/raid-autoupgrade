@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from autoraid.services.app_data import AppData
+from raid_autoupgrade.services.app_data import AppData
 
 
 class TestAppDataInitialization:
@@ -19,7 +19,7 @@ class TestAppDataInitialization:
 
             app_data = AppData(debug_enabled=False)
 
-            assert app_data.root_dir == Path("C:\\ProgramData\\AutoRaid")
+            assert app_data.root_dir == Path("C:\\ProgramData\\RaidAutoupgrade")
             assert app_data.debug_enabled is False
 
     def test_app_data_with_custom_root_parameter(self):
@@ -32,13 +32,13 @@ class TestAppDataInitialization:
         assert app_data.debug_enabled is True
 
     def test_app_data_with_env_var_override(self):
-        """Verify AppData uses AUTORAID_DATA_DIR env var when set."""
+        """Verify AppData uses RAID_AUTOUPGRADE_DATA_DIR env var when set."""
         with patch("os.getenv") as mock_getenv:
             # Mock environment variables
             def getenv_side_effect(key, default=None):
                 if key == "PROGRAMDATA":
                     return "C:\\ProgramData"
-                elif key == "AUTORAID_DATA_DIR":
+                elif key == "RAID_AUTOUPGRADE_DATA_DIR":
                     return "C:\\env\\override"
                 return default
 
@@ -113,7 +113,7 @@ class TestAppDataLogFilePath:
 
         log_path = app_data.get_log_file_path()
 
-        assert log_path == Path("C:\\test\\debug\\autoraid.log")
+        assert log_path == Path("C:\\test\\debug\\raid_autoupgrade.log")
 
     def test_get_log_file_path_with_debug_disabled(self):
         """Verify get_log_file_path() returns None when debug disabled."""

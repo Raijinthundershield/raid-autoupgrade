@@ -5,9 +5,9 @@ import queue
 
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
-from autoraid.api.deps import get_count_runner, get_job_registry
-from autoraid.jobs.registry import ConflictError, JobState
+from raid_autoupgrade.api.app import create_app
+from raid_autoupgrade.api.deps import get_count_runner, get_job_registry
+from raid_autoupgrade.jobs.registry import ConflictError, JobState
 
 
 class _RegistryStub:

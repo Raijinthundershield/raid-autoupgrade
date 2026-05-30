@@ -1,6 +1,6 @@
 """Contract tests for SettingsService."""
 
-from autoraid.services.settings_service import Settings, SettingsService
+from raid_autoupgrade.services.settings_service import Settings, SettingsService
 
 
 class _CacheStub:

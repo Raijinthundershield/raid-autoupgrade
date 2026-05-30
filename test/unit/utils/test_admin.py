@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from autoraid.utils.admin import is_admin, request_admin
+from raid_autoupgrade.utils.admin import is_admin, request_admin
 
 
 class TestIsAdmin:

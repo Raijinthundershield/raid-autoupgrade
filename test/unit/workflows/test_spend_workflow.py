@@ -8,15 +8,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autoraid.detection.progress_bar_detector import (
+from raid_autoupgrade.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )
-from autoraid.exceptions import WorkflowValidationError
-from autoraid.orchestration.stop_conditions import StopReason
-from autoraid.orchestration.upgrade_orchestrator import ProgressEvent, UpgradeResult
-from autoraid.services.network import NetworkState
-from autoraid.workflows.spend_workflow import (
+from raid_autoupgrade.exceptions import WorkflowValidationError
+from raid_autoupgrade.orchestration.stop_conditions import StopReason
+from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    ProgressEvent,
+    UpgradeResult,
+)
+from raid_autoupgrade.services.network import NetworkState
+from raid_autoupgrade.workflows.spend_workflow import (
     SpendProgress,
     SpendResult,
     SpendWorkflow,
@@ -126,7 +129,7 @@ class TestSpendWorkflowValidation:
 class TestSpendWorkflowExecution:
     """Test execution phase of SpendWorkflow (T051)."""
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_single_upgrade_success(self, mock_orchestrator_class):
         """Test workflow execution with single upgrade success."""
         # Arrange: Mock orchestrator to return UPGRADED result
@@ -173,7 +176,7 @@ class TestSpendWorkflowExecution:
         # Verify orchestrator was called once
         mock_orchestrator.run_upgrade_session.assert_called_once()
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_max_attempts_exhausted(self, mock_orchestrator_class):
         """Test workflow stops when max_attempts is exhausted."""
         # Arrange: Mock orchestrator to return MAX_ATTEMPTS_REACHED
@@ -219,7 +222,7 @@ class TestSpendWorkflowExecution:
         # Verify cancel click was called
         mock_window_service.click_region.assert_called_once()
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_connection_error(self, mock_orchestrator_class):
         """Test workflow stops on connection error."""
         # Arrange: Mock orchestrator to return CONNECTION_ERROR
@@ -266,7 +269,7 @@ class TestSpendWorkflowExecution:
 class TestSpendWorkflowContinueUpgrade:
     """Test continue upgrade logic (T052)."""
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_continue_upgrade_multiple_upgrades(self, mock_orchestrator_class):
         """Test that workflow continues once after first successful upgrade (lvl 10->11->12)."""
         # Arrange: Mock orchestrator to return multiple UPGRADED results
@@ -328,7 +331,7 @@ class TestSpendWorkflowContinueUpgrade:
         # Verify orchestrator was called 2 times (not 3)
         assert mock_orchestrator.run_upgrade_session.call_count == 2
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_continue_upgrade_disabled_stops_after_first_upgrade(
         self, mock_orchestrator_class
     ):
@@ -376,7 +379,7 @@ class TestSpendWorkflowContinueUpgrade:
         # Verify orchestrator was called only once
         assert mock_orchestrator.run_upgrade_session.call_count == 1
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_continue_upgrade_stops_when_no_remaining_attempts(
         self, mock_orchestrator_class
     ):
@@ -431,7 +434,7 @@ class TestSpendWorkflowContinueUpgrade:
 class TestSpendWorkflowProgressAndCancel:
     """Test cancel_event and on_progress threading in SpendWorkflow."""
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_passes_cancel_event_to_orchestrator(self, mock_orchestrator_class):
         mock_orchestrator = Mock()
         mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
@@ -465,7 +468,7 @@ class TestSpendWorkflowProgressAndCancel:
         _, kwargs = mock_orchestrator.run_upgrade_session.call_args
         assert kwargs.get("cancel_event") is cancel_event
 
-    @patch("autoraid.workflows.spend_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_forwards_enriched_progress_reflecting_running_totals(
         self, mock_orchestrator_class
     ):

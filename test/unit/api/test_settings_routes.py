@@ -2,9 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
-from autoraid.api.deps import get_settings_service
-from autoraid.services.settings_service import Settings
+from raid_autoupgrade.api.app import create_app
+from raid_autoupgrade.api.deps import get_settings_service
+from raid_autoupgrade.services.settings_service import Settings
 
 
 class _SettingsServiceStub:

@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from autoraid.services.network import NetworkManager, NetworkState
-from autoraid.utils.network_context import NetworkContext
+from raid_autoupgrade.services.network import NetworkManager, NetworkState
+from raid_autoupgrade.utils.network_context import NetworkContext
 
 
 class TestNetworkContext:

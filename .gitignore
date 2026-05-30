@@ -9,7 +9,7 @@ temp/
 .nicegui/
 
 # detection templates and test fixture images are machine-local, not committed
-src/autoraid/detection/templates/
+src/raid_autoupgrade/detection/templates/
 test/fixtures/images/
 
 # Misc

@@ -46,7 +46,7 @@ Inject stubs at the declared boundary — `app.dependency_overrides` for API rou
 app.dependency_overrides[get_window_service] = lambda: _WindowStub(detected=True)
 
 # Bad — patch an internal name
-with patch("autoraid.api.routes.status.window_service"):
+with patch("raid_autoupgrade.api.routes.status.window_service"):
     ...
 ```
 

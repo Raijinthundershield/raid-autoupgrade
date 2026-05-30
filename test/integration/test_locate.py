@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pytest
 
-from autoraid.detection.locate_region import (
+from raid_autoupgrade.detection.locate_region import (
     locate_progress_bar,
     locate_upgrade_button,
     progress_bar_template,

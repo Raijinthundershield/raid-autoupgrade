@@ -1,6 +1,6 @@
-# AutoRaid
+# Raid Autoupgrade
 
-A Windows desktop tool to automate the "airplane mode trick" for gear upgrades in Raid: Shadow Legends. AutoRaid uses computer vision to count failed upgrade attempts offline, then automatically spends those attempts on another piece to save silver.
+A Windows desktop tool to automate the "airplane mode trick" for gear upgrades in Raid: Shadow Legends. Raid Autoupgrade uses computer vision to count failed upgrade attempts offline, then automatically spends those attempts on another piece to save silver.
 
 > **⚠️ WARNING**: This tool automates gameplay and **may violate Raid: Shadow Legends' Terms of Service**. Use at your own risk. Read the full [DISCLAIMER](DISCLAIMER.md) before using.
 
@@ -10,7 +10,7 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
 
 1. **Launch the GUI**:
    ```bash
-   uv run autoraid gui
+   uv run raid-autoupgrade gui
    ```
 
 2. **Calibrate regions** (whenever the Raid window is resized):

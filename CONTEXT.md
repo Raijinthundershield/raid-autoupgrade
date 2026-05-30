@@ -1,4 +1,4 @@
-# AutoRaid
+# Raid Autoupgrade
 
 Automation tool for the airplane-mode trick in Raid: Shadow Legends — counts upgrade fails offline on a fodder gear piece, then spends those fails online to guarantee an upgrade on a target gear piece.
 

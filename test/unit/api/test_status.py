@@ -7,9 +7,9 @@ the type checker validates conformance — no unittest.mock needed.
 import pytest
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
-from autoraid.api.deps import get_network_manager, get_window_service
-from autoraid.services.network import NetworkState
+from raid_autoupgrade.api.app import create_app
+from raid_autoupgrade.api.deps import get_network_manager, get_window_service
+from raid_autoupgrade.services.network import NetworkState
 
 
 class _WindowStub:

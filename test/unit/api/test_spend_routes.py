@@ -2,9 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
-from autoraid.api.deps import get_job_registry, get_spend_runner
-from autoraid.jobs.registry import ConflictError
+from raid_autoupgrade.api.app import create_app
+from raid_autoupgrade.api.deps import get_job_registry, get_spend_runner
+from raid_autoupgrade.jobs.registry import ConflictError
 
 
 class _RegistryStub:

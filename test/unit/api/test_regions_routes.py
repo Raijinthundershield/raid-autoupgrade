@@ -3,7 +3,7 @@
 import numpy as np
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
+from raid_autoupgrade.api.app import create_app
 
 
 class _ScreenshotServiceStub:
@@ -30,7 +30,7 @@ class _MissingWindowServiceStub:
         return False
 
     def get_window_size(self, window_title: str) -> tuple[int, int]:
-        from autoraid.exceptions import WindowNotFoundException
+        from raid_autoupgrade.exceptions import WindowNotFoundException
 
         raise WindowNotFoundException("no window")
 
@@ -100,7 +100,7 @@ def test_get_screenshot_returns_png():
 
 class _MissingWindowScreenshotStub:
     def take_screenshot(self, window_title: str) -> np.ndarray:
-        from autoraid.exceptions import WindowNotFoundException
+        from raid_autoupgrade.exceptions import WindowNotFoundException
 
         raise WindowNotFoundException("no window")
 

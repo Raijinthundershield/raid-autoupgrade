@@ -75,7 +75,7 @@ describe("App", () => {
 
   it("renders the StatusHeader on load", () => {
     renderApp();
-    expect(screen.getByText("AutoRaid")).toBeInTheDocument();
+    expect(screen.getByText("Raid Autoupgrade")).toBeInTheDocument();
   });
 
   // ---------------------------------------------------------------------------

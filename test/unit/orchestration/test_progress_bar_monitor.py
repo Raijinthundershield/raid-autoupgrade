@@ -4,11 +4,11 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from autoraid.detection.progress_bar_detector import (
+from raid_autoupgrade.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )
-from autoraid.orchestration.progress_bar_monitor import (
+from raid_autoupgrade.orchestration.progress_bar_monitor import (
     ProgressBarMonitor,
 )
 

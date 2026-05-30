@@ -2,7 +2,7 @@
 
 ## USE AT YOUR OWN RISK
 
-This software is provided "AS IS" without warranty of any kind. AutoRaid automates gameplay mechanics in Raid: Shadow Legends, which **may violate the game's Terms of Service**.
+This software is provided "AS IS" without warranty of any kind. Raid Autoupgrade automates gameplay mechanics in Raid: Shadow Legends, which **may violate the game's Terms of Service**.
 
 ## No Endorsement
 
@@ -26,7 +26,7 @@ The authors, contributors, and distributors of this software:
 
 ## User Acknowledgment
 
-By downloading, installing, or using AutoRaid, you explicitly acknowledge and agree that:
+By downloading, installing, or using Raid Autoupgrade, you explicitly acknowledge and agree that:
 - You use this tool entirely at your own risk
 - You are solely responsible for any consequences to your game account
 - You have read and understand Raid: Shadow Legends' Terms of Service

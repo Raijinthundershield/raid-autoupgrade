@@ -8,16 +8,19 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autoraid.detection.progress_bar_detector import ProgressBarStateDetector
-from autoraid.exceptions import WorkflowValidationError
-from autoraid.orchestration.stop_conditions import (
+from raid_autoupgrade.detection.progress_bar_detector import ProgressBarStateDetector
+from raid_autoupgrade.exceptions import WorkflowValidationError
+from raid_autoupgrade.orchestration.stop_conditions import (
     MaxAttemptsCondition,
     StopReason,
     UpgradedCondition,
 )
-from autoraid.orchestration.upgrade_orchestrator import UpgradeResult, UpgradeSession
-from autoraid.services.network import NetworkState
-from autoraid.workflows.count_workflow import CountResult, CountWorkflow
+from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    UpgradeResult,
+    UpgradeSession,
+)
+from raid_autoupgrade.services.network import NetworkState
+from raid_autoupgrade.workflows.count_workflow import CountResult, CountWorkflow
 
 
 class TestCountWorkflowValidation:
@@ -121,7 +124,7 @@ class TestCountWorkflowValidation:
 class TestCountWorkflowExecution:
     """Test execution phase of CountWorkflow."""
 
-    @patch("autoraid.workflows.count_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.count_workflow.UpgradeOrchestrator")
     def test_run_creates_correct_upgrade_session(self, mock_orchestrator_class):
         """Test workflow creates UpgradeSession with correct configuration."""
         # Arrange: Mock services
@@ -182,7 +185,7 @@ class TestCountWorkflowExecution:
         assert result.fail_count == 5
         assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
 
-    @patch("autoraid.workflows.count_workflow.UpgradeOrchestrator")
+    @patch("raid_autoupgrade.workflows.count_workflow.UpgradeOrchestrator")
     def test_run_passes_on_progress_to_orchestrator(self, mock_orchestrator_class):
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {

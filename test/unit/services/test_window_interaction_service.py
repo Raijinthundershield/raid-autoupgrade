@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autoraid.exceptions import WindowNotFoundException
-from autoraid.services.window_interaction_service import (
+from raid_autoupgrade.exceptions import WindowNotFoundException
+from raid_autoupgrade.services.window_interaction_service import (
     SW_MINIMIZE,
     SW_RESTORE,
     WindowInteractionService,
@@ -63,7 +63,7 @@ class TestWindowInteractionService:
     # Test get_window_size
     def test_get_window_size_returns_correct_dimensions(self, service, mock_window):
         """Test that get_window_size returns correct height and width using GetWindowPlacement."""
-        from autoraid.services.window_interaction_service import WINDOWPLACEMENT
+        from raid_autoupgrade.services.window_interaction_service import WINDOWPLACEMENT
 
         # Create actual WINDOWPLACEMENT structure
         def mock_get_window_placement_side_effect(hwnd, placement_byref):
@@ -95,7 +95,7 @@ class TestWindowInteractionService:
         self, service, mock_window
     ):
         """Test that get_window_size returns restored size even when window is minimized."""
-        from autoraid.services.window_interaction_service import WINDOWPLACEMENT
+        from raid_autoupgrade.services.window_interaction_service import WINDOWPLACEMENT
 
         # Create actual WINDOWPLACEMENT structure with restored dimensions
         def mock_get_window_placement_side_effect(hwnd, placement_byref):

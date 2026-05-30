@@ -2,9 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
-from autoraid.api.deps import get_network_manager
-from autoraid.services.network import NetworkAdapter
+from raid_autoupgrade.api.app import create_app
+from raid_autoupgrade.api.deps import get_network_manager
+from raid_autoupgrade.services.network import NetworkAdapter
 
 
 class _NetworkManagerStub:

@@ -6,24 +6,26 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
-from autoraid.detection.progress_bar_detector import (
+from raid_autoupgrade.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )
-from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
-from autoraid.orchestration.stop_conditions import (
+from raid_autoupgrade.exceptions import WindowNotFoundException, WorkflowValidationError
+from raid_autoupgrade.orchestration.stop_conditions import (
     MaxAttemptsCondition,
     StopConditionChain,
     StopReason,
 )
-from autoraid.orchestration.upgrade_orchestrator import (
+from raid_autoupgrade.orchestration.upgrade_orchestrator import (
     UpgradeOrchestrator,
     UpgradeSession,
 )
-from autoraid.services.cache_service import CacheService
-from autoraid.services.network import NetworkManager
-from autoraid.services.screenshot_service import ScreenshotService
-from autoraid.services.window_interaction_service import WindowInteractionService
+from raid_autoupgrade.services.cache_service import CacheService
+from raid_autoupgrade.services.network import NetworkManager
+from raid_autoupgrade.services.screenshot_service import ScreenshotService
+from raid_autoupgrade.services.window_interaction_service import (
+    WindowInteractionService,
+)
 
 
 class TestUpgradeOrchestrator:
@@ -87,7 +89,7 @@ class TestUpgradeOrchestrator:
         with pytest.raises(WorkflowValidationError, match="No regions cached"):
             orchestrator.validate_prerequisites(session)
 
-    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_run_upgrade_session_calls_services_in_correct_order(self, mock_sleep):
         """Verify run_upgrade_session calls services in expected sequence."""
         mock_screenshot = Mock(spec=ScreenshotService)
@@ -143,8 +145,8 @@ class TestUpgradeOrchestrator:
         assert result.fail_count == 1
         assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
 
-    @patch("autoraid.orchestration.upgrade_orchestrator.NetworkContext")
-    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.NetworkContext")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_run_upgrade_session_uses_network_context(
         self, mock_sleep, mock_network_context
     ):
@@ -215,7 +217,7 @@ class TestUpgradeOrchestrator:
     # Behavior: cancel_event set → monitor loop returns MANUAL_STOP immediately
     # -------------------------------------------------------------------------
 
-    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_cancel_event_stops_monitor_loop_with_manual_stop(self, mock_sleep):
         mock_screenshot = Mock(spec=ScreenshotService)
         mock_window = Mock(spec=WindowInteractionService)
@@ -261,7 +263,7 @@ class TestUpgradeOrchestrator:
     # Behavior: on_progress callback invoked each monitor-loop iteration
     # -------------------------------------------------------------------------
 
-    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_on_progress_called_once_per_loop_iteration(self, mock_sleep):
         mock_screenshot = Mock(spec=ScreenshotService)
         mock_window = Mock(spec=WindowInteractionService)
@@ -307,7 +309,7 @@ class TestUpgradeOrchestrator:
 
         assert len(events) == 2
 
-    @patch("autoraid.orchestration.upgrade_orchestrator.time.sleep")
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_on_progress_events_carry_correct_data(self, mock_sleep):
         mock_screenshot = Mock(spec=ScreenshotService)
         mock_window = Mock(spec=WindowInteractionService)
@@ -350,7 +352,7 @@ class TestUpgradeOrchestrator:
 
         orchestrator.run_upgrade_session(session, on_progress=events.append)
 
-        from autoraid.orchestration.upgrade_orchestrator import ProgressEvent
+        from raid_autoupgrade.orchestration.upgrade_orchestrator import ProgressEvent
 
         first, second = events
         assert isinstance(first, ProgressEvent)

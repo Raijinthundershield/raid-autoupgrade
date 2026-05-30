@@ -2,9 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-from autoraid.api.app import create_app
-from autoraid.api.deps import get_count_runner
-from autoraid.exceptions import WindowNotFoundException, WorkflowValidationError
+from raid_autoupgrade.api.app import create_app
+from raid_autoupgrade.api.deps import get_count_runner
+from raid_autoupgrade.exceptions import WindowNotFoundException, WorkflowValidationError
 
 
 def _runner_raising(exc_factory):

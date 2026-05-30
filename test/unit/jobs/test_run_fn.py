@@ -8,7 +8,7 @@ import queue
 import threading
 from pathlib import Path
 
-from autoraid.jobs.run_fn import make_count_runner, make_spend_runner
+from raid_autoupgrade.jobs.run_fn import make_count_runner, make_spend_runner
 
 
 class _WorkflowStub:
@@ -24,8 +24,8 @@ class _WorkflowStub:
         pass
 
     def run(self, cancel_event=None, on_progress=None):
-        from autoraid.orchestration.stop_conditions import StopReason
-        from autoraid.workflows.count_workflow import CountResult
+        from raid_autoupgrade.orchestration.stop_conditions import StopReason
+        from raid_autoupgrade.workflows.count_workflow import CountResult
 
         return CountResult(fail_count=0, stop_reason=StopReason.MAX_ATTEMPTS_REACHED)
 
@@ -128,10 +128,10 @@ class _WorkflowWithProgress:
         pass
 
     def run(self, cancel_event=None, on_progress=None):
-        from autoraid.detection.progress_bar_detector import ProgressBarState
-        from autoraid.orchestration.stop_conditions import StopReason
-        from autoraid.orchestration.upgrade_orchestrator import ProgressEvent
-        from autoraid.workflows.count_workflow import CountResult
+        from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
+        from raid_autoupgrade.orchestration.stop_conditions import StopReason
+        from raid_autoupgrade.orchestration.upgrade_orchestrator import ProgressEvent
+        from raid_autoupgrade.workflows.count_workflow import CountResult
 
         if on_progress is not None:
             on_progress(
@@ -188,8 +188,8 @@ class _SpendWorkflowStub:
         pass
 
     def run(self, cancel_event=None, on_progress=None):
-        from autoraid.orchestration.stop_conditions import StopReason
-        from autoraid.workflows.spend_workflow import SpendResult
+        from raid_autoupgrade.orchestration.stop_conditions import StopReason
+        from raid_autoupgrade.workflows.spend_workflow import SpendResult
 
         return SpendResult(
             upgrade_count=1,
@@ -249,9 +249,9 @@ class _SpendWorkflowWithProgress:
         pass
 
     def run(self, cancel_event=None, on_progress=None):
-        from autoraid.detection.progress_bar_detector import ProgressBarState
-        from autoraid.orchestration.stop_conditions import StopReason
-        from autoraid.workflows.spend_workflow import SpendProgress, SpendResult
+        from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
+        from raid_autoupgrade.orchestration.stop_conditions import StopReason
+        from raid_autoupgrade.workflows.spend_workflow import SpendProgress, SpendResult
 
         if on_progress is not None:
             on_progress(
@@ -356,7 +356,7 @@ class _SettingsServiceStub:
         self._current = None
 
     def get_settings(self):
-        from autoraid.services.settings_service import Settings
+        from raid_autoupgrade.services.settings_service import Settings
 
         return self._current if self._current is not None else Settings()
 

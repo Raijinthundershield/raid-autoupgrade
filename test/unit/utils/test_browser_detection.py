@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from autoraid.utils.browser_detection import detect_browser, is_edge_browser
+from raid_autoupgrade.utils.browser_detection import detect_browser, is_edge_browser
 
 
 class TestDetectBrowser:
@@ -49,7 +49,7 @@ class TestDetectBrowser:
             assert result is None
 
     def test_detect_browser_with_env_var_set(self):
-        """Verify detect_browser() uses AUTORAID_BROWSER_PATH env var when set."""
+        """Verify detect_browser() uses RAID_AUTOUPGRADE_BROWSER_PATH env var when set."""
         custom_path = "C:\\custom\\browser.exe"
 
         with (

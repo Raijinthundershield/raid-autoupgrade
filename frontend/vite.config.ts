@@ -6,8 +6,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const apiPort = env.AUTORAID_API_PORT ?? "8765";
-  const vitePort = parseInt(env.AUTORAID_VITE_PORT ?? "5173");
+  const apiPort = env.RAID_AUTOUPGRADE_API_PORT ?? "8765";
+  const vitePort = parseInt(env.RAID_AUTOUPGRADE_VITE_PORT ?? "5173");
 
   return {
     plugins: [react(), tailwindcss()],

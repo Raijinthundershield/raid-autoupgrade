@@ -1,8 +1,8 @@
 """Unit tests for stop condition classes."""
 
-from autoraid.detection.progress_bar_detector import ProgressBarState
-from autoraid.orchestration.progress_bar_monitor import ProgressBarMonitorState
-from autoraid.orchestration.stop_conditions import (
+from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
+from raid_autoupgrade.orchestration.progress_bar_monitor import ProgressBarMonitorState
+from raid_autoupgrade.orchestration.stop_conditions import (
     ConnectionErrorCondition,
     MaxAttemptsCondition,
     MaxFramesCondition,

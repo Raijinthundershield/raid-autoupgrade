@@ -59,7 +59,7 @@ export function StatusHeader() {
             color: "oklch(0.93 0.01 285)",
           }}
         >
-          AutoRaid
+          Raid Autoupgrade
         </span>
       </div>
 

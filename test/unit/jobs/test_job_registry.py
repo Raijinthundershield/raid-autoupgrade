@@ -21,7 +21,7 @@ def _wait_for_done(registry, job_id, timeout: float = 2.0):
 
 
 def test_start_job_when_idle_returns_job_id_and_running_state():
-    from autoraid.jobs.registry import JobRegistry
+    from raid_autoupgrade.jobs.registry import JobRegistry
 
     registry = JobRegistry()
     started = threading.Event()
@@ -48,7 +48,7 @@ def test_start_job_when_idle_returns_job_id_and_running_state():
 
 
 def test_event_queue_ordering():
-    from autoraid.jobs.registry import JobRegistry
+    from raid_autoupgrade.jobs.registry import JobRegistry
 
     registry = JobRegistry()
 
@@ -78,7 +78,7 @@ def test_event_queue_ordering():
 
 
 def test_start_job_when_busy_raises_conflict():
-    from autoraid.jobs.registry import ConflictError, JobRegistry
+    from raid_autoupgrade.jobs.registry import ConflictError, JobRegistry
 
     registry = JobRegistry()
     finish = threading.Event()
@@ -102,7 +102,7 @@ def test_start_job_when_busy_raises_conflict():
 
 
 def test_cancel_sets_the_jobs_cancel_event():
-    from autoraid.jobs.registry import JobRegistry
+    from raid_autoupgrade.jobs.registry import JobRegistry
 
     registry = JobRegistry()
     started = threading.Event()
@@ -127,7 +127,7 @@ def test_cancel_sets_the_jobs_cancel_event():
 
 
 def test_cancel_unknown_job_is_noop():
-    from autoraid.jobs.registry import JobRegistry
+    from raid_autoupgrade.jobs.registry import JobRegistry
 
     registry = JobRegistry()
     registry.cancel("does-not-exist")  # must not raise
@@ -139,7 +139,7 @@ def test_cancel_unknown_job_is_noop():
 
 
 def test_run_fn_exception_puts_error_event_and_job_becomes_done():
-    from autoraid.jobs.registry import JobRegistry
+    from raid_autoupgrade.jobs.registry import JobRegistry
 
     registry = JobRegistry()
 

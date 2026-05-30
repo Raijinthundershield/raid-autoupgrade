@@ -4,7 +4,7 @@ Guidance for Claude Code working in this repo.
 
 ## Project
 
-**AutoRaid** — Windows-only automation tool for Raid: Shadow Legends. Uses OpenCV + pyautogui to count upgrade fails offline (airplane-mode trick), then spend attempts online to guarantee an upgrade.
+**Raid Autoupgrade** — Windows-only automation tool for Raid: Shadow Legends. Uses OpenCV + pyautogui to count upgrade fails offline (airplane-mode trick), then spend attempts online to guarantee an upgrade.
 
 Background on the trick: [docs/airplane-mode-trick.md](docs/airplane-mode-trick.md).
 
@@ -16,8 +16,8 @@ Package manager is `uv`. All commands run from the `autoraid/` directory.
 
 ```bash
 uv sync                       # install / refresh venv
-uv run autoraid --help        # CLI
-uv run autoraid gui           # native desktop GUI
+uv run raid-autoupgrade --help        # CLI
+uv run raid-autoupgrade gui           # native desktop GUI
 uv run pytest                 # tests
 uv run pytest test/unit/      # unit only
 uv run ruff check --fix .     # lint
