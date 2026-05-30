@@ -27,7 +27,7 @@ uv run pre-commit run --all-files
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for layer breakdown, DI container, progress bar detection thresholds, and the upgrade flow.
+See [docs/architecture.md](docs/architecture.md) for the layer breakdown (React → FastAPI → jobs → workflows), the composition-root wiring, progress bar detection thresholds, and the upgrade flow.
 
 ## Constraints
 

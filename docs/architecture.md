@@ -1,53 +1,61 @@
 # Architecture
 
-AutoRaid uses a **service-based architecture** with **dependency injection** to separate concerns, improve testability, and enable mocking. The architecture is organized into distinct layers with clear responsibilities.
+AutoRaid is a Windows desktop app: a **React** frontend rendered in a native **pywebview** window, talking to an in-process **FastAPI** backend over HTTP + WebSocket. The Python side keeps the original **service-based architecture** — workflows, orchestration, and a stateless CV detection layer — with services wired explicitly at a single composition root (no DI container).
 
 ## Component Hierarchy
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│             CLI/GUI Layer (Entry Points)                     │
-│  - Injects infrastructure services (8 singletons)            │
-│  - Constructs workflows directly with runtime parameters     │
-└───────────┬──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Frontend (React + Vite, served in a pywebview window)         │
+│  - Panels: Count / Spend / Calibration / Network              │
+│  - useJobStream hook: WebSocket → live progress + logs        │
+└───────────┬────────────────────────────────────────────────────┘
+            │  HTTP (REST)  +  WS (/ws/workflows/{job_id})
+            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  FastAPI API layer (src/autoraid/api/)                         │
+│  - create_app(): builds app, mounts routers, error handler    │
+│  - routes/: status, count, spend, regions, settings, adapters │
+│  - deps.py: read services off app.state                       │
+└───────────┬────────────────────────────────────────────────────┘
             │
             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Workflow Layer                            │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐ │
-│  │ CountWorkflow  │  │ SpendWorkflow  │  │DebugMonitor    │ │
-│  │  - Validation  │  │  - Validation  │  │  Workflow      │ │
-│  │  - Config stop │  │  - Config stop │  │  - Validation  │ │
-│  │    conditions  │  │    conditions  │  │  - Config stop │ │
-│  │  - Create orch │  │  - Create orch │  │    conditions  │ │
-│  └────────┬───────┘  └────────┬───────┘  └────────┬───────┘ │
-└───────────┼──────────────────┼──────────────────┼──────────┘
-            │                  │                  │
+┌──────────────────────────────────────────────────────────────┐
+│  Jobs layer (src/autoraid/jobs/)                               │
+│  - JobRegistry: one active job, queue + cancel Event per job  │
+│  - run_fn factories: build a workflow run_fn, stream events   │
+└───────────┬────────────────────────────────────────────────────┘
+            │
+            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Workflow Layer                                                │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐   │
+│  │ CountWorkflow  │  │ SpendWorkflow  │  │ DebugMonitor   │   │
+│  │  - Validation  │  │  - Validation  │  │  Workflow      │   │
+│  │  - Stop config │  │  - Stop config │  │                │   │
+│  └────────┬───────┘  └────────┬───────┘  └────────┬───────┘   │
+└───────────┼──────────────────┼──────────────────┼────────────┘
             └──────────────────┼──────────────────┘
-                               │
                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Orchestration Layer                         │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │            UpgradeOrchestrator                       │   │
-│  │  - Start upgrade (click button)                      │   │
-│  │  - Monitor loop (screenshot + ROI extraction)        │   │
-│  │  - Check stop conditions each iteration              │   │
-│  │  - Creates ProgressBarMonitor (per session)          │   │
-│  │  - Coordinate monitor + DebugFrameLogger             │   │
-│  │  - Network management (via NetworkContext)           │   │
-│  └──────────────┬───────────────────────────────────────┘   │
-└─────────────────┼───────────────────────────────────────────┘
-                  │
+┌──────────────────────────────────────────────────────────────┐
+│                  Orchestration Layer                           │
+│  ┌────────────────────────────────────────────────────────┐   │
+│  │            UpgradeOrchestrator                          │   │
+│  │  - Start upgrade (click button)                         │   │
+│  │  - Monitor loop (screenshot + ROI extraction)           │   │
+│  │  - Check stop conditions each iteration                 │   │
+│  │  - Creates ProgressBarMonitor (per session)             │   │
+│  │  - Coordinate monitor + DebugFrameLogger                │   │
+│  │  - Network management (via NetworkContext)              │   │
+│  └──────────────┬─────────────────────────────────────────┘   │
+└─────────────────┼──────────────────────────────────────────────┘
     ┌─────────────┼─────────────┬──────────────┐
-    │             │             │              │
     ▼             ▼             ▼              ▼
 ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐
 │Progress  │ │  Stop    │ │  Debug   │ │ Network          │
 │Bar       │ │Condition │ │  Frame   │ │ Context          │
 │Monitor   │ │ Chain    │ │  Logger  │ │ (ctx manager)    │
-└──────────┘ └──────────┘ └──────────┘ └──────────────────┘
-     │
+└────┬─────┘ └──────────┘ └──────────┘ └──────────────────┘
      ▼
 ┌──────────────────┐
 │ ProgressBar      │
@@ -58,202 +66,134 @@ AutoRaid uses a **service-based architecture** with **dependency injection** to 
 
 ## Core Components
 
-1. **CLI Layer** ([../src/autoraid/cli/](../src/autoraid/cli/))
-   - [cli.py](../src/autoraid/cli/cli.py): Main entry point with `autoraid` command group, creates DI container
-   - [upgrade_cli.py](../src/autoraid/cli/upgrade_cli.py): Thin CLI commands (<20 LOC) using @inject decorator
-   - [network_cli.py](../src/autoraid/cli/network_cli.py): Commands for network adapter management
-   - Uses Click for CLI framework with dependency injection via `dependency-injector`
+### 1. Entry point ([../src/autoraid/main.py](../src/autoraid/main.py))
 
-2. **GUI Layer** ([../src/autoraid/gui/](../src/autoraid/gui/))
-   - [app.py](../src/autoraid/gui/app.py): Main NiceGUI application with single-page scrollable layout
-   - [components/upgrade_panel.py](../src/autoraid/gui/components/upgrade_panel.py): Count/Spend workflows with real-time updates
-   - [components/region_panel.py](../src/autoraid/gui/components/region_panel.py): Region selection and status display
-   - [components/network_panel.py](../src/autoraid/gui/components/network_panel.py): Network adapter management table
-   - Uses NiceGUI native mode for desktop application window
-   - Zero business logic duplication — all workflows use workflow factories and services via DI
+- A thin [Click](https://click.palletsclick.com/) launcher exposing a single command: `autoraid gui`.
+- Checks for admin rights (required for WMI adapter control) and, if missing, prompts a native UAC dialog to re-launch elevated.
+- `--dev` runs against the Vite dev server (HMR); `--debug` enables verbose logging and the pywebview devtools.
+- Delegates to `autoraid.gui.server.start()`.
 
-3. **Workflow Layer** ([../src/autoraid/workflows/](../src/autoraid/workflows/))
-   - **Workflow** (Abstract Base): Template Method pattern for validation and execution lifecycle
-   - **CountWorkflow**: Counts upgrade fails offline with network adapter management
-     - Validates window existence, network configuration, and cached regions before execution
-     - Disables network adapters (if specified) during counting
-     - Returns structured `CountResult` with `fail_count` and `stop_reason`
-   - **SpendWorkflow**: Spends counted attempts online with internet verification
-     - Validates window existence, internet availability, and cached regions before execution
-     - Supports `continue_upgrade` mode for level 10+ artifacts
-     - Returns structured `SpendResult` with `upgrade_count`, `attempt_count`, `remaining_attempts`, `stop_reason`
+### 2. Composition root ([../src/autoraid/gui/server.py](../src/autoraid/gui/server.py))
 
-4. **Service Layer** ([../src/autoraid/services/](../src/autoraid/services/))
-   - **AppData** (Singleton): Centralized application directory configuration
-     - Manages `cache_dir` and `debug_dir` paths
-     - Provides directory creation and validation
-     - Single source of truth for all application directories
-   - **CacheService** (Singleton): Manages region/screenshot caching with diskcache
-   - **ScreenshotService** (Singleton): Captures window screenshots and extracts ROIs
-   - **LocateRegionService** (Singleton): Detects and caches UI regions (upgrade bar, button)
-   - **WindowInteractionService** (Singleton): Checks window existence, handles window activation and clicking
-     - Multi-strategy window activation with automatic fallback:
-       1. ALT key + SetForegroundWindow (invisible, bypasses UIPI restrictions)
-       2. Minimize/Restore trick (guaranteed fallback, visually disruptive)
-     - Solves User Interface Privilege Isolation (UIPI) issue when Raid runs with admin privileges via RSLHelper
-   - **NetworkManager** (Singleton): Windows WMI-based network adapter control with automatic state waiting
+This is the **only** place services are constructed and wired — there is no DI container.
 
-5. **Detection Layer** ([../src/autoraid/detection/](../src/autoraid/detection/))
-   - **ProgressBarStateDetector** (Singleton): Stateless CV layer for progress bar state detection
-     - Wraps color-based algorithm with type-safe enum output
-     - Validates input images and returns `ProgressBarState` enum
-     - No side effects — testable with fixture images
-   - **locate_region**: Automatic detection of UI regions using template matching
-   - **templates/**: CV templates for region detection
+- Instantiates the infrastructure services (`WindowInteractionService`, `ScreenshotService`, `NetworkManager`, `CacheService`, `SettingsService`, `ProgressBarStateDetector`).
+- Builds the Count/Spend **runner factories** (`make_count_runner` / `make_spend_runner`) with those services.
+- Calls `create_app(...)`, passing services and runners; they are stashed on `app.state` via the FastAPI lifespan.
+- Runs uvicorn in a daemon thread on `127.0.0.1:8765` (configurable via `AUTORAID_API_PORT`), then opens a pywebview window.
+  - **Dev mode** (`AUTORAID_DEV=1`): window points at the Vite dev server.
+  - **Prod mode**: FastAPI mounts `frontend/dist/` as static files and the window points at the API.
 
-6. **Orchestration Layer** ([../src/autoraid/orchestration/](../src/autoraid/orchestration/))
-   - **UpgradeOrchestrator**: Coordinates upgrade monitoring sessions
-     - Validates prerequisites (window existence, region cache, window size)
-     - Creates `ProgressBarMonitor` internally per session
-     - Manages monitoring loop (screenshot, ROI extraction, monitor, stop conditions)
-     - Integrates `NetworkContext` for automatic adapter management
-     - Supports optional `DebugFrameLogger` for diagnostic data capture
-     - Returns immutable `UpgradeResult` with `fail_count`, `frames_processed`, `stop_reason`
-   - **ProgressBarMonitor**: Stateful monitoring for progress bar without stop condition logic
-     - Processes progress bar frames and counts fail state transitions
-     - Maintains state history (last 4 states) in deque
-     - Provides immutable state snapshots via `ProgressBarMonitorState` dataclass
-     - No I/O dependencies — testable with mocked detector
-   - **StopCondition classes** (Strategy Pattern): Pluggable stop condition strategies
-     - `MaxAttemptsCondition`: Stop when fail count reaches threshold
-     - `MaxFramesCondition`: Stop when frame count reaches threshold
-     - `UpgradedCondition`: Stop on 4 consecutive STANDBY or CONNECTION_ERROR states
-     - `ConnectionErrorCondition`: Stop on 4 consecutive CONNECTION_ERROR states
-     - `StopConditionChain`: Evaluates conditions in priority order
-   - **DebugFrameLogger**: Optional debug data capture during monitoring
-     - Saves screenshots and ROIs with timestamped filenames
-     - Records metadata (state, frame number, counts, colors)
-     - Writes JSON summary log at end of session
+### 3. API layer ([../src/autoraid/api/](../src/autoraid/api/))
 
-7. **Utilities** ([../src/autoraid/utils/](../src/autoraid/utils/))
-   - **interaction**: Low-level region selection with OpenCV GUI
-   - **visualization**: Image display and annotation for debugging
-   - **common**: General utilities (timestamps, etc.)
-   - **NetworkContext**: Context manager for automatic network adapter lifecycle management
-     - Disables adapters on entry, re-enables on exit (exception-safe)
-     - Ensures adapters always re-enabled, even on exceptions
+- [app.py](../src/autoraid/api/app.py): `create_app(...)` factory. Mounts routers, registers a lifespan that puts injected services/runners on `app.state`, and installs exception handlers that map domain errors to an error envelope (`{error, message, detail}`):
+  - `WindowNotFoundException` → 409, `WorkflowValidationError` → 422, `NetworkAdapterError` → 502, other `AutoRaidError` → 500, unexpected → 500.
+- [deps.py](../src/autoraid/api/deps.py): FastAPI `Depends` providers that read services/runners off `app.state` (e.g. `get_job_registry`, `get_count_runner`). This indirection keeps routes testable — `create_app(...)` accepts test doubles.
+- [routes/](../src/autoraid/api/routes/): one router per concern.
 
-8. **Infrastructure**
-   - [exceptions.py](../src/autoraid/exceptions.py): Custom exception classes (including `WorkflowValidationError`)
-   - [container.py](../src/autoraid/container.py): Dependency injection container configuration
+| Route | Method(s) | Purpose |
+|-------|-----------|---------|
+| `/api/status` | GET | Raid window presence + size, region/network state |
+| `/api/workflows/count` | POST | Start a Count job → `{job_id}` |
+| `/api/workflows/spend` | POST | Start a Spend job → `{job_id}` |
+| `/api/workflows/{job_id}` | GET | Poll job status + result |
+| `/api/workflows/{job_id}/cancel` | POST | Cancel (204, idempotent) |
+| `/ws/workflows/{job_id}` | WS | Live event stream (log / progress / done / error) |
+| `/api/screenshot` | GET | Current Raid screenshot for calibration |
+| `/api/regions` | GET / PUT | Read / save calibrated regions |
+| `/api/settings` | GET / PUT | Selected adapters, last count result |
+| `/api/adapters` | GET | List network adapters |
 
-## Dependency Injection Container
+### 4. Jobs layer ([../src/autoraid/jobs/](../src/autoraid/jobs/))
+
+Decouples long-running workflows from the request/response cycle.
+
+- [registry.py](../src/autoraid/jobs/registry.py) — **JobRegistry**: enforces a single active job (a second start raises `ConflictError` → HTTP 409). Each job gets a `queue.Queue` for events and a `threading.Event` for cancellation. The workflow runs on a daemon thread; on completion/error it enqueues a terminal `done`/`error` event and clears the active slot. `cancel()` is idempotent — it just sets the event.
+- [run_fn.py](../src/autoraid/jobs/run_fn.py) — **runner factories**: `make_count_runner` / `make_spend_runner` return a factory `(params) → run_fn`, where `run_fn(queue, cancel_event)` constructs the workflow, attaches a loguru sink that serializes log records onto the queue, and wires a progress callback. Count results are persisted to `SettingsService` as `last_count_result` to pre-fill the Spend panel.
+
+Event shapes on the queue: `{type: "log", level, msg, ts}`, `{type: "progress", ...}`, `{type: "done", result}`, `{type: "error", error, message}`. The WebSocket route drains the queue and forwards each event as JSON until a terminal event.
+
+### 5. Frontend ([../frontend/](../frontend/))
+
+React + TypeScript + Vite, styled with Tailwind + shadcn/ui components.
+
+- **Panels**: `CountPanel`, `SpendPanel`, `CalibrationBanner` + `RegionPanel` (region overlay / draw mode), `NetworkPanel`. Shared bits: `ProgressBarStateCard`, `StatCard`, `StatusHeader`.
+- **`useJobStream` hook** ([../frontend/src/hooks/useJobStream.ts](../frontend/src/hooks/useJobStream.ts)): opens the job WebSocket and reduces the event stream into a live view (`status`, `barState`, `logs`, `result`). The Run tab shares **one** job stream across panels (see [ADR 0002](adr/0002-shared-run-stream.md)).
+
+### 6. Workflow Layer ([../src/autoraid/workflows/](../src/autoraid/workflows/))
+
+- **CountWorkflow**: counts upgrade fails offline. Validates window existence, network configuration, and cached regions; disables network adapters (if specified) during counting; returns `CountResult` with `fail_count` and `stop_reason`.
+- **SpendWorkflow**: spends counted attempts online with internet verification. Supports `continue_upgrade` for level 10+ artifacts; returns `SpendResult` with `upgrade_count`, `attempt_count`, `remaining_attempts`, `stop_reason`.
+- **DebugMonitorWorkflow**: monitoring workflow with frame capture for diagnostics.
+
+### 7. Service Layer ([../src/autoraid/services/](../src/autoraid/services/))
+
+- **AppData**: centralized application directory configuration (`cache_dir`, `debug_dir`).
+- **CacheService**: region/screenshot caching backed by diskcache.
+- **ScreenshotService**: window screenshots and ROI extraction.
+- **LocateRegionService**: detects and caches UI regions (upgrade bar, button).
+- **WindowInteractionService**: window existence checks, clicking, and multi-strategy activation:
+  1. ALT key + SetForegroundWindow (invisible, bypasses UIPI when Raid runs admin via RSLHelper)
+  2. Minimize/Restore trick (guaranteed but visually disruptive fallback)
+- **SettingsService**: persists selected adapters and last count result (diskcache).
+- **NetworkManager**: Windows WMI-based adapter control with automatic state waiting.
+
+### 8. Detection Layer ([../src/autoraid/detection/](../src/autoraid/detection/))
+
+- **ProgressBarStateDetector**: stateless CV layer; wraps the color-based algorithm with type-safe `ProgressBarState` output. No side effects — testable with fixture images.
+- **locate_region**: automatic region detection via template matching.
+
+### 9. Orchestration Layer ([../src/autoraid/orchestration/](../src/autoraid/orchestration/))
+
+- **UpgradeOrchestrator**: coordinates an upgrade session — validates prerequisites, creates a `ProgressBarMonitor` per session, runs the monitoring loop (screenshot → ROI → monitor → stop conditions), integrates `NetworkContext`, and optionally drives `DebugFrameLogger`. Emits `ProgressEvent`s via callback.
+- **ProgressBarMonitor**: stateful frame tracking (counts fail transitions, keeps the last 4 states); no stop logic; immutable snapshots. Testable with a mocked detector.
+- **StopCondition classes** (Strategy): `MaxAttemptsCondition`, `MaxFramesCondition`, `UpgradedCondition` (4 consecutive STANDBY), `ConnectionErrorCondition` (4 consecutive CONNECTION_ERROR), composed by `StopConditionChain` in priority order.
+- **DebugFrameLogger**: optional capture of screenshots/ROIs + metadata, with a JSON summary at session end.
+
+### 10. Utilities & Infrastructure
+
+- [utils/network_context.py](../src/autoraid/utils/network_context.py) — **NetworkContext**: context manager that disables adapters on entry and re-enables on exit (exception-safe).
+- [utils/admin.py](../src/autoraid/utils/admin.py), [utils/browser_detection.py](../src/autoraid/utils/browser_detection.py), [utils/visualization.py](../src/autoraid/utils/visualization.py), [utils/common.py](../src/autoraid/utils/common.py).
+- [exceptions.py](../src/autoraid/exceptions.py): domain exceptions (`AutoRaidError` base, `WindowNotFoundException`, `WorkflowValidationError`, `NetworkAdapterError`, …).
+- [protocols.py](../src/autoraid/protocols.py): `@runtime_checkable` protocols for the infrastructure services, so consumers depend on interfaces, not concretes.
+
+## Dependency Wiring
+
+There is **no DI container**. Construction and wiring happen exactly once, in `gui/server.py` (the composition root):
 
 ```
-Container (DeclarativeContainer)
-│
-├── Configuration
-│   ├── cache_dir: str
-│   └── debug: bool
-│
-└── Providers (Singleton - Infrastructure Only)
-    ├── app_data: AppData(cache_dir, debug_enabled)
-    ├── disk_cache: Cache(cache_dir)
-    ├── cache_service: CacheService(disk_cache)
-    ├── screenshot_service: ScreenshotService()
-    ├── window_interaction_service: WindowInteractionService()
-    ├── locate_region_service: LocateRegionService(cache_service, screenshot_service)
-    ├── network_manager: NetworkManager()
-    └── progress_bar_detector: ProgressBarStateDetector()
+gui/server.py (start)
+├── window_service      = WindowInteractionService()
+├── screenshot_service  = ScreenshotService(window_service)
+├── network_manager     = NetworkManager()
+├── cache_service       = CacheService(diskcache regions)
+├── settings_service    = SettingsService(diskcache settings)
+├── detector            = ProgressBarStateDetector()
+├── count_runner        = make_count_runner(... services ...)
+├── spend_runner        = make_spend_runner(... services ...)
+└── app = create_app(services + runners)   # stashed on app.state via lifespan
 ```
 
-**Application Logic (Direct Construction):**
-- **ProgressBarMonitor**: Created internally by `UpgradeOrchestrator` per session
-- **UpgradeOrchestrator**: Created by workflows with injected services
-- **CountWorkflow, SpendWorkflow, DebugMonitorWorkflow**: Created by CLI/GUI with injected services
-
-**Wiring:** CLI modules (`autoraid.cli.upgrade_cli`, `autoraid.cli.network_cli`, `autoraid.cli.debug_cli`) and GUI modules (`autoraid.gui.components.upgrade_panel`, `autoraid.gui.components.region_panel`, `autoraid.gui.components.network_panel`) are wired to enable the `@inject` decorator for infrastructure services.
-
-**Lifecycle:**
-- **Singleton**: Infrastructure services with no per-request state (8 total)
-- **Direct Construction**: Application logic (workflows, orchestrator, monitor) constructed as needed with explicit dependencies
-
-## GUI Architecture
-
-The GUI layer is a **thin presentation layer** that provides a native desktop interface without duplicating business logic.
-
-**Design Principles:**
-- **Zero Logic Duplication**: GUI components inject and call the same services used by CLI
-- **Centralized Configuration**: GUI creates DI container with `AppData` for consistent directory management
-- **Async Threading**: Blocking operations (workflows, region selection) run via `asyncio.to_thread()` to keep UI responsive
-- **State Persistence**: User preferences (selected adapters, last count result) persist via `app.storage.user`
-- **External OpenCV**: Region selection popups remain external windows (not embedded in GUI)
-- **Real-time Updates**: Log streaming and progress updates use NiceGUI's reactive UI elements (`ui.refreshable()`, `ui.log()`)
-
-**Component Structure:**
-- **UpgradePanel** (`upgrade_panel.py`): Count and Spend workflows with real-time progress displays
-  - Injects infrastructure services (cache, screenshot, window, network, detector, app_data)
-  - Constructs workflows directly with injected services
-  - Uses `ui.refreshable()` for live count/spent updates
-  - Displays error toasts for exceptions (`WindowNotFoundException`, `WorkflowValidationError`, `NetworkAdapterError`, etc.)
-  - Shared log section with color-coded streaming via loguru sink
-- **RegionPanel** (`region_panel.py`): Region viewing and selection
-  - Injects `LocateRegionService`, `ScreenshotService`, `CacheService`
-  - "Show Regions" button opens OpenCV window with annotated screenshot
-  - "Select Regions (Auto/Manual)" buttons call service methods in background threads
-  - Window size monitoring with warnings if Raid window resizes
-- **NetworkPanel** (`network_panel.py`): Network adapter management
-  - Injects `NetworkManager` via platform layer
-  - Table displays adapters with multi-select checkboxes
-  - Selected adapter IDs stored in `app.storage.user['selected_adapters']`
-  - Internet status indicator polls every 5 seconds
-
-**State Management:**
-- `app.storage.user['selected_adapters']`: Network adapter IDs for Count workflow
-- `app.storage.user['last_count_result']`: Auto-populates Spend workflow max attempts
-- Region cache uses existing diskcache (same as CLI)
-
-**Layout:** Single-page vertical scrollable interface with three sections:
-1. **Upgrade Workflows** (top): Count, Spend, Live Logs
-2. **Region Management** (middle): Window size, cached regions, show/select buttons
-3. **Network Adapters** (bottom): Adapter table with multi-select
-
-## Service Responsibilities
-
-| Service | Lifecycle | Responsibilities | Dependencies |
-|---------|-----------|------------------|--------------|
-| **AppData** | Singleton | Centralized directory configuration (cache_dir, debug_dir) | None |
-| **CacheService** | Singleton | Region/screenshot caching | disk_cache |
-| **ScreenshotService** | Singleton | Window screenshots, ROI extraction | None |
-| **LocateRegionService** | Singleton | Region detection (auto + manual) | cache_service, screenshot_service |
-| **WindowInteractionService** | Singleton | Window existence checking, multi-strategy activation (ALT+SetForegroundWindow → minimize trick), clicking | None |
-| **NetworkManager** | Singleton | Network adapter management with automatic state waiting | None |
-| **ProgressBarStateDetector** | Singleton | Progress bar state detection from images | None (stateless CV layer) |
-| **ProgressBarMonitor** | Direct Construction | Frame processing, fail transition counting, state history tracking | progress_bar_detector |
-| **UpgradeOrchestrator** | Direct Construction | Coordinate upgrade sessions with stop conditions, network management | screenshot_service, window_interaction_service, cache_service, network_manager, detector |
-| **CountWorkflow** | Direct Construction | Count workflow with validation and orchestration | cache_service, window_interaction_service, network_manager, screenshot_service, detector |
-| **SpendWorkflow** | Direct Construction | Spend workflow with validation and orchestration | cache_service, window_interaction_service, network_manager, screenshot_service, detector |
-| **DebugMonitorWorkflow** | Direct Construction | Debug workflow with frame capture and orchestration | cache_service, window_interaction_service, network_manager, screenshot_service, detector |
+- **Infrastructure services**: constructed once and shared.
+- **Application logic** (workflows, orchestrator, monitor): constructed per job inside the `run_fn`, with explicit dependencies.
+- **Testability**: `create_app(...)` takes every service/runner as a parameter, so tests inject doubles directly (no patching). Routes pull them via `deps.py`.
 
 ## Key Design Patterns
 
-- **Dependency Injection**: Constructor injection for all services, configured via `DeclarativeContainer`
-- **Service Layer**: Business logic separated from CLI/I/O in testable services
-- **Strategy Pattern**: Stop conditions are pluggable strategies evaluated by `StopConditionChain`
-- **Context Manager Pattern**: `NetworkContext` ensures automatic network adapter cleanup (exception-safe)
-- **Orchestrator Pattern**: `UpgradeOrchestrator` coordinates monitoring sessions with validation, stop conditions, and network management
-- **Separated Concerns:**
-  - `ProgressBarStateDetector`: Stateless CV layer, testable with fixture images
-  - `ProgressBarMonitor`: Stateful frame tracking (no stop logic), testable with mocked detector
-  - StopCondition classes: Isolated stop logic, independently testable
-  - `UpgradeOrchestrator`: Coordination layer, testable with mocked services
-  - Workflows: Thin configuration layers, testable with mocked orchestrator
-- **Composition Over Inheritance**: Workflows compose orchestrator instead of inheriting from base class
-- **Immutable State**: Monitor provides frozen dataclass snapshots (`ProgressBarMonitorState`)
-- **Direct Construction**: Workflows, orchestrator, and monitor constructed directly with explicit dependencies (no factory pattern)
-- **Explicit Dependencies**: CLI/GUI inject infrastructure services and construct application logic directly
-- **Region-based Detection**: All UI interactions use cached regions (left, top, width, height) relative to Raid window
-- **Window Size Dependency**: Regions cached per window size, requiring re-selection if window resized
-- **Debug Mode**: Global `--debug` flag enables DEBUG logging and saves debug artifacts
+- **Composition Root**: all wiring in one place (`gui/server.py`); business logic never constructs its own infrastructure.
+- **Constructor Injection** against protocols (`protocols.py`).
+- **Factory functions** (`make_count_runner` / `make_spend_runner`) bind services up front and yield per-job `run_fn`s.
+- **Strategy Pattern**: pluggable stop conditions evaluated by `StopConditionChain`.
+- **Context Manager**: `NetworkContext` guarantees adapter cleanup, even on exceptions.
+- **Orchestrator Pattern**: `UpgradeOrchestrator` coordinates monitoring with validation, stop conditions, and network management.
+- **Separated Concerns**: stateless detector vs. stateful monitor vs. isolated stop conditions vs. coordination layer vs. thin workflows — each independently testable.
+- **Immutable State**: monitor exposes frozen dataclass snapshots.
+- **Region-based Detection**: all UI interaction uses cached regions (left, top, width, height) relative to the Raid window; regions are cached **per window size** and must be re-calibrated if the window resizes.
 
 ## Progress Bar State Detection
 
 The core algorithm in [progress_bar_detector.py](../src/autoraid/detection/progress_bar_detector.py) uses average BGR color values to determine state:
+
 - **fail**: Red (b<70, g<90, r>130)
 - **progress**: Yellow (b<70, |r-g|<50)
 - **standby**: Black (b<30, g<60, r<70)
@@ -261,153 +201,42 @@ The core algorithm in [progress_bar_detector.py](../src/autoraid/detection/progr
 
 ## Upgrade Counting Flow
 
-1. User navigates to upgrade screen in Raid
-2. Tool disables network adapters (if specified)
-3. Tool locates or prompts for UI regions (upgrade bar, button, artifact icon)
-4. User clicks upgrade button programmatically
-5. Tool monitors progress bar color changes every 0.25s
-6. Counts transitions to "fail" state (red bar)
-7. Stops on: max attempts reached, 4 consecutive "standby" states (upgraded), or 4 consecutive "connection_error" states
-8. Re-enables network adapters
-
-## Workflow Usage Examples
-
-**CLI Usage:**
-```python
-# Count workflow — services injected via @inject decorator
-from dependency_injector.wiring import inject, Provide
-from autoraid.container import Container
-from autoraid.workflows.count_workflow import CountWorkflow
-
-@inject
-def run_count_command(
-    cache_service=Provide[Container.cache_service],
-    screenshot_service=Provide[Container.screenshot_service],
-    window_service=Provide[Container.window_interaction_service],
-    network_manager=Provide[Container.network_manager],
-    detector=Provide[Container.progress_bar_detector],
-):
-    workflow = CountWorkflow(
-        cache_service=cache_service,
-        screenshot_service=screenshot_service,
-        window_interaction_service=window_service,
-        network_manager=network_manager,
-        detector=detector,
-        network_adapter_ids=[1, 2],
-        max_attempts=99,
-        debug_dir=None,
-    )
-
-    workflow.validate()
-    result = workflow.run()
-    print(f"Failed {result.fail_count} times, reason: {result.stop_reason}")
-```
-
-**GUI Usage:**
-```python
-# Spend workflow — services injected, workflow constructed directly
-@inject
-async def start_spend_workflow(
-    cache_service=Provide[Container.cache_service],
-    screenshot_service=Provide[Container.screenshot_service],
-    window_service=Provide[Container.window_interaction_service],
-    network_manager=Provide[Container.network_manager],
-    detector=Provide[Container.progress_bar_detector],
-):
-    workflow = SpendWorkflow(
-        cache_service=cache_service,
-        screenshot_service=screenshot_service,
-        window_interaction_service=window_service,
-        network_manager=network_manager,
-        detector=detector,
-        max_upgrade_attempts=10,
-        continue_upgrade=True,
-        debug_dir=None,
-    )
-
-    # Run in background thread to keep UI responsive
-    result = await asyncio.to_thread(workflow.run)
-    ui.notify(f"Upgraded {result.upgrade_count} times!")
-```
-
-**Error Handling:**
-```python
-from autoraid.exceptions import WorkflowValidationError, WindowNotFoundException
-
-try:
-    workflow = CountWorkflow(
-        cache_service=cache_service,
-        screenshot_service=screenshot_service,
-        window_interaction_service=window_service,
-        network_manager=network_manager,
-        detector=detector,
-        network_adapter_ids=None,
-        max_attempts=99,
-        debug_dir=None,
-    )
-    workflow.validate()
-    result = workflow.run()
-except WindowNotFoundException as e:
-    print(f"Error: {e}")  # "Raid window not found. Ensure Raid: Shadow Legends is running."
-except WorkflowValidationError as e:
-    print(f"Validation failed: {e}")  # "Internet access detected but no network adapter specified..."
-```
+1. User navigates to the upgrade screen in Raid.
+2. Tool disables network adapters (if specified).
+3. Tool uses the calibrated UI regions (upgrade bar, button).
+4. Tool clicks the upgrade button programmatically.
+5. Tool monitors progress bar color changes each iteration.
+6. Counts transitions to the "fail" state (red bar).
+7. Stops on: max attempts reached, 4 consecutive "standby" states (upgraded), or 4 consecutive "connection_error" states.
+8. Re-enables network adapters (guaranteed via `NetworkContext`).
 
 ## Project Structure
 
 ```
 autoraid/
 ├── src/autoraid/
-│   ├── cli/                      # CLI layer (thin commands)
-│   │   ├── cli.py                # Main entry point, DI container creation
-│   │   ├── upgrade_cli.py        # Upgrade commands with @inject
-│   │   ├── network_cli.py        # Network adapter commands
-│   │   └── debug_cli.py          # Debug commands
-│   ├── gui/                      # GUI layer (native desktop interface)
-│   │   ├── app.py                # Main NiceGUI application & layout
-│   │   └── components/
-│   │       ├── upgrade_panel.py  # Count/Spend workflows + Live Logs
-│   │       ├── region_panel.py   # Region show/select (OpenCV integration)
-│   │       └── network_panel.py  # Network adapter table & management
-│   ├── debug/                    # Debug review tools
-│   │   ├── app.py                # Debug review GUI (NiceGUI)
-│   │   ├── models.py             # Debug data models
-│   │   ├── progressbar_review_gui.py
-│   │   └── utils.py
-│   ├── workflows/                # Workflow layer (thin configuration)
-│   │   ├── count_workflow.py     # CountWorkflow + CountResult
-│   │   ├── spend_workflow.py     # SpendWorkflow + SpendResult
-│   │   └── debug_monitor_workflow.py
-│   ├── services/                 # Service layer (infrastructure)
-│   │   ├── app_data.py
-│   │   ├── cache_service.py
-│   │   ├── screenshot_service.py
-│   │   ├── locate_region_service.py
-│   │   ├── window_interaction_service.py
-│   │   └── network.py
-│   ├── orchestration/            # Application logic
-│   │   ├── upgrade_orchestrator.py
-│   │   ├── progress_bar_monitor.py
-│   │   ├── stop_conditions.py
-│   │   └── debug_frame_logger.py
-│   ├── detection/                # CV algorithms
-│   │   ├── progress_bar_detector.py
-│   │   ├── locate_region.py
-│   │   └── templates/
-│   ├── utils/
-│   │   ├── common.py
-│   │   ├── interaction.py
-│   │   ├── visualization.py
-│   │   └── network_context.py
-│   ├── container.py              # DI container configuration
-│   ├── exceptions.py
-│   └── logging_config.py
-├── test/
-│   ├── unit/                     # Per-layer unit tests
-│   ├── integration/              # Workflow + mocked orchestrator tests
-│   └── fixtures/images/          # CV test images
-├── docs/
-├── scripts/
-├── pyproject.toml
-└── .pre-commit-config.yaml
+│   ├── main.py                   # Click launcher (admin/UAC, autoraid gui)
+│   ├── api/
+│   │   ├── app.py                # create_app() factory + error handlers
+│   │   ├── deps.py               # Depends providers (read app.state)
+│   │   └── routes/               # status, count, spend, regions, settings, adapters
+│   ├── jobs/
+│   │   ├── registry.py           # JobRegistry (single active job, cancel, queue)
+│   │   └── run_fn.py             # Count/Spend runner factories
+│   ├── gui/
+│   │   └── server.py             # Composition root: wire services, run uvicorn + pywebview
+│   ├── workflows/                # CountWorkflow, SpendWorkflow, DebugMonitorWorkflow
+│   ├── orchestration/            # UpgradeOrchestrator, ProgressBarMonitor, stop_conditions, debug_frame_logger
+│   ├── detection/                # ProgressBarStateDetector, locate_region (CV layer)
+│   ├── services/                 # cache, screenshot, window, network, settings, app_data
+│   ├── utils/                    # network_context, admin, browser_detection, visualization
+│   ├── protocols.py              # service protocols
+│   └── exceptions.py             # domain exceptions
+├── frontend/                     # React + Vite + Tailwind/shadcn
+│   ├── src/components/           # Count/Spend/Region/Network panels + shared cards
+│   ├── src/hooks/useJobStream.ts # WebSocket → live progress/logs reducer
+│   └── dist/                     # built assets (served by FastAPI in prod)
+└── docs/adr/                     # architecture decision records
 ```
+
+> **Note:** the CLI-based interface and the NiceGUI desktop GUI were removed in the React migration. The CV-classification debug-review GUI was also removed and is tracked for reimplementation in issue #2.
