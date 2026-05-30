@@ -103,13 +103,12 @@ export function SpendPanel() {
         {conflict && <span className="conflict-badge">workflow already running</span>}
       </div>
 
-      {stream.status !== "idle" && (
-        <div className="flex gap-3">
-          <StatCard label="Fails" value={stream.failCount} />
-          <StatCard label="Frames" value={stream.frames} />
-          <StatCard label="Bar state" value={stream.barState ?? "—"} />
-        </div>
-      )}
+      <div className="flex gap-3">
+        <StatCard label="Attempts used" value={stream.attemptsUsed} />
+        <StatCard label="Remaining" value={stream.remaining} />
+        <StatCard label="Upgrades" value={stream.upgrades} />
+        <StatCard label="Progress Bar State" value={stream.barState ?? "—"} />
+      </div>
 
       {stream.logs.length > 0 && (
         <div className="log-console">

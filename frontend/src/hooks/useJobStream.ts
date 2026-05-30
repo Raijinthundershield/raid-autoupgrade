@@ -6,9 +6,14 @@ import { useEffect, useReducer } from "react";
 
 type ProgressEvent = {
   type: "progress";
-  fail_count: number;
-  frames: number;
   state: string;
+  // Count-only fields.
+  fail_count?: number;
+  frames?: number;
+  // Spend-only outcome fields (optional; absent on Count progress).
+  attempts_used?: number;
+  remaining?: number;
+  upgrades?: number;
 };
 
 type LogEvent = {
@@ -45,6 +50,9 @@ export interface JobStreamState {
   status: "idle" | "running" | "done" | "error";
   failCount: number;
   frames: number;
+  attemptsUsed: number;
+  remaining: number;
+  upgrades: number;
   barState: string | null;
   logs: Array<{ level: string; msg: string; ts: number }>;
   result: Record<string, unknown> | null;
@@ -55,6 +63,9 @@ export const initialJobStreamState: JobStreamState = {
   status: "idle",
   failCount: 0,
   frames: 0,
+  attemptsUsed: 0,
+  remaining: 0,
+  upgrades: 0,
   barState: null,
   logs: [],
   result: null,
@@ -73,10 +84,15 @@ export function jobStreamReducer(
     case "start":
       return { ...initialJobStreamState, status: "running" };
     case "progress":
+      // A progress event carries the fields for its phase only; fields the
+      // other phase owns are absent and left at their current (default) value.
       return {
         ...state,
-        failCount: event.fail_count,
-        frames: event.frames,
+        failCount: event.fail_count ?? state.failCount,
+        frames: event.frames ?? state.frames,
+        attemptsUsed: event.attempts_used ?? state.attemptsUsed,
+        remaining: event.remaining ?? state.remaining,
+        upgrades: event.upgrades ?? state.upgrades,
         barState: event.state,
       };
     case "log":

@@ -20,6 +20,40 @@ describe("jobStreamReducer", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Spend fields: a progress event carrying attempts_used / remaining /
+  // upgrades stores them (Count never sends them).
+  // -------------------------------------------------------------------------
+
+  it("progress event stores attempts_used, remaining, and upgrades", () => {
+    const next = jobStreamReducer(initialJobStreamState, {
+      type: "progress",
+      state: "FAIL",
+      attempts_used: 6,
+      remaining: 4,
+      upgrades: 2,
+    });
+
+    expect(next.attemptsUsed).toBe(6);
+    expect(next.remaining).toBe(4);
+    expect(next.upgrades).toBe(2);
+    expect(next.barState).toBe("FAIL");
+  });
+
+  it("progress event without spend fields leaves them at their defaults", () => {
+    const next = jobStreamReducer(initialJobStreamState, {
+      type: "progress",
+      fail_count: 3,
+      frames: 90,
+      state: "FAIL",
+    });
+
+    expect(next.failCount).toBe(3);
+    expect(next.attemptsUsed).toBe(0);
+    expect(next.remaining).toBe(0);
+    expect(next.upgrades).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
   // Behavior 11: log event appends to logs
   // -------------------------------------------------------------------------
 

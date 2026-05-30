@@ -9,7 +9,7 @@ from loguru import logger
 
 from autoraid.orchestration.upgrade_orchestrator import ProgressEvent
 from autoraid.workflows.count_workflow import CountWorkflow
-from autoraid.workflows.spend_workflow import SpendWorkflow
+from autoraid.workflows.spend_workflow import SpendProgress, SpendWorkflow
 
 
 def _make_log_sink(q: _queue.Queue) -> Callable:
@@ -35,6 +35,26 @@ def _make_progress_callback(q: _queue.Queue) -> Callable[[ProgressEvent], None]:
                 "fail_count": event.fail_count,
                 "frames": event.frames,
                 "state": event.state.value if event.state is not None else None,
+            }
+        )
+
+    return on_progress
+
+
+def _make_spend_progress_callback(
+    q: _queue.Queue,
+) -> Callable[[SpendProgress], None]:
+    """Serialize cumulative Spend snapshots as the shared ``progress`` event,
+    carrying the optional Spend outcome fields the Spend panel self-selects."""
+
+    def on_progress(snapshot: SpendProgress) -> None:
+        q.put(
+            {
+                "type": "progress",
+                "attempts_used": snapshot.attempts_used,
+                "remaining": snapshot.remaining,
+                "upgrades": snapshot.upgrades,
+                "state": snapshot.state.value if snapshot.state is not None else None,
             }
         )
 
@@ -136,7 +156,7 @@ def make_spend_runner(
             try:
                 result = workflow.run(
                     cancel_event=cancel_event,
-                    on_progress=_make_progress_callback(q),
+                    on_progress=_make_spend_progress_callback(q),
                 )
                 return {
                     "upgrade_count": result.upgrade_count,

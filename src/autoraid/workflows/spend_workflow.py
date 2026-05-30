@@ -15,6 +15,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from autoraid.detection.progress_bar_detector import ProgressBarState
 from autoraid.exceptions import WorkflowValidationError
 from autoraid.orchestration.stop_conditions import (
     ConnectionErrorCondition,
@@ -46,6 +47,43 @@ class SpendResult:
     attempt_count: int
     remaining_attempts: int
     stop_reason: StopReason
+
+
+@dataclass(frozen=True)
+class SpendProgress:
+    """A cumulative, live Spend snapshot emitted each monitor-loop frame.
+
+    Unlike the orchestrator's per-session ``ProgressEvent``, these totals are
+    cumulative across the whole Spend: ``attempts_used`` counts up and
+    ``remaining`` counts down within a single session, not only at boundaries.
+    """
+
+    attempts_used: int
+    remaining: int
+    upgrades: int
+    state: ProgressBarState | None
+
+
+def enrich_spend_progress(
+    attempt_count: int,
+    remaining_attempts: int,
+    upgrade_count: int,
+    event: ProgressEvent,
+) -> SpendProgress:
+    """Map a session ``ProgressEvent`` plus the Spend loop's running base totals
+    to a cumulative Spend snapshot.
+
+    Within-session liveness comes from the session's own ``fail_count``:
+    ``attempts_used = attempt_count + fail_count`` and
+    ``remaining = remaining_attempts - fail_count``. ``upgrade_count`` is carried
+    through unchanged (an upgrade is only recognised at a session boundary).
+    """
+    return SpendProgress(
+        attempts_used=attempt_count + event.fail_count,
+        remaining=remaining_attempts - event.fail_count,
+        upgrades=upgrade_count,
+        state=event.state,
+    )
 
 
 class SpendWorkflow:
@@ -102,7 +140,7 @@ class SpendWorkflow:
     def run(
         self,
         cancel_event: threading.Event | None = None,
-        on_progress: Callable[[ProgressEvent], None] | None = None,
+        on_progress: Callable[[SpendProgress], None] | None = None,
     ) -> SpendResult:
         logger.info("Starting spend workflow execution")
 
@@ -158,9 +196,30 @@ class SpendWorkflow:
                 ),
             )
 
+            # Wrap the caller's progress callback so each per-session
+            # ProgressEvent is enriched with this Spend's running loop totals,
+            # making attempts_used / remaining tick live within the session
+            # rather than jumping only at session boundaries. The base totals are
+            # frozen via default args at wrapper-creation time (this iteration's
+            # values, before this session's fails accrue).
+            session_on_progress: Callable[[ProgressEvent], None] | None = None
+            if on_progress is not None:
+
+                def session_on_progress(
+                    event: ProgressEvent,
+                    _base_attempts: int = attempt_count,
+                    _base_remaining: int = remaining_attempts,
+                    _base_upgrades: int = upgrade_count,
+                ) -> None:
+                    on_progress(
+                        enrich_spend_progress(
+                            _base_attempts, _base_remaining, _base_upgrades, event
+                        )
+                    )
+
             # Execute monitoring session
             result = orchestrator.run_upgrade_session(
-                session, cancel_event=cancel_event, on_progress=on_progress
+                session, cancel_event=cancel_event, on_progress=session_on_progress
             )
 
             # Update counters

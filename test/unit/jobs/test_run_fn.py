@@ -234,6 +234,72 @@ def test_spend_runner_returns_result_dict():
 
 
 # ---------------------------------------------------------------------------
+# Behavior: spend run_fn serializes an enriched SpendProgress onto the queue
+# as a progress event carrying the Spend outcome fields.
+# ---------------------------------------------------------------------------
+
+
+class _SpendWorkflowWithProgress:
+    """Stub that emits one cumulative SpendProgress snapshot when run."""
+
+    def __init__(self, **kwargs):
+        pass
+
+    def validate(self) -> None:
+        pass
+
+    def run(self, cancel_event=None, on_progress=None):
+        from autoraid.detection.progress_bar_detector import ProgressBarState
+        from autoraid.orchestration.stop_conditions import StopReason
+        from autoraid.workflows.spend_workflow import SpendProgress, SpendResult
+
+        if on_progress is not None:
+            on_progress(
+                SpendProgress(
+                    attempts_used=3,
+                    remaining=4,
+                    upgrades=1,
+                    state=ProgressBarState.FAIL,
+                )
+            )
+        return SpendResult(
+            upgrade_count=1,
+            attempt_count=3,
+            remaining_attempts=4,
+            stop_reason=StopReason.UPGRADED,
+        )
+
+
+def test_spend_runner_serializes_enriched_progress_onto_queue():
+    factory = make_spend_runner(
+        cache_service=None,
+        window_service=None,
+        network_manager=None,
+        screenshot_service=None,
+        detector=None,
+        workflow_class=_SpendWorkflowWithProgress,
+    )
+
+    q = queue.Queue()
+    run_fn = factory(max_upgrade_attempts=10, continue_upgrade=False)
+    run_fn(q, threading.Event())
+
+    events = []
+    while not q.empty():
+        events.append(q.get_nowait())
+
+    progress = [e for e in events if e.get("type") == "progress"]
+    assert len(progress) == 1
+    assert progress[0] == {
+        "type": "progress",
+        "attempts_used": 3,
+        "remaining": 4,
+        "upgrades": 1,
+        "state": "fail",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Behavior: continue_upgrade is forwarded to workflow constructor
 # ---------------------------------------------------------------------------
 
