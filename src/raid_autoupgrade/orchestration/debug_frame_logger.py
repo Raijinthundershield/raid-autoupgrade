@@ -112,7 +112,7 @@ class DebugFrameLogger:
             summary.update(metadata)
 
         summary_path = self._session_dir / "debug_summary.json"
-        with open(summary_path, "w") as f:
+        with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
 
         logger.info(f"DebugFrameLogger: Saved summary to {summary_path}")

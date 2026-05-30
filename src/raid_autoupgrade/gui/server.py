@@ -64,7 +64,16 @@ def _message_box(text: str, title: str, icon: int) -> None:
 
 
 def _configure_file_logging(debug: bool) -> None:
-    """Add a rotating file-log sink; a windowed build discards stderr."""
+    """Replace loguru's default stderr sink with a rotating UTF-8 file sink.
+
+    Loguru installs a default ``sys.stderr`` sink at import. Under ``uv run``
+    (and any redirected console) that stream is cp1252, so a log line carrying
+    non-ASCII text — e.g. an emoji in a Windows network-adapter name — fails to
+    encode; loguru then re-raises while writing its own error report, and the
+    UnicodeEncodeError propagates out of the logging call and aborts the
+    workflow. Removing the default sink leaves only the UTF-8 file sink.
+    """
+    logger.remove()
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     add_logger_sink(
         debug=debug,
