@@ -29,13 +29,26 @@ _HIVES = (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER)
 
 
 def _winreg_reader(hive: int, subkey: str, value_name: str) -> "str | None":
-    """Read a registry string value via winreg, or None if absent."""
-    try:
-        with winreg.OpenKey(hive, subkey) as key:
-            value, _ = winreg.QueryValueEx(key, value_name)
-    except OSError:
-        return None
-    return value if isinstance(value, str) else None
+    """Read a registry string value via winreg, or None if absent.
+
+    Tries both the 32-bit and 64-bit registry views and returns the value from
+    whichever has it. WebView2's location depends on the install type and OS
+    architecture: a per-machine install on 64-bit Windows lands in the 32-bit
+    view (``WOW6432Node``, because EdgeUpdate is a 32-bit process), while a
+    per-user install or a 32-bit OS uses the native view. A 64-bit process that
+    reads only its default view therefore misses the common per-machine case
+    and wrongly reports the runtime absent. Checking both views covers every
+    documented location without relying on which one applies.
+    """
+    for view in (winreg.KEY_WOW64_32KEY, winreg.KEY_WOW64_64KEY):
+        try:
+            with winreg.OpenKey(hive, subkey, 0, winreg.KEY_READ | view) as key:
+                value, _ = winreg.QueryValueEx(key, value_name)
+        except OSError:
+            continue
+        if isinstance(value, str):
+            return value
+    return None
 
 
 def webview2_installed(read_value: RegistryReader = _winreg_reader) -> bool:
