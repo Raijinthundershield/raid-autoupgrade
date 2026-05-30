@@ -31,7 +31,7 @@ from raid_autoupgrade.protocols import (
     ScreenshotProtocol,
     WindowInteractionProtocol,
 )
-from raid_autoupgrade.services.network import NetworkState
+from raid_autoupgrade.services.network import AdapterId, NetworkState
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ class CountWorkflow:
         network_manager: NetworkManagerProtocol,
         screenshot_service: ScreenshotProtocol,
         detector: ProgressBarDetectorProtocol,
-        network_adapter_ids: list[int] | None = None,
+        network_adapter_ids: list[AdapterId] | None = None,
         max_attempts: int = 99,
         debug_dir: Path | None = None,
     ):
@@ -74,7 +74,7 @@ class CountWorkflow:
             network_manager: Service for network state checks
             screenshot_service: Service for screenshot capture
             detector: Detector for progress bar state detection
-            network_adapter_ids: List of adapter IDs to disable during counting
+            network_adapter_ids: List of adapter identities (PNPDeviceIDs) to disable during counting
             max_attempts: Maximum number of fail attempts before stopping
             debug_dir: Optional directory for debug artifacts
         """

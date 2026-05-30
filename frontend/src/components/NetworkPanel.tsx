@@ -67,15 +67,15 @@ export function NetworkPanel({ onSelectionChange }: Props) {
 
   return (
     <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-      {adapters.map((a) => (
+      {adapters.map((a, i) => (
         <li key={a.id} className="adapter-row">
           <Checkbox
-            id={`adapter-${a.id}`}
+            id={`adapter-${i}`}
             aria-label={a.name}
             checked={selected.includes(a.id)}
             onCheckedChange={() => toggle(a.id)}
           />
-          <Label htmlFor={`adapter-${a.id}`} className="cursor-pointer flex-1">
+          <Label htmlFor={`adapter-${i}`} className="cursor-pointer flex-1">
             {a.name}
           </Label>
           <span className={a.enabled ? "adapter-status-on" : "adapter-status-off"}>

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from raid_autoupgrade.orchestration.upgrade_orchestrator import ProgressEvent
+from raid_autoupgrade.services.network import AdapterId
 from raid_autoupgrade.workflows.count_workflow import CountWorkflow
 from raid_autoupgrade.workflows.spend_workflow import SpendProgress, SpendWorkflow
 
@@ -54,7 +55,7 @@ def make_count_runner(
     workflow_class=CountWorkflow,
     settings_service=None,
 ) -> Callable[
-    [list[int] | None],
+    [list[AdapterId] | None],
     Callable[[_queue.Queue, threading.Event], dict | None],
 ]:
     """Return a factory: (adapter_ids,) → run_fn for JobRegistry.start_job.
@@ -65,7 +66,7 @@ def make_count_runner(
     """
 
     def factory(
-        adapter_ids: list[int] | None,
+        adapter_ids: list[AdapterId] | None,
     ) -> Callable[[_queue.Queue, threading.Event], dict | None]:
         debug_dir = debug_dir_root / "count" if debug_dir_root else None
 

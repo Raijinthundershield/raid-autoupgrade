@@ -27,7 +27,7 @@ from raid_autoupgrade.protocols import (
     ScreenshotProtocol,
     WindowInteractionProtocol,
 )
-from raid_autoupgrade.services.network import NetworkState
+from raid_autoupgrade.services.network import AdapterId, NetworkState
 from raid_autoupgrade.utils.network_context import NetworkContext
 
 
@@ -39,7 +39,7 @@ class UpgradeSession:
     upgrade_button_region: tuple[int, int, int, int]
     stop_conditions: StopConditionChain
     check_interval: float = 0.25
-    network_adapter_ids: list[int] | None = None
+    network_adapter_ids: list[AdapterId] | None = None
     disable_network: bool = False
     require_offline: bool = False
     debug_dir: Path | None = None

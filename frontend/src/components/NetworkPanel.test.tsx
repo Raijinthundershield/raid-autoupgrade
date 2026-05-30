@@ -74,4 +74,45 @@ describe("NetworkPanel", () => {
     const body = JSON.parse(putCall![1]!.body as string);
     expect(body.selected_adapters).toContain("1");
   });
+
+  // ---------------------------------------------------------------------------
+  // Behavior 8: opaque PNPDeviceID identities round-trip unchanged; the raw,
+  // backslash-bearing value is never baked into a DOM id.
+  // ---------------------------------------------------------------------------
+
+  it("round-trips an opaque PNPDeviceID and keeps DOM ids free of the raw value", async () => {
+    const PNP = "PCI\\VEN_8086&DEV_1539\\3&11583659&0&C8";
+    const PNP_ADAPTERS = [{ id: PNP, name: "Intel Ethernet", enabled: true }];
+
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes("/api/adapters")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(PNP_ADAPTERS) });
+      }
+      if (url.includes("/api/settings") && init?.method === "PUT") {
+        const body = JSON.parse(init.body as string);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(EMPTY_SETTINGS) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<NetworkPanel onSelectionChange={() => {}} />);
+
+    // Readable name still labels the row.
+    const checkbox = await screen.findByRole("checkbox", { name: "Intel Ethernet" });
+
+    // The DOM id is derived from list position, not the opaque value.
+    expect(checkbox.id).not.toContain("\\");
+
+    await userEvent.click(checkbox);
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) => url.includes("/api/settings") && init?.method === "PUT"
+    );
+    expect(putCall).toBeDefined();
+    const body = JSON.parse(putCall![1]!.body as string);
+    // The exact opaque id round-trips — selection is keyed on the value, not a
+    // munged DOM id.
+    expect(body.selected_adapters).toEqual([PNP]);
+  });
 });

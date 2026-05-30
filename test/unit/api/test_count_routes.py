@@ -225,7 +225,11 @@ def test_post_count_forwards_adapter_ids_to_runner():
     app.dependency_overrides[get_job_registry] = lambda: _RegistryStub()
     app.dependency_overrides[get_count_runner] = lambda: stub
 
+    adapter_ids = [
+        r"PCI\VEN_8086&DEV_1539\3&11583659&0&C8",
+        r"PCI\VEN_10EC&DEV_8168\4&abcd1234&0&00E0",
+    ]
     with TestClient(app) as client:
-        client.post("/api/workflows/count", json={"adapter_ids": [1, 3]})
+        client.post("/api/workflows/count", json={"adapter_ids": adapter_ids})
 
-    assert stub.calls[0]["adapter_ids"] == [1, 3]
+    assert stub.calls[0]["adapter_ids"] == adapter_ids

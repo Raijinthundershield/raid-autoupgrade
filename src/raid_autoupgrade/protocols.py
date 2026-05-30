@@ -16,7 +16,11 @@ import numpy as np
 
 if TYPE_CHECKING:
     from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
-    from raid_autoupgrade.services.network import NetworkAdapter, NetworkState
+    from raid_autoupgrade.services.network import (
+        AdapterId,
+        NetworkAdapter,
+        NetworkState,
+    )
 
 
 @runtime_checkable
@@ -98,7 +102,7 @@ class NetworkManagerProtocol(Protocol):
 
     def toggle_adapters(
         self,
-        adapter_ids: list[str],
+        adapter_ids: list[AdapterId],
         target_state: NetworkState,
         wait: bool = False,
         timeout: float | None = None,
@@ -106,7 +110,7 @@ class NetworkManagerProtocol(Protocol):
         """Enable or disable network adapters.
 
         Args:
-            adapter_ids: List of adapter IDs to toggle
+            adapter_ids: List of adapter identities (PNPDeviceIDs) to toggle
             target_state: Target state (ENABLED or DISABLED)
             wait: Whether to wait for state change completion
             timeout: Maximum time to wait for state change

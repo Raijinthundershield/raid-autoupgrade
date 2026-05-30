@@ -2,12 +2,14 @@ from dataclasses import dataclass, field
 
 from diskcache import Cache
 
+from raid_autoupgrade.services.network import AdapterId
+
 _KEY = "settings"
 
 
 @dataclass
 class Settings:
-    selected_adapters: list[str] = field(default_factory=list)
+    selected_adapters: list[AdapterId] = field(default_factory=list)
     last_count_result: dict | None = None
 
 

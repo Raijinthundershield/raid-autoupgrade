@@ -12,6 +12,41 @@ from raid_autoupgrade.services.network import (
 )
 
 
+class _FakeWmiAdapter:
+    """Stand-in for a WMI ``Win32_NetworkAdapter`` COM object.
+
+    Exposes the attributes ``get_adapters`` reads and records ``Enable``/
+    ``Disable`` calls so tests can assert which physical adapter was toggled.
+    """
+
+    def __init__(
+        self,
+        *,
+        name,
+        device_id,
+        pnp_device_id,
+        net_enabled=True,
+        mac="00:11:22:33:44:55",
+        adapter_type="Ethernet 802.3",
+        speed="1000000000",
+    ):
+        self.Name = name
+        self.DeviceID = device_id
+        self.PNPDeviceID = pnp_device_id
+        self.NetEnabled = net_enabled
+        self.MACAddress = mac
+        self.AdapterType = adapter_type
+        self.Speed = speed
+        self.enabled_calls = 0
+        self.disabled_calls = 0
+
+    def Enable(self):
+        self.enabled_calls += 1
+
+    def Disable(self):
+        self.disabled_calls += 1
+
+
 @pytest.fixture
 def network_manager():
     """Create a NetworkManager instance for testing."""
@@ -41,6 +76,59 @@ def mock_adapters():
             speed="100000000",  # 100 Mbps
         ),
     ]
+
+
+class TestGetAdapters:
+    """Test get_adapters exposes the stable PNPDeviceID as the adapter identity."""
+
+    def test_id_is_pnp_device_id(self, network_manager):
+        """The exposed identity is the stable PNPDeviceID, not the enumeration DeviceID."""
+        pnp = r"PCI\VEN_8086&DEV_1539&SUBSYS_00008086&REV_03\3&11583659&0&C8"
+        fake = _FakeWmiAdapter(
+            name="Intel Ethernet",
+            device_id="3",
+            pnp_device_id=pnp,
+        )
+        with patch.object(network_manager, "_get_wmi") as get_wmi:
+            get_wmi.return_value.Win32_NetworkAdapter.return_value = [fake]
+
+            adapters = network_manager.get_adapters()
+
+        assert adapters[0].id == pnp
+        # Name stays the human-readable label the Network panel renders.
+        assert adapters[0].name == "Intel Ethernet"
+
+
+class TestToggleAdapter:
+    """Test toggle_adapter resolves its target by matching PNPDeviceID in Python."""
+
+    def test_disables_adapter_matching_pnp_device_id(self, network_manager):
+        """The adapter whose PNPDeviceID matches is the one disabled.
+
+        The id carries backslashes, so resolution must match over the live list
+        rather than issue a WQL query keyed on the value.
+        """
+        target_pnp = r"PCI\VEN_8086&DEV_1539\3&11583659&0&C8"
+        target = _FakeWmiAdapter(
+            name="Intel Ethernet", device_id="3", pnp_device_id=target_pnp
+        )
+        other = _FakeWmiAdapter(
+            name="Wi-Fi", device_id="4", pnp_device_id=r"PCI\VEN_8086&DEV_0000\other"
+        )
+        with patch.object(network_manager, "_get_wmi") as get_wmi:
+            win32 = get_wmi.return_value.Win32_NetworkAdapter
+            win32.return_value = [other, target]
+
+            result = network_manager.toggle_adapter(target_pnp, NetworkState.OFFLINE)
+
+        assert result is True
+        assert target.disabled_calls == 1
+        assert other.disabled_calls == 0
+        # Resolution enumerates physical adapters; it never keys a WQL query on
+        # the backslash-bearing id.
+        for call in win32.call_args_list:
+            assert "DeviceID" not in call.kwargs
+            assert "PNPDeviceID" not in call.kwargs
 
 
 class TestToggleAdaptersWithWait:
@@ -122,3 +210,21 @@ class TestInvalidAdapterHandling:
                 # 2. Should only toggle valid adapter "0"
                 assert mock_toggle.call_count == 1
                 mock_toggle.assert_called_with("0", NetworkState.OFFLINE)
+
+    def test_toggle_adapters_all_unresolved_fails_closed(
+        self, network_manager, mock_adapters
+    ):
+        """A saved selection that no longer resolves fails closed.
+
+        Raises NetworkAdapterError before toggling anything, so Count cannot
+        proceed online against a rotted selection.
+        """
+        stale_id = r"PCI\VEN_1969&DEV_E091\stale-selection"
+        with patch.object(network_manager, "get_adapters", return_value=mock_adapters):
+            with patch.object(network_manager, "toggle_adapter") as mock_toggle:
+                with pytest.raises(NetworkAdapterError):
+                    network_manager.toggle_adapters(
+                        [stale_id], NetworkState.OFFLINE, wait=True
+                    )
+
+                mock_toggle.assert_not_called()

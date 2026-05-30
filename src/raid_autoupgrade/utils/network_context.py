@@ -6,7 +6,7 @@ management with guaranteed cleanup.
 
 from loguru import logger
 
-from raid_autoupgrade.services.network import NetworkManager, NetworkState
+from raid_autoupgrade.services.network import AdapterId, NetworkManager, NetworkState
 
 
 class NetworkContext:
@@ -16,7 +16,7 @@ class NetworkContext:
     Ensures adapters are always re-enabled, even on exceptions.
 
     Example:
-        with NetworkContext(manager, adapter_ids=[1, 2], disable_network=True):
+        with NetworkContext(manager, adapter_ids=[pnp_id], disable_network=True):
             # Network adapters 1 and 2 are disabled
             do_offline_work()
         # Adapters automatically re-enabled
@@ -25,14 +25,14 @@ class NetworkContext:
     def __init__(
         self,
         network_manager: NetworkManager,
-        adapter_ids: list[int] | None = None,
+        adapter_ids: list[AdapterId] | None = None,
         disable_network: bool = False,
     ):
         """Initialize network context.
 
         Args:
             network_manager: NetworkManager instance
-            adapter_ids: List of adapter IDs to disable/enable
+            adapter_ids: List of adapter identities (PNPDeviceIDs) to disable/enable
             disable_network: Whether to actually disable network (if False, noop)
         """
         self._network_manager = network_manager

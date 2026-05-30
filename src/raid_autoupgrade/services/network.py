@@ -5,6 +5,7 @@ import time
 import warnings
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import NewType
 from urllib import request
 from urllib.error import URLError
 
@@ -34,6 +35,16 @@ class _ThreadLocalWMI:
                 pass
 
 
+AdapterId = NewType("AdapterId", str)
+"""Opaque, stable network-adapter identity (the Windows PNPDeviceID).
+
+Threaded across every layer that selects an adapter so signatures read as a
+domain identity. The value may contain backslashes, so it is matched in Python
+against the live adapter list — never used as an unescaped WQL query key — and
+never rendered as a raw DOM id.
+"""
+
+
 class NetworkState(StrEnum):
     """Network state enum for adapter operations."""
 
@@ -46,7 +57,7 @@ class NetworkAdapter:
     """Represents a network adapter with its properties."""
 
     name: str
-    id: str
+    id: AdapterId
     enabled: bool
     mac: str
     adapter_type: str
@@ -58,9 +69,6 @@ class NetworkAdapter:
             self.speed = int(self.speed)
         elif isinstance(self.speed, str):
             self.speed = None
-
-    def __eq__(self, value):
-        self.id == value
 
 
 class NetworkManager:
@@ -151,7 +159,7 @@ class NetworkManager:
             adapters.append(
                 NetworkAdapter(
                     name=adapter.Name,
-                    id=adapter.DeviceID,
+                    id=AdapterId(adapter.PNPDeviceID),
                     enabled=adapter.NetEnabled,
                     mac=adapter.MACAddress,
                     adapter_type=adapter.AdapterType,
@@ -160,10 +168,17 @@ class NetworkManager:
             )
         return adapters
 
-    def toggle_adapter(self, adapter_id: str, target_state: NetworkState) -> bool:
+    def toggle_adapter(self, adapter_id: AdapterId, target_state: NetworkState) -> bool:
         try:
             wmi_obj = self._get_wmi()
-            adapter = wmi_obj.Win32_NetworkAdapter(DeviceID=adapter_id)[0]
+            # Match the stable PNPDeviceID in Python over the live adapter list.
+            # The value contains backslashes, so it must not be used as an
+            # unescaped WQL query key.
+            adapter = next(
+                a
+                for a in wmi_obj.Win32_NetworkAdapter(PhysicalAdapter=True)
+                if a.PNPDeviceID == adapter_id
+            )
             if target_state == NetworkState.ONLINE:
                 adapter.Enable()
                 logger.info(f"Enabled adapter: {adapter.Name}")
@@ -177,7 +192,7 @@ class NetworkManager:
 
     def toggle_adapters(
         self,
-        adapter_ids: list[str],
+        adapter_ids: list[AdapterId],
         target_state: NetworkState,
         wait: bool = False,
         timeout: float | None = None,
@@ -185,7 +200,7 @@ class NetworkManager:
         """Toggle multiple network adapters with optional state waiting.
 
         Args:
-            adapter_ids: List of WMI device IDs to toggle
+            adapter_ids: List of adapter identities (PNPDeviceIDs) to toggle
             target_state: Target network state (NetworkState.ONLINE or NetworkState.OFFLINE)
             wait: If True, block until network state changes. Default: False
             timeout: Custom timeout in seconds. None uses default
@@ -205,14 +220,15 @@ class NetworkManager:
             logger.info("No adapters to toggle (empty list)")
             return True
 
-        # Validate adapter IDs and filter out invalid ones (T004)
+        # Resolve each selected identity against the live adapter list, dropping
+        # any that no longer match (graceful degradation when only some rot).
         valid_adapter_ids = []
         all_adapters = self.get_adapters()
         valid_ids_set = {adapter.id for adapter in all_adapters}
 
         for adapter_id in adapter_ids:
-            if str(adapter_id) in valid_ids_set:
-                valid_adapter_ids.append(str(adapter_id))
+            if adapter_id in valid_ids_set:
+                valid_adapter_ids.append(adapter_id)
             else:
                 logger.warning(
                     f"Invalid adapter ID: {adapter_id}. Available IDs: {all_adapters}"

@@ -6,12 +6,13 @@ from pydantic import BaseModel
 
 from raid_autoupgrade.api.deps import get_count_runner, get_job_registry
 from raid_autoupgrade.jobs.registry import ConflictError, JobRegistry
+from raid_autoupgrade.services.network import AdapterId
 
 router = APIRouter()
 
 
 class CountRequest(BaseModel):
-    adapter_ids: list[int] | None = None
+    adapter_ids: list[AdapterId] | None = None
 
 
 @router.post("/api/workflows/count")

@@ -15,16 +15,18 @@ class TestNetworkContext:
         """Verify NetworkContext disables on entry, enables on exit."""
         mock_manager = Mock(spec=NetworkManager)
 
-        with NetworkContext(mock_manager, adapter_ids=[1, 2], disable_network=True):
+        with NetworkContext(
+            mock_manager, adapter_ids=["pnp-a", "pnp-b"], disable_network=True
+        ):
             # Verify adapters disabled
             mock_manager.toggle_adapters.assert_called_once_with(
-                [1, 2], NetworkState.OFFLINE, wait=True
+                ["pnp-a", "pnp-b"], NetworkState.OFFLINE, wait=True
             )
             mock_manager.reset_mock()
 
         # Verify adapters re-enabled on exit
         mock_manager.toggle_adapters.assert_called_once_with(
-            [1, 2], NetworkState.ONLINE, wait=False
+            ["pnp-a", "pnp-b"], NetworkState.ONLINE, wait=False
         )
 
     def test_reenables_on_exception(self):
@@ -32,7 +34,9 @@ class TestNetworkContext:
         mock_manager = Mock(spec=NetworkManager)
 
         try:
-            with NetworkContext(mock_manager, adapter_ids=[1], disable_network=True):
+            with NetworkContext(
+                mock_manager, adapter_ids=["pnp-a"], disable_network=True
+            ):
                 raise ValueError("Test exception")
         except ValueError:
             pass
@@ -42,13 +46,13 @@ class TestNetworkContext:
 
         # Verify second call was re-enable
         last_call = mock_manager.toggle_adapters.call_args_list[1]
-        assert last_call[0] == ([1], NetworkState.ONLINE)
+        assert last_call[0] == (["pnp-a"], NetworkState.ONLINE)
 
     def test_noop_when_disable_network_false(self):
         """Verify NetworkContext is noop when disable_network=False."""
         mock_manager = Mock(spec=NetworkManager)
 
-        with NetworkContext(mock_manager, adapter_ids=[1], disable_network=False):
+        with NetworkContext(mock_manager, adapter_ids=["pnp-a"], disable_network=False):
             pass
 
         # Verify no calls to toggle_adapters
@@ -58,7 +62,7 @@ class TestNetworkContext:
         """Verify disable waits but enable does not."""
         mock_manager = Mock(spec=NetworkManager)
 
-        with NetworkContext(mock_manager, adapter_ids=[1], disable_network=True):
+        with NetworkContext(mock_manager, adapter_ids=["pnp-a"], disable_network=True):
             pass
 
         # Verify disable call has wait=True
@@ -74,7 +78,9 @@ class TestNetworkContext:
         mock_manager = Mock(spec=NetworkManager)
 
         with pytest.raises(ValueError, match="Test exception"):
-            with NetworkContext(mock_manager, adapter_ids=[1], disable_network=True):
+            with NetworkContext(
+                mock_manager, adapter_ids=["pnp-a"], disable_network=True
+            ):
                 raise ValueError("Test exception")
 
         # Still should have re-enabled
