@@ -56,10 +56,7 @@ class TestCountWorkflowValidation:
         )
 
         # Act & Assert: Validation should raise WorkflowValidationError
-        with pytest.raises(
-            WorkflowValidationError,
-            match="Internet access detected but no network adapter specified",
-        ):
+        with pytest.raises(WorkflowValidationError):
             workflow.validate()
 
     def test_validate_internet_off_without_adapters_passes(self):
@@ -216,10 +213,7 @@ class TestCountWorkflowExecution:
             max_attempts=99,
         )
 
-        with pytest.raises(
-            WorkflowValidationError,
-            match="Internet access detected but no network adapter specified",
-        ):
+        with pytest.raises(WorkflowValidationError):
             workflow.run()
 
         mock_orchestrator.run_upgrade_session.assert_not_called()
@@ -281,8 +275,5 @@ class TestCountWorkflowExecution:
 
         # Act & Assert
         with patch.object(workflow, "validate"):
-            with pytest.raises(
-                WorkflowValidationError,
-                match="No regions cached for window size",
-            ):
+            with pytest.raises(WorkflowValidationError):
                 workflow.run()

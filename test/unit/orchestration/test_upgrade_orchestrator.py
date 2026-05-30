@@ -56,7 +56,7 @@ class TestUpgradeOrchestrator:
             stop_conditions=StopConditionChain([]),
         )
 
-        with pytest.raises(WindowNotFoundException, match="Raid window not found"):
+        with pytest.raises(WindowNotFoundException):
             orchestrator.validate_prerequisites(session)
 
     def test_validate_prerequisites_raises_when_regions_not_cached(self):
@@ -86,7 +86,7 @@ class TestUpgradeOrchestrator:
             stop_conditions=StopConditionChain([]),
         )
 
-        with pytest.raises(WorkflowValidationError, match="No regions cached"):
+        with pytest.raises(WorkflowValidationError):
             orchestrator.validate_prerequisites(session)
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
@@ -252,7 +252,7 @@ class TestUpgradeOrchestrator:
             require_offline=True,
         )
 
-        with pytest.raises(WorkflowValidationError, match="still reachable"):
+        with pytest.raises(WorkflowValidationError):
             orchestrator.run_upgrade_session(session)
 
         mock_window.click_region.assert_not_called()

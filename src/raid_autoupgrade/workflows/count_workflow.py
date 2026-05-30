@@ -107,8 +107,8 @@ class CountWorkflow:
             )
             raise WorkflowValidationError(
                 "Internet access detected but no network adapter specified. "
-                "This will upgrade the piece. "
-                "Specify adapter IDs with --adapter-id."
+                "Counting online would spend real upgrade attempts and upgrade "
+                "the piece. Select a network adapter to disable in the Network panel."
             )
         logger.debug("Network configuration validation passed")
 
@@ -145,8 +145,8 @@ class CountWorkflow:
         regions = self._cache_service.get_regions(current_size)
         if regions is None:
             raise WorkflowValidationError(
-                f"No regions cached for window size {current_size}. "
-                "Please select regions using 'raid_autoupgrade upgrade region select'."
+                f"No upgrade regions saved for this window size ({current_size}). "
+                "Open the Calibration tab and select the upgrade regions first."
             )
 
         # Configure stop conditions

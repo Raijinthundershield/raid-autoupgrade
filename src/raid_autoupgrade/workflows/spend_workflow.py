@@ -131,8 +131,8 @@ class SpendWorkflow:
         if self._network_manager.check_network_access() != NetworkState.ONLINE:
             raise WorkflowValidationError(
                 "No internet access detected. "
-                "Spend workflow requires internet to save upgrades. "
-                "Check your network connection."
+                "Spending requires internet so upgrades are saved. "
+                "Re-enable your network adapter and check your connection."
             )
 
         logger.info("Spend workflow validation completed successfully")
@@ -154,8 +154,8 @@ class SpendWorkflow:
         regions = self._cache_service.get_regions(current_size)
         if regions is None:
             raise WorkflowValidationError(
-                f"No regions cached for window size {current_size}. "
-                "Please select regions using 'raid_autoupgrade upgrade region select'."
+                f"No upgrade regions saved for this window size ({current_size}). "
+                "Open the Calibration tab and select the upgrade regions first."
             )
 
         # Create orchestrator for this workflow

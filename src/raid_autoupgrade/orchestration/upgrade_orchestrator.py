@@ -111,8 +111,8 @@ class UpgradeOrchestrator:
         regions = self._cache_service.get_regions(current_size)
         if regions is None:
             raise WorkflowValidationError(
-                f"No regions cached for window size {current_size}. "
-                "Please select regions using 'raid_autoupgrade upgrade region select'."
+                f"No upgrade regions saved for this window size ({current_size}). "
+                "Open the Calibration tab and select the upgrade regions first."
             )
 
         logger.debug(
@@ -158,9 +158,9 @@ class UpgradeOrchestrator:
                 and self._network_manager.check_network_access() == NetworkState.ONLINE
             ):
                 raise WorkflowValidationError(
-                    "Network is still reachable after adapter setup. Refusing to "
-                    "start counting, which must run offline to avoid spending real "
-                    "upgrade attempts. Select the adapter(s) that provide internet."
+                    "Network is still reachable, so counting can't start — it must "
+                    "run offline to avoid spending real upgrade attempts. Select a "
+                    "network adapter to disable in the Network panel."
                 )
 
             # Click upgrade button to start

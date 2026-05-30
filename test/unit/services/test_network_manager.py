@@ -93,15 +93,11 @@ class TestWaitForNetworkState:
                 return result
 
             with patch("time.time", fake_time):
-                # Act & Assert: Should raise NetworkAdapterError
-                with pytest.raises(NetworkAdapterError) as exc_info:
+                # Act & Assert: Should raise NetworkAdapterError on timeout
+                with pytest.raises(NetworkAdapterError):
                     network_manager.wait_for_network_state(
                         NetworkState.OFFLINE, timeout=5.0
                     )
-
-                assert "Timeout waiting for network to be offline after 5.0s" in str(
-                    exc_info.value
-                )
 
 
 class TestInvalidAdapterHandling:

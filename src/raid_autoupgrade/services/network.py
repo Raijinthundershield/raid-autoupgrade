@@ -123,7 +123,9 @@ class NetworkManager:
 
             if elapsed >= timeout:
                 raise NetworkAdapterError(
-                    f"Timeout waiting for network to be {target_state.value} after {timeout}s"
+                    f"Network did not go {target_state.value} within {timeout}s. "
+                    "Another connection may still be active — disable it in the "
+                    "Network panel."
                 )
 
             current_state = self.check_network_access()
@@ -218,7 +220,10 @@ class NetworkManager:
 
         # If all IDs were invalid
         if not valid_adapter_ids:
-            raise NetworkAdapterError("No valid network adapters found to toggle")
+            raise NetworkAdapterError(
+                "None of the selected network adapters are available anymore. "
+                "Pick one in the Network panel."
+            )
 
         # Toggle each valid adapter
         success_count = 0
