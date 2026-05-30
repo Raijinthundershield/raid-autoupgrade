@@ -8,7 +8,26 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
 
 ## Quick Start
 
-### Prerequisites
+### Download (no developer tools)
+
+Most players want this path. Grab the latest `RaidAutoupgrade-v<version>-win64.exe`
+from the [**Releases page**](../../releases/latest) and double-click it — no
+Python, Node, or command line needed. The app asks for administrator rights once
+at launch (required for network-adapter control).
+
+Two things to expect on a fresh Windows machine:
+
+- **Microsoft Edge WebView2 runtime** — the app's window renders through it. It
+  is preinstalled on current Windows 10/11; if it is missing the app opens the
+  download page for you ([aka.ms/webview2](https://aka.ms/webview2)).
+- **SmartScreen warning** — the exe is unsigned, so Windows shows a *"Windows
+  protected your PC"* dialog on first run. This is expected for a new unsigned
+  app. Click **More info → Run anyway** to proceed.
+
+If launch fails, the app writes a log to
+`%PROGRAMDATA%\RaidAutoupgrade\logs\app.log` — include it when reporting issues.
+
+### Prerequisites (from source)
 
 - **Windows 10/11** (the tool uses WMI and Win32 APIs)
 - **Administrator rights** (required for WMI network adapter control — the app prompts for elevation on launch)

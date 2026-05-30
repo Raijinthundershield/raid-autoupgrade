@@ -42,4 +42,5 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.11.8",
     "httpx>=0.28.0",
+    "pyinstaller>=6.0",
 ]

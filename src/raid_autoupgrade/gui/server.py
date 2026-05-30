@@ -5,15 +5,18 @@ Dev mode (RAID_AUTOUPGRADE_DEV=1): window points at the Vite dev server (HMR).
 Prod mode: FastAPI serves the built frontend/dist/ as static files.
 """
 
+import ctypes
 import os
 import threading
 import time
+import webbrowser
 from pathlib import Path
 
 import diskcache
 import uvicorn
 import webview
 from dotenv import load_dotenv
+from loguru import logger
 
 from raid_autoupgrade.api.app import create_app
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarStateDetector
@@ -25,6 +28,9 @@ from raid_autoupgrade.services.settings_service import SettingsService
 from raid_autoupgrade.services.window_interaction_service import (
     WindowInteractionService,
 )
+from raid_autoupgrade.logging_config import add_logger_sink
+from raid_autoupgrade.utils.resources import resource_path
+from raid_autoupgrade.utils.webview2 import webview2_installed
 
 load_dotenv()
 
@@ -32,7 +38,7 @@ _HOST = "127.0.0.1"
 _PORT = int(os.getenv("RAID_AUTOUPGRADE_API_PORT", "8765"))
 _VITE_PORT = int(os.getenv("RAID_AUTOUPGRADE_VITE_PORT", "5173"))
 _DEV_URL = f"http://localhost:{_VITE_PORT}"
-_DIST_DIR = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+_DIST_DIR = resource_path("frontend", "dist")
 _SETTINGS_CACHE_DIR = (
     Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "RaidAutoupgrade" / "settings"
 )
@@ -41,9 +47,79 @@ _REGIONS_CACHE_DIR = (
     / "RaidAutoupgrade"
     / "regions"
 )
+_LOG_DIR = (
+    Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "RaidAutoupgrade" / "logs"
+)
+_LOG_FILE = _LOG_DIR / "app.log"
+_WEBVIEW2_INSTALL_URL = "https://aka.ms/webview2"
+
+_MB_ICONWARNING = 0x00000030
+_MB_ICONERROR = 0x00000010
+_MB_TOPMOST = 0x00040000
+
+
+def _message_box(text: str, title: str, icon: int) -> None:
+    """Show a native modal message box (windowed builds have no console)."""
+    ctypes.windll.user32.MessageBoxW(None, text, title, icon | _MB_TOPMOST)
+
+
+def _configure_file_logging(debug: bool) -> None:
+    """Add a rotating file-log sink; a windowed build discards stderr."""
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    add_logger_sink(
+        debug=debug,
+        sink=str(_LOG_FILE),
+        rotation="5 MB",
+        retention=3,
+        enqueue=True,
+    )
+
+
+def _prompt_install_webview2() -> None:
+    """Tell the user the WebView2 runtime is missing and open its download page."""
+    logger.error("Edge WebView2 runtime not found; prompting user to install it.")
+    _message_box(
+        "Raid Autoupgrade needs the Microsoft Edge WebView2 runtime, which was "
+        "not found on this PC.\n\nThe download page will now open in your "
+        "browser. Install the runtime, then start Raid Autoupgrade again.",
+        "WebView2 Runtime Required",
+        _MB_ICONWARNING,
+    )
+    webbrowser.open(_WEBVIEW2_INSTALL_URL)
+
+
+def _show_fatal_error() -> None:
+    """Point the user at the log file after a fatal startup failure."""
+    _message_box(
+        "Raid Autoupgrade failed to start.\n\n"
+        f"Details were written to the log file:\n{_LOG_FILE}",
+        "Raid Autoupgrade — Startup Error",
+        _MB_ICONERROR,
+    )
 
 
 def start(debug: bool = False) -> None:
+    """Launch the GUI with startup hardening.
+
+    Configures a persistent file log, fails gracefully with a message box if the
+    WebView2 runtime is missing, and surfaces any fatal startup error to the user
+    (a windowed build has no console to print a traceback to).
+    """
+    _configure_file_logging(debug)
+
+    if not webview2_installed():
+        _prompt_install_webview2()
+        return
+
+    try:
+        _run(debug=debug)
+    except Exception:
+        logger.exception("Fatal error during GUI startup.")
+        _show_fatal_error()
+        raise
+
+
+def _run(debug: bool = False) -> None:
     dev_mode = os.environ.get("RAID_AUTOUPGRADE_DEV") == "1"
 
     window_service = WindowInteractionService()
