@@ -8,10 +8,37 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
 
 ## Quick Start
 
+### Prerequisites
+
+- **Windows 10/11** (the tool uses WMI and Win32 APIs)
+- **Administrator rights** (required for WMI network adapter control — the app prompts for elevation on launch)
+- [**uv**](https://docs.astral.sh/uv/) for the Python side
+- [**Node.js**](https://nodejs.org/) 20+ for building the frontend
+
+### Setup (from source)
+
+The desktop window renders the **built** React frontend served by the in-process FastAPI backend, so the frontend must be built before the first launch (and after any frontend change).
+
+```bash
+# 1. Install Python dependencies
+uv sync
+
+# 2. Build the frontend (produces frontend/dist/, which FastAPI serves)
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+### Run
+
 1. **Launch the GUI**:
    ```bash
    uv run raid-autoupgrade gui
    ```
+   On launch the app checks for admin rights and, if missing, prompts a UAC dialog to relaunch elevated.
+
+   > **Developing the frontend?** Run the Vite dev server for hot-reload instead of rebuilding: in one terminal `cd frontend && npm run dev`, then in another `uv run raid-autoupgrade gui --dev`. The window points at the dev server, which proxies `/api` and `/ws` to the backend.
 
 2. **Calibrate regions** (whenever the Raid window is resized):
    - Navigate to the upgrade screen in Raid
@@ -28,18 +55,16 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
    - In the **Count panel**, click **Start Count** — network is disabled automatically while counting
    - Navigate to the upgrade screen of the gear piece to spend upgrades on
    - In the **Spend panel**, click **Start Spend** — max attempts is auto-populated from the count
-   - Enable **Continue Upgrade** in the Spend panel for level 10 gear to upgrade to level 12 if required
+   - Enable **Continue upgrade** in the Spend panel for level 10 gear to upgrade to level 12 if required
 
 ## Important Notes
 
-- **Windows only**: Uses WMI for network adapter control
-- **Administrator rights**: Required for WMI network adapter control
-- **Window size**: Keep Raid window size constant (regions cached per window size)
-- **Foreground window**: Raid window will activate and grab focus during operation
-  - Hard multitask while tool is running (window repeatedly takes focus for screenshots and clicks)
-  - May briefly minimize/restore raid window
-- **First-try success**: Tool might have issues with upgrades that succeed on first attempt
-- **Cache folder**: Creates `cache-raid-autoupgrade/` in working directory
+- **Window size**: Keep the Raid window size constant during a session — regions are cached per window size, so resizing invalidates them and forces recalibration
+- **Foreground window**: the Raid window activates and grabs focus during operation
+  - Don't multitask while the tool runs (it repeatedly takes focus for screenshots and clicks)
+  - It may briefly minimize/restore the Raid window
+- **First-try success**: the tool may misbehave on upgrades that succeed on the very first attempt
+- **App data location**: settings and debug captures live under `%PROGRAMDATA%\RaidAutoupgrade\`; calibrated regions live under `%LOCALAPPDATA%\RaidAutoupgrade\regions`
 
 ## License & Disclaimer
 
