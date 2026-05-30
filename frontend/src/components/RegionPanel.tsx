@@ -15,8 +15,8 @@ interface RegionsResponse {
 }
 
 const REGION_COLORS: Record<RegionKey, string> = {
-  upgrade_bar: "#22c55e",
-  upgrade_button: "#3b82f6",
+  upgrade_bar: "#ef4444",
+  upgrade_button: "#b91c1c",
 };
 
 const REGION_LABELS: Record<RegionKey, string> = {

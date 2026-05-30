@@ -8,6 +8,8 @@ Guidance for Claude Code working in this repo.
 
 Background on the trick: [docs/airplane-mode-trick.md](docs/airplane-mode-trick.md).
 
+Use .scratch for temporary docs.
+
 ## Commands
 
 Package manager is `uv`. All commands run from the `autoraid/` directory.
