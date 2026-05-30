@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useJobStream } from "../hooks/useJobStream";
+import { StatCard } from "./StatCard";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -70,13 +71,11 @@ export function CountPanel({ adapterIds = null }: Props) {
         {conflict && <span className="conflict-badge">workflow already running</span>}
       </div>
 
-      {stream.status !== "idle" && (
-        <div className="flex gap-3">
-          <Stat label="Fails" value={stream.failCount} />
-          <Stat label="Frames" value={stream.frames} />
-          <Stat label="Bar state" value={stream.barState ?? "—"} />
-        </div>
-      )}
+      <div className="flex gap-3">
+        <StatCard label="Fails" value={stream.failCount} />
+        <StatCard label="Frames" value={stream.frames} />
+        <StatCard label="Progress Bar State" value={stream.barState ?? "—"} />
+      </div>
 
       {stream.logs.length > 0 && (
         <div className="log-console">
@@ -102,14 +101,5 @@ export function CountPanel({ adapterIds = null }: Props) {
         </div>
       )}
     </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="stat-card">
-      <div className="stat-val">{value}</div>
-      <div className="stat-lbl">{label}</div>
-    </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useJobStream } from "../hooks/useJobStream";
+import { StatCard } from "./StatCard";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -104,9 +105,9 @@ export function SpendPanel() {
 
       {stream.status !== "idle" && (
         <div className="flex gap-3">
-          <Stat label="Fails" value={stream.failCount} />
-          <Stat label="Frames" value={stream.frames} />
-          <Stat label="Bar state" value={stream.barState ?? "—"} />
+          <StatCard label="Fails" value={stream.failCount} />
+          <StatCard label="Frames" value={stream.frames} />
+          <StatCard label="Bar state" value={stream.barState ?? "—"} />
         </div>
       )}
 
@@ -135,14 +136,5 @@ export function SpendPanel() {
         </div>
       )}
     </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="stat-card">
-      <div className="stat-val">{value}</div>
-      <div className="stat-lbl">{label}</div>
-    </div>
   );
 }

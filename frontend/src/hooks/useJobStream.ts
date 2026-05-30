@@ -31,6 +31,12 @@ type ErrorEvent = {
 
 export type JobEvent = ProgressEvent | LogEvent | DoneEvent | ErrorEvent;
 
+// A local control action (not part of the WS wire contract): dispatched when a
+// new run begins, before the socket opens, to reset stale state.
+type StartAction = { type: "start" };
+
+export type JobAction = JobEvent | StartAction;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -61,9 +67,11 @@ export const initialJobStreamState: JobStreamState = {
 
 export function jobStreamReducer(
   state: JobStreamState,
-  event: JobEvent
+  event: JobAction
 ): JobStreamState {
   switch (event.type) {
+    case "start":
+      return { ...initialJobStreamState, status: "running" };
     case "progress":
       return {
         ...state,
@@ -95,6 +103,11 @@ export function useJobStream(jobId: string | null): JobStreamState {
 
   useEffect(() => {
     if (!jobId) return;
+
+    // A new run begins: reset stale values/logs and flip to "running" before
+    // the socket opens, so the live boxes and run-in-progress UI light up
+    // immediately rather than waiting for the first progress event.
+    dispatch({ type: "start" });
 
     const ws = new WebSocket(`/ws/workflows/${jobId}`);
 

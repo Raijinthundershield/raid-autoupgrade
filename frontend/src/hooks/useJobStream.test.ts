@@ -76,4 +76,31 @@ describe("jobStreamReducer", () => {
     expect(next.status).toBe("error");
     expect(next.errorMessage).toBe("disk full");
   });
+
+  // -------------------------------------------------------------------------
+  // start action: fresh running state, clears every stale stream value
+  // -------------------------------------------------------------------------
+
+  it("start action resets stale values/logs and sets status to running", () => {
+    // A dirty state carrying the previous run's leftovers.
+    const dirty = {
+      status: "done" as const,
+      failCount: 9,
+      frames: 300,
+      barState: "FAIL",
+      logs: [{ level: "INFO", msg: "old line", ts: 1 }],
+      result: { fail_count: 9 },
+      errorMessage: "boom",
+    };
+
+    const next = jobStreamReducer(dirty, { type: "start" });
+
+    expect(next.status).toBe("running");
+    expect(next.failCount).toBe(0);
+    expect(next.frames).toBe(0);
+    expect(next.barState).toBeNull();
+    expect(next.logs).toEqual([]);
+    expect(next.result).toBeNull();
+    expect(next.errorMessage).toBeNull();
+  });
 });
