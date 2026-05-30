@@ -23,6 +23,11 @@ Two things to expect on a fresh Windows machine:
 - **SmartScreen warning** — the exe is unsigned, so Windows shows a *"Windows
   protected your PC"* dialog on first run. This is expected for a new unsigned
   app. Click **More info → Run anyway** to proceed.
+- **Antivirus false positive** — Defender may flag the exe (e.g.
+  `Trojan:...!ml`) and quarantine it. This is a known false positive for
+  unsigned single-file PyInstaller apps; restore it via **Windows Security →
+  Protection history → Restore** (or **Allow on device**). Full steps are in the
+  Release notes.
 
 If launch fails, the app writes a log to
 `%PROGRAMDATA%\RaidAutoupgrade\logs\app.log` — include it when reporting issues.

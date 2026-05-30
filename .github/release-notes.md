@@ -22,7 +22,27 @@ To proceed:
 1. Click **More info**.
 2. Click **Run anyway**.
 
-Your antivirus may also flag a brand-new unsigned exe; allow it if so.
+### Antivirus / Windows Defender ("Threat blocked")
+
+Windows Defender (or another antivirus) may flag this exe — typically as
+something like `Trojan:Win32/Sabsik.*!ml` or `Wacatac.*!ml` — and quarantine or
+delete it. **This is a false positive.** The `!ml` suffix means it was guessed
+by a machine-learning heuristic, not matched against known malware. It happens
+to almost every unsigned, single-file PyInstaller app: the exe unpacks itself to
+a temp folder and runs from there, which the heuristic scores as suspicious even
+though it is exactly how this packaging format works.
+
+If Defender removed the file:
+
+1. Open **Windows Security → Virus & threat protection → Protection history**.
+2. Find the blocked item, expand **Actions**, and choose **Restore** (or
+   **Allow on device**).
+3. If it was deleted, re-download it from the Releases page after allowing it.
+
+To avoid re-quarantine you can add the exe (or its folder) as an exclusion under
+**Virus & threat protection → Manage settings → Exclusions**. Only do this for a
+file you downloaded from this project's official Releases page — verify the
+SHA-256 shown on the asset if you want to be certain it was not tampered with.
 
 ### Notes
 

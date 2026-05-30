@@ -8,7 +8,64 @@ through ``utils.resources.resource_path`` (sys._MEIPASS-aware).
 Build locally with:  uv run pyinstaller raid-autoupgrade.spec
 """
 
+import tomllib
+
 from PyInstaller.utils.hooks import collect_all, collect_submodules
+from PyInstaller.utils.win32.versioninfo import (
+    FixedFileInfo,
+    StringFileInfo,
+    StringStruct,
+    StringTable,
+    VarFileInfo,
+    VarStruct,
+    VSVersionInfo,
+)
+
+# Single source of truth for the version: pyproject.toml (the CI version guard
+# already enforces tag == this value). An unsigned exe with no version metadata
+# looks more suspicious to antivirus heuristics, so embed a proper resource.
+with open("pyproject.toml", "rb") as _f:
+    _VERSION = tomllib.load(_f)["project"]["version"]
+_FILEVERS = (tuple(int(p) for p in _VERSION.split(".")) + (0, 0, 0, 0))[:4]
+
+version_info = VSVersionInfo(
+    ffi=FixedFileInfo(
+        filevers=_FILEVERS,
+        prodvers=_FILEVERS,
+        mask=0x3F,
+        flags=0x0,
+        OS=0x40004,  # VOS_NT_WINDOWS32
+        fileType=0x1,  # VFT_APP
+        subtype=0x0,
+        date=(0, 0),
+    ),
+    kids=[
+        StringFileInfo(
+            [
+                StringTable(
+                    "040904B0",  # US English, Unicode codepage
+                    [
+                        StringStruct("CompanyName", "Raijin"),
+                        StringStruct(
+                            "FileDescription",
+                            "Raid Autoupgrade - upgrade automation for "
+                            "Raid: Shadow Legends",
+                        ),
+                        StringStruct("FileVersion", _VERSION),
+                        StringStruct("InternalName", "RaidAutoupgrade"),
+                        StringStruct("OriginalFilename", "RaidAutoupgrade.exe"),
+                        StringStruct("ProductName", "Raid Autoupgrade"),
+                        StringStruct("ProductVersion", _VERSION),
+                        StringStruct(
+                            "LegalCopyright", "Personal use only. See LICENSE."
+                        ),
+                    ],
+                )
+            ]
+        ),
+        VarFileInfo([VarStruct("Translation", [0x0409, 1200])]),
+    ],
+)
 
 # The built frontend (gitignored; produced by `npm run build` in CI) is served
 # as static files by FastAPI, so it must travel inside the bundle.
@@ -62,7 +119,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,  # UPX-packed binaries trip antivirus heuristics more often
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
@@ -72,4 +129,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     uac_admin=True,
+    version=version_info,
 )
