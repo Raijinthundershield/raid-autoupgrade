@@ -110,13 +110,13 @@ export function SpendPanel({ stream, running, onStart, onStop }: Props) {
         <div className="flex items-center gap-2">
           <Checkbox
             id="spend-continue-upgrade"
-            aria-label="Continue upgrade"
+            aria-label="Continue to a 2nd upgrade (only check for level-10 pieces)"
             checked={continueUpgrade}
             onCheckedChange={(v) => setContinueUpgrade(v === true)}
             disabled={running}
           />
           <Label htmlFor="spend-continue-upgrade" className="text-sm select-none cursor-pointer">
-            Continue upgrade
+            Continue to a 2nd upgrade (only check for level-10 pieces)
           </Label>
         </div>
       </div>

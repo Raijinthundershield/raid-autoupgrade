@@ -137,7 +137,7 @@ describe("SpendPanel", () => {
     await waitFor(() => screen.getByLabelText(/max attempts/i));
 
     await userEvent.type(screen.getByLabelText(/max attempts/i), "10");
-    await userEvent.click(screen.getByLabelText(/continue upgrade/i));
+    await userEvent.click(screen.getByLabelText(/continue to a 2nd upgrade/i));
     await userEvent.click(screen.getByRole("button", { name: /start spend/i }));
 
     const postCall = fetchMock.mock.calls.find(
@@ -168,7 +168,7 @@ describe("SpendPanel", () => {
 
     expect(screen.getByRole("button", { name: /start spend/i })).toBeDisabled();
     expect(screen.getByLabelText(/max attempts/i)).toBeDisabled();
-    expect(screen.getByLabelText(/continue upgrade/i)).toBeDisabled();
+    expect(screen.getByLabelText(/continue to a 2nd upgrade/i)).toBeDisabled();
   });
 
   // ---------------------------------------------------------------------------
