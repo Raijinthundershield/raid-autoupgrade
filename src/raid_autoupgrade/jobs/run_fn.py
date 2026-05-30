@@ -5,26 +5,9 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
-from loguru import logger
-
 from raid_autoupgrade.orchestration.upgrade_orchestrator import ProgressEvent
 from raid_autoupgrade.workflows.count_workflow import CountWorkflow
 from raid_autoupgrade.workflows.spend_workflow import SpendProgress, SpendWorkflow
-
-
-def _make_log_sink(q: _queue.Queue) -> Callable:
-    def sink(message) -> None:
-        record = message.record
-        q.put(
-            {
-                "type": "log",
-                "level": record["level"].name,
-                "msg": record["message"],
-                "ts": record["time"].timestamp(),
-            }
-        )
-
-    return sink
 
 
 def _make_progress_callback(q: _queue.Queue) -> Callable[[ProgressEvent], None]:
@@ -71,15 +54,14 @@ def make_count_runner(
     workflow_class=CountWorkflow,
     settings_service=None,
 ) -> Callable[
-    [list[int] | None, bool, bool],
+    [list[int] | None, bool],
     Callable[[_queue.Queue, threading.Event], dict | None],
 ]:
-    """Return a factory: (adapter_ids, debug, log_debug) → run_fn for JobRegistry.start_job."""
+    """Return a factory: (adapter_ids, debug) → run_fn for JobRegistry.start_job."""
 
     def factory(
         adapter_ids: list[int] | None,
         debug: bool = False,
-        log_debug: bool = False,
     ) -> Callable[[_queue.Queue, threading.Event], dict | None]:
         debug_dir = debug_dir_root / "count" if (debug and debug_dir_root) else None
 
@@ -93,31 +75,25 @@ def make_count_runner(
                 network_adapter_ids=adapter_ids,
                 debug_dir=debug_dir,
             )
-            sink_id = logger.add(
-                _make_log_sink(q), level="DEBUG" if log_debug else "INFO"
+            result = workflow.run(
+                cancel_event=cancel_event,
+                on_progress=_make_progress_callback(q),
             )
-            try:
-                result = workflow.run(
-                    cancel_event=cancel_event,
-                    on_progress=_make_progress_callback(q),
-                )
-                result_dict = {
-                    "fail_count": result.fail_count,
-                    "stop_reason": result.stop_reason.value,
-                }
-                if settings_service is not None:
-                    from raid_autoupgrade.services.settings_service import Settings
+            result_dict = {
+                "fail_count": result.fail_count,
+                "stop_reason": result.stop_reason.value,
+            }
+            if settings_service is not None:
+                from raid_autoupgrade.services.settings_service import Settings
 
-                    current = settings_service.get_settings()
-                    settings_service.save_settings(
-                        Settings(
-                            selected_adapters=current.selected_adapters,
-                            last_count_result=result_dict,
-                        )
+                current = settings_service.get_settings()
+                settings_service.save_settings(
+                    Settings(
+                        selected_adapters=current.selected_adapters,
+                        last_count_result=result_dict,
                     )
-                return result_dict
-            finally:
-                logger.remove(sink_id)
+                )
+            return result_dict
 
         return run_fn
 
@@ -152,20 +128,16 @@ def make_spend_runner(
                 max_upgrade_attempts=max_upgrade_attempts,
                 continue_upgrade=continue_upgrade,
             )
-            sink_id = logger.add(_make_log_sink(q), level="INFO")
-            try:
-                result = workflow.run(
-                    cancel_event=cancel_event,
-                    on_progress=_make_spend_progress_callback(q),
-                )
-                return {
-                    "upgrade_count": result.upgrade_count,
-                    "attempt_count": result.attempt_count,
-                    "remaining_attempts": result.remaining_attempts,
-                    "stop_reason": result.stop_reason.value,
-                }
-            finally:
-                logger.remove(sink_id)
+            result = workflow.run(
+                cancel_event=cancel_event,
+                on_progress=_make_spend_progress_callback(q),
+            )
+            return {
+                "upgrade_count": result.upgrade_count,
+                "attempt_count": result.attempt_count,
+                "remaining_attempts": result.remaining_attempts,
+                "stop_reason": result.stop_reason.value,
+            }
 
         return run_fn
 

@@ -167,18 +167,6 @@
   width: 8rem; flex: none;
 }
 
-/* ─── Log console ───────────────────────────────────────────────── */
-
-.log-console {
-  background: var(--t-surface2); border: 1px solid var(--t-border);
-  border-radius: 0.3rem; padding: 0.625rem 0.75rem;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 0.695rem;
-  max-height: 10.5rem; overflow-y: auto; line-height: 1.65;
-}
-
-.log-level { color: var(--t-muted); }
-.log-msg   { color: var(--t-text); }
-
 /* ─── Result banners ────────────────────────────────────────────── */
 
 .banner-ok {

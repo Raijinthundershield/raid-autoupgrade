@@ -16,13 +16,6 @@ type ProgressEvent = {
   upgrades?: number;
 };
 
-type LogEvent = {
-  type: "log";
-  level: string;
-  msg: string;
-  ts: number;
-};
-
 type DoneEvent = {
   type: "done";
   result: Record<string, unknown>;
@@ -34,7 +27,7 @@ type ErrorEvent = {
   message: string;
 };
 
-export type JobEvent = ProgressEvent | LogEvent | DoneEvent | ErrorEvent;
+export type JobEvent = ProgressEvent | DoneEvent | ErrorEvent;
 
 // The phase a job belongs to. A Session reads Count → Spend.
 export type JobPhase = "count" | "spend";
@@ -50,7 +43,7 @@ export type JobAction = JobEvent | StartAction;
 // State
 //
 // One shared stream is the source of truth for the live run (ADR-0002). It
-// splits into a *live* part (status, barState, logs, result, errorMessage, and
+// splits into a *live* part (status, barState, result, errorMessage, and
 // which phase is active) plus *per-phase result slices* that survive across a
 // Session: a finished Count's numbers stay on screen while a Spend runs.
 // ---------------------------------------------------------------------------
@@ -71,7 +64,6 @@ export interface JobStreamState {
   status: "idle" | "running" | "done" | "error";
   phase: JobPhase | null;
   barState: string | null;
-  logs: Array<{ level: string; msg: string; ts: number }>;
   result: Record<string, unknown> | null;
   errorMessage: string | null;
   // Per-phase result slices — each reset only when its own phase starts.
@@ -86,7 +78,6 @@ export const initialJobStreamState: JobStreamState = {
   status: "idle",
   phase: null,
   barState: null,
-  logs: [],
   result: null,
   errorMessage: null,
   count: initialCountSlice,
@@ -110,7 +101,6 @@ export function jobStreamReducer(
         status: "running",
         phase: event.phase,
         barState: null,
-        logs: [],
         result: null,
         errorMessage: null,
         count: event.phase === "count" ? initialCountSlice : state.count,
@@ -131,14 +121,6 @@ export function jobStreamReducer(
           remaining: event.remaining ?? state.spend.remaining,
           upgrades: event.upgrades ?? state.spend.upgrades,
         },
-      };
-    case "log":
-      return {
-        ...state,
-        logs: [
-          ...state.logs,
-          { level: event.level, msg: event.msg, ts: event.ts },
-        ],
       };
     case "done":
       return { ...state, status: "done", result: event.result };

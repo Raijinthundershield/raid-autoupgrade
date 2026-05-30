@@ -54,7 +54,7 @@ def test_factory_with_debug_true_passes_debug_dir_to_workflow(tmp_path: Path):
     import queue
     import threading
 
-    run_fn = factory(adapter_ids=None, debug=True, log_debug=False)
+    run_fn = factory(adapter_ids=None, debug=True)
     run_fn(queue.Queue(), threading.Event())
 
     assert _WorkflowStub.last_instance is not None
@@ -80,7 +80,7 @@ def test_factory_with_debug_false_passes_no_debug_dir(tmp_path: Path):
     import queue
     import threading
 
-    run_fn = factory(adapter_ids=None, debug=False, log_debug=False)
+    run_fn = factory(adapter_ids=None, debug=False)
     run_fn(queue.Queue(), threading.Event())
 
     assert _WorkflowStub.last_instance is not None
@@ -106,7 +106,7 @@ def test_factory_with_debug_true_but_no_root_passes_no_debug_dir():
     import queue
     import threading
 
-    run_fn = factory(adapter_ids=None, debug=True, log_debug=False)
+    run_fn = factory(adapter_ids=None, debug=True)
     run_fn(queue.Queue(), threading.Event())
 
     assert _WorkflowStub.last_instance is not None
@@ -154,7 +154,7 @@ def test_run_fn_pushes_progress_events_onto_queue():
     )
 
     q = queue.Queue()
-    run_fn = factory(adapter_ids=None, debug=False, log_debug=False)
+    run_fn = factory(adapter_ids=None, debug=False)
     run_fn(q, threading.Event())
 
     events = []
@@ -382,7 +382,7 @@ def test_count_runner_persists_result_to_settings_service():
         settings_service=settings_stub,
     )
 
-    run_fn = factory(adapter_ids=None, debug=False, log_debug=False)
+    run_fn = factory(adapter_ids=None, debug=False)
     run_fn(queue.Queue(), threading.Event())
 
     assert len(settings_stub.saved) == 1
@@ -409,7 +409,7 @@ def test_count_runner_without_settings_service_still_completes():
         settings_service=None,
     )
 
-    run_fn = factory(adapter_ids=None, debug=False, log_debug=False)
+    run_fn = factory(adapter_ids=None, debug=False)
     result = run_fn(queue.Queue(), threading.Event())
 
     assert result["fail_count"] == 0

@@ -117,17 +117,6 @@ export function SpendPanel({ stream, running, onStart, onStop }: Props) {
         <StatCard label="Upgrades" value={stream.spend.upgrades} />
       </div>
 
-      {active && stream.logs.length > 0 && (
-        <div className="log-console">
-          {stream.logs.map((entry, i) => (
-            <div key={i}>
-              <span className="log-level">[{entry.level}]</span>{" "}
-              <span className="log-msg">{entry.msg}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
       {active && stream.status === "done" && stream.result && (
         <div className="banner-ok">
           <span className="banner-ok-label">Done — </span>

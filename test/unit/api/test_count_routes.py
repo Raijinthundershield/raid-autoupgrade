@@ -40,9 +40,7 @@ def test_post_count_returns_job_id():
     app = create_app()
     app.dependency_overrides[get_job_registry] = lambda: _RegistryStub(job_id="job-abc")
     app.dependency_overrides[get_count_runner] = (
-        lambda: lambda adapter_ids, debug=False, log_debug=False: (
-            lambda q, cancel_event: None
-        )
+        lambda: lambda adapter_ids, debug=False: (lambda q, cancel_event: None)
     )
 
     with TestClient(app) as client:
@@ -61,9 +59,7 @@ def test_post_count_when_busy_returns_409():
     app = create_app()
     app.dependency_overrides[get_job_registry] = lambda: _ConflictRegistryStub()
     app.dependency_overrides[get_count_runner] = (
-        lambda: lambda adapter_ids, debug=False, log_debug=False: (
-            lambda q, cancel_event: None
-        )
+        lambda: lambda adapter_ids, debug=False: (lambda q, cancel_event: None)
     )
 
     with TestClient(app) as client:
@@ -133,7 +129,7 @@ class _WSRegistryStub:
 
 def test_websocket_streams_events_in_order_and_closes_after_done():
     q: queue.Queue = queue.Queue()
-    q.put({"type": "log", "level": "INFO", "msg": "starting", "ts": 0})
+    q.put({"type": "progress", "fail_count": 0, "frames": 1, "state": "PROGRESS"})
     q.put({"type": "progress", "fail_count": 3, "frames": 10, "state": "FAIL"})
     q.put({"type": "done", "result": {"fail_count": 3, "stop_reason": "max_attempts"}})
 
@@ -148,7 +144,7 @@ def test_websocket_streams_events_in_order_and_closes_after_done():
             e2 = ws.receive_json()
             e3 = ws.receive_json()
 
-    assert e1 == {"type": "log", "level": "INFO", "msg": "starting", "ts": 0}
+    assert e1 == {"type": "progress", "fail_count": 0, "frames": 1, "state": "PROGRESS"}
     assert e2 == {"type": "progress", "fail_count": 3, "frames": 10, "state": "FAIL"}
     assert e3["type"] == "done"
     assert e3["result"]["fail_count"] == 3
@@ -189,7 +185,7 @@ def test_cancel_unknown_job_also_returns_204():
 
 def test_websocket_closes_after_error_event():
     q: queue.Queue = queue.Queue()
-    q.put({"type": "log", "level": "INFO", "msg": "starting", "ts": 0})
+    q.put({"type": "progress", "fail_count": 0, "frames": 1, "state": "PROGRESS"})
     q.put({"type": "error", "error": "RuntimeError", "message": "disk full"})
 
     app = create_app(job_registry=_WSRegistryStub("job-err", q))
@@ -199,7 +195,7 @@ def test_websocket_closes_after_error_event():
             e1 = ws.receive_json()
             e2 = ws.receive_json()
 
-    assert e1["type"] == "log"
+    assert e1["type"] == "progress"
     assert e2["type"] == "error"
     assert e2["error"] == "RuntimeError"
     assert e2["message"] == "disk full"
@@ -216,10 +212,8 @@ class _CapturingRunnerStub:
     def __init__(self):
         self.calls: list[dict] = []
 
-    def __call__(self, adapter_ids, debug=False, log_debug=False):
-        self.calls.append(
-            {"adapter_ids": adapter_ids, "debug": debug, "log_debug": log_debug}
-        )
+    def __call__(self, adapter_ids, debug=False):
+        self.calls.append({"adapter_ids": adapter_ids, "debug": debug})
         return lambda q, cancel_event: None
 
 
@@ -235,20 +229,6 @@ def test_post_count_with_debug_true_passes_debug_to_runner():
     assert stub.calls[0]["debug"] is True
 
 
-def test_post_count_with_log_debug_true_passes_log_debug_to_runner():
-    stub = _CapturingRunnerStub()
-    app = create_app()
-    app.dependency_overrides[get_job_registry] = lambda: _RegistryStub()
-    app.dependency_overrides[get_count_runner] = lambda: stub
-
-    with TestClient(app) as client:
-        client.post(
-            "/api/workflows/count", json={"adapter_ids": None, "log_debug": True}
-        )
-
-    assert stub.calls[0]["log_debug"] is True
-
-
 def test_post_count_debug_defaults_to_false():
     stub = _CapturingRunnerStub()
     app = create_app()
@@ -259,4 +239,3 @@ def test_post_count_debug_defaults_to_false():
         client.post("/api/workflows/count", json={"adapter_ids": None})
 
     assert stub.calls[0]["debug"] is False
-    assert stub.calls[0]["log_debug"] is False

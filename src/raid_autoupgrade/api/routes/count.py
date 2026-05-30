@@ -13,7 +13,6 @@ router = APIRouter()
 class CountRequest(BaseModel):
     adapter_ids: list[int] | None = None
     debug: bool = False
-    log_debug: bool = False
 
 
 @router.post("/api/workflows/count")
@@ -22,7 +21,7 @@ def post_count(
     registry: JobRegistry = Depends(get_job_registry),
     make_run_fn: Callable = Depends(get_count_runner),
 ):
-    run_fn = make_run_fn(body.adapter_ids, body.debug, body.log_debug)
+    run_fn = make_run_fn(body.adapter_ids, body.debug)
     try:
         job_id = registry.start_job(run_fn)
     except ConflictError:
