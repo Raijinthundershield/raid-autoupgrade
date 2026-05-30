@@ -54,6 +54,16 @@ export function SpendPanel({ stream, running, onStart, onStop }: Props) {
       .catch(() => {});
   }, []);
 
+  // When a Count finishes, prefill Max attempts with its fail count so the
+  // Session flows Count → Spend without retyping. Fires once per finished
+  // Count (result is replaced wholesale on the done event).
+  useEffect(() => {
+    if (stream.phase === "count" && stream.status === "done" && stream.result) {
+      const failCount = stream.result.fail_count;
+      if (typeof failCount === "number") setMaxAttempts(String(failCount));
+    }
+  }, [stream.phase, stream.status, stream.result]);
+
   async function handleStart() {
     const attempts = parseInt(maxAttempts, 10);
     if (isNaN(attempts) || attempts <= 0) return;

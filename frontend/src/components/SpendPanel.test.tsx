@@ -82,6 +82,30 @@ describe("SpendPanel", () => {
     });
   });
 
+  it("fills max attempts with the fail count when a Count finishes", async () => {
+    const { rerender } = render(
+      <SpendPanel stream={streamWith()} running={true} onStart={noop} onStop={noop} />
+    );
+    await waitFor(() => {
+      const input = screen.getByLabelText(/max attempts/i) as HTMLInputElement;
+      expect(input.value).toBe("");
+    });
+
+    rerender(
+      <SpendPanel
+        stream={streamWith({ phase: "count", status: "done", result: { fail_count: 12 } })}
+        running={false}
+        onStart={noop}
+        onStop={noop}
+      />
+    );
+
+    await waitFor(() => {
+      const input = screen.getByLabelText(/max attempts/i) as HTMLInputElement;
+      expect(input.value).toBe("12");
+    });
+  });
+
   it("leaves max attempts empty when last_count_result is null", async () => {
     render(<SpendPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
 
