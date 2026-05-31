@@ -6,8 +6,20 @@ import queue
 from fastapi.testclient import TestClient
 
 from raid_autoupgrade.api.app import create_app
-from raid_autoupgrade.api.deps import get_count_runner, get_job_registry
+from raid_autoupgrade.api.deps import (
+    get_count_runner,
+    get_count_screenshot_store,
+    get_job_registry,
+)
 from raid_autoupgrade.jobs.registry import ConflictError, JobState
+
+
+class _ScreenshotStoreStub:
+    def __init__(self, image_bytes: bytes | None):
+        self._image_bytes = image_bytes
+
+    def read(self) -> bytes | None:
+        return self._image_bytes
 
 
 class _RegistryStub:
@@ -233,3 +245,39 @@ def test_post_count_forwards_adapter_ids_to_runner():
         client.post("/api/workflows/count", json={"adapter_ids": adapter_ids})
 
     assert stub.calls[0]["adapter_ids"] == adapter_ids
+
+
+# ---------------------------------------------------------------------------
+# GET /api/last-count-screenshot → 200 + image/png when a picture exists
+# ---------------------------------------------------------------------------
+
+
+def test_get_last_count_screenshot_returns_png():
+    app = create_app()
+    app.dependency_overrides[get_count_screenshot_store] = lambda: _ScreenshotStoreStub(
+        b"\x89PNG\r\n\x1a\nfake-png-bytes"
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/api/last-count-screenshot")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content == b"\x89PNG\r\n\x1a\nfake-png-bytes"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/last-count-screenshot → 404 when no picture has been kept yet
+# ---------------------------------------------------------------------------
+
+
+def test_get_last_count_screenshot_returns_404_when_empty():
+    app = create_app()
+    app.dependency_overrides[get_count_screenshot_store] = lambda: _ScreenshotStoreStub(
+        None
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/api/last-count-screenshot")
+
+    assert response.status_code == 404

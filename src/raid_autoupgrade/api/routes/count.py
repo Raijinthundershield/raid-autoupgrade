@@ -2,13 +2,32 @@ import asyncio
 from collections.abc import Callable
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket
+from fastapi.responses import Response
 from pydantic import BaseModel
 
-from raid_autoupgrade.api.deps import get_count_runner, get_job_registry
+from raid_autoupgrade.api.deps import (
+    get_count_runner,
+    get_count_screenshot_store,
+    get_job_registry,
+)
 from raid_autoupgrade.jobs.registry import ConflictError, JobRegistry
+from raid_autoupgrade.services.count_target_screenshot import CountTargetScreenshot
 from raid_autoupgrade.services.network import AdapterId
 
 router = APIRouter()
+
+
+@router.get("/api/last-count-screenshot")
+def get_last_count_screenshot(
+    store: CountTargetScreenshot = Depends(get_count_screenshot_store),
+):
+    """Return the counted Target's picture (staging if a Count is live, else the
+    last committed one). 404 when no Count has kept a picture yet, so the panel
+    can hide the element rather than show a broken image."""
+    image_bytes = store.read()
+    if image_bytes is None:
+        raise HTTPException(status_code=404, detail="no count screenshot")
+    return Response(content=image_bytes, media_type="image/png")
 
 
 class CountRequest(BaseModel):

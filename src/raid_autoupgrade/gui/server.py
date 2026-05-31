@@ -22,6 +22,7 @@ from raid_autoupgrade.api.app import create_app
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarStateDetector
 from raid_autoupgrade.jobs.run_fn import make_count_runner, make_spend_runner
 from raid_autoupgrade.services.cache_service import CacheService
+from raid_autoupgrade.services.count_target_screenshot import CountTargetScreenshot
 from raid_autoupgrade.services.network import NetworkManager
 from raid_autoupgrade.services.screenshot_service import ScreenshotService
 from raid_autoupgrade.services.settings_service import SettingsService
@@ -46,6 +47,13 @@ _REGIONS_CACHE_DIR = (
     Path(os.getenv("LOCALAPPDATA", "C:\\Users\\Default\\AppData\\Local"))
     / "RaidAutoupgrade"
     / "regions"
+)
+# Persists across the offline→online switch and app restarts, like the settings
+# (last_count_result) it is paired with.
+_COUNT_SCREENSHOT_DIR = (
+    Path(os.getenv("PROGRAMDATA", "C:\\ProgramData"))
+    / "RaidAutoupgrade"
+    / "count_target"
 )
 _LOG_DIR = (
     Path(os.getenv("PROGRAMDATA", "C:\\ProgramData")) / "RaidAutoupgrade" / "logs"
@@ -145,6 +153,7 @@ def _run(debug: bool = False) -> None:
     )
     settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
     settings_service = SettingsService(cache=settings_cache)
+    count_screenshot_store = CountTargetScreenshot(directory=_COUNT_SCREENSHOT_DIR)
     detector = ProgressBarStateDetector()
 
     count_runner = make_count_runner(
@@ -155,6 +164,7 @@ def _run(debug: bool = False) -> None:
         detector=detector,
         debug_dir_root=_debug_root,
         settings_service=settings_service,
+        screenshot_store=count_screenshot_store,
     )
     spend_runner = make_spend_runner(
         cache_service=cache_service,
@@ -172,6 +182,7 @@ def _run(debug: bool = False) -> None:
         settings_service=settings_service,
         screenshot_service=screenshot_service,
         cache_service=cache_service,
+        count_screenshot_store=count_screenshot_store,
     )
 
     if not dev_mode:

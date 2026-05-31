@@ -102,4 +102,43 @@ describe("CountPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: /stop/i }));
     expect(onStop).toHaveBeenCalled();
   });
+
+  // ---------------------------------------------------------------------------
+  // Counted-Target picture: an <img> at the endpoint whose cache-buster tracks
+  // the live/committed state — bumped when a Count finishes so it refreshes to
+  // the new Target. (The onError-hide branch isn't asserted: jsdom never fires
+  // image load/error events, so a test there would be brittle padding.)
+  // ---------------------------------------------------------------------------
+
+  it("targets the screenshot endpoint and bumps the cache-buster after a count-done event", () => {
+    const { rerender } = render(
+      <CountPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />
+    );
+
+    const before = (screen.getByAltText(/counted target/i) as HTMLImageElement).getAttribute("src");
+    expect(before).toContain("/api/last-count-screenshot");
+
+    rerender(
+      <CountPanel
+        stream={streamWith({ phase: "count", status: "done", result: { fail_count: 5, stop_reason: "x" } })}
+        running={false}
+        onStart={noop}
+        onStop={noop}
+      />
+    );
+
+    const after = (screen.getByAltText(/counted target/i) as HTMLImageElement).getAttribute("src");
+    expect(after).toContain("/api/last-count-screenshot");
+    expect(after).not.toEqual(before);
+  });
+
+  it("opens a lightbox with the full image when the thumbnail is clicked", async () => {
+    render(<CountPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByAltText(/counted target/i));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("img")).toBeInTheDocument();
+  });
 });

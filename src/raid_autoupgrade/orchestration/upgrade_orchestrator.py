@@ -12,6 +12,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
 from raid_autoupgrade.exceptions import WindowNotFoundException, WorkflowValidationError
 from raid_autoupgrade.orchestration.debug_frame_logger import DebugFrameLogger
@@ -69,7 +70,7 @@ class UpgradeOrchestrator:
     Orchestrates upgrade monitoring with configurable stop conditions.
     """
 
-    WINDOW_TITLE = "Raid: Shadow Legends"
+    WINDOW_TITLE = RAID_WINDOW_TITLE
 
     def __init__(
         self,

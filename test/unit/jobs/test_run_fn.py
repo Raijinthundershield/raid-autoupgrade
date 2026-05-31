@@ -373,6 +373,123 @@ def test_count_runner_persists_result_to_settings_service():
 # ---------------------------------------------------------------------------
 
 
+# ===========================================================================
+# make_count_runner — counted-Target screenshot coupling
+#
+# Invariant: the screenshot commit and the last_count_result write are a matched
+# pair. A finished Count stages then commits; a cancelled or errored Count
+# discards its staging so the previous Target's picture and fail count survive.
+# ===========================================================================
+
+
+class _StoreStub:
+    def __init__(self):
+        self.staged: list[bytes] = []
+        self.commits = 0
+        self.discards = 0
+
+    def stage(self, image_bytes: bytes) -> None:
+        self.staged.append(image_bytes)
+
+    def commit(self) -> None:
+        self.commits += 1
+
+    def discard(self) -> None:
+        self.discards += 1
+
+
+class _ScreenshotStub:
+    def take_screenshot(self, window_title: str):
+        import numpy as np
+
+        return np.zeros((4, 4, 3), dtype=np.uint8)
+
+
+class _CancelledWorkflowStub:
+    """Returns a CountResult whose stop reason is MANUAL_STOP (user cancel)."""
+
+    def __init__(self, **kwargs):
+        pass
+
+    def run(self, cancel_event=None, on_progress=None):
+        from raid_autoupgrade.orchestration.stop_conditions import StopReason
+        from raid_autoupgrade.workflows.count_workflow import CountResult
+
+        return CountResult(fail_count=3, stop_reason=StopReason.MANUAL_STOP)
+
+
+class _ErroringWorkflowStub:
+    def __init__(self, **kwargs):
+        pass
+
+    def run(self, cancel_event=None, on_progress=None):
+        raise RuntimeError("workflow blew up")
+
+
+def test_count_runner_stages_at_start_and_commits_on_success():
+    store = _StoreStub()
+    factory = make_count_runner(
+        cache_service=None,
+        window_service=None,
+        network_manager=None,
+        screenshot_service=_ScreenshotStub(),
+        detector=None,
+        workflow_class=_WorkflowStub,
+        screenshot_store=store,
+    )
+
+    run_fn = factory(adapter_ids=None)
+    run_fn(queue.Queue(), threading.Event())
+
+    assert len(store.staged) == 1  # captured at Count start
+    assert store.commits == 1  # promoted on success
+    assert store.discards == 0
+
+
+def test_count_runner_discards_and_keeps_prior_result_on_cancel():
+    store = _StoreStub()
+    settings_stub = _SettingsServiceStub()
+    factory = make_count_runner(
+        cache_service=None,
+        window_service=None,
+        network_manager=None,
+        screenshot_service=_ScreenshotStub(),
+        detector=None,
+        workflow_class=_CancelledWorkflowStub,
+        settings_service=settings_stub,
+        screenshot_store=store,
+    )
+
+    run_fn = factory(adapter_ids=None)
+    run_fn(queue.Queue(), threading.Event())
+
+    assert store.discards == 1
+    assert store.commits == 0
+    assert settings_stub.saved == []  # cancelled Count never overwrites the pair
+
+
+def test_count_runner_discards_and_reraises_on_error():
+    import pytest
+
+    store = _StoreStub()
+    factory = make_count_runner(
+        cache_service=None,
+        window_service=None,
+        network_manager=None,
+        screenshot_service=_ScreenshotStub(),
+        detector=None,
+        workflow_class=_ErroringWorkflowStub,
+        screenshot_store=store,
+    )
+
+    run_fn = factory(adapter_ids=None)
+    with pytest.raises(RuntimeError):
+        run_fn(queue.Queue(), threading.Event())
+
+    assert store.discards == 1
+    assert store.commits == 0
+
+
 def test_count_runner_without_settings_service_still_completes():
     factory = make_count_runner(
         cache_service=None,

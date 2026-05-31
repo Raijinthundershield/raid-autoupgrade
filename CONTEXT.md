@@ -9,10 +9,10 @@ Automation tool for the airplane-mode trick in Raid: Shadow Legends — counts u
 **Gear Piece**: A piece of equipment that can be upgraded, either an artifact (helm, weapon, shield, gloves, boots, chestplate) or an accessory (ring, amulet, banner). Levels range from 1 to 16.
 _Avoid_: artifact, item, piece
 
-**Fodder**: A cheap gear piece used offline during Count to absorb attempts and accumulate a fail count. Not the intended upgrade target.
+**Fodder**: A cheap gear piece used online during Spend to absorb the counted attempts. Not the intended upgrade target.
 _Avoid_: counter piece, sacrifice
 
-**Target**: The gear piece the user intends to advance one level. Upgraded online during Spend using the fail count from the fodder.
+**Target**: The gear piece the user intends to advance one level. Counted offline during Count; receives its guaranteed upgrade after the Fodder has absorbed the attempts.
 _Avoid_: goal piece, destination
 
 ### Attempts
@@ -31,13 +31,13 @@ _Avoid_: pity count, stack, charge
 
 ### Phases
 
-**Count**: The phase where attempts are made on the fodder while offline, recording fails until a Connection Error signals session end.
+**Count**: The phase where attempts are made on the target while offline, recording fails until a Connection Error signals session end.
 _Avoid_: offline phase, farming
 
-**Spend**: The phase where attempts are made on the target while online, consuming the fail count until a success is detected.
+**Spend**: The phase where attempts are made on the fodder while online, consuming the fail count until a success is detected.
 _Avoid_: online phase, upgrading
 
-**Session**: A single end-to-end execution of the trick: Count on the fodder followed by Spend on the target. One session advances the target one level.
+**Session**: A single end-to-end execution of the trick: Count on the target followed by Spend on the fodder. One session advances the target one level.
 _Avoid_: run, operation, workflow
 
 ### Network State

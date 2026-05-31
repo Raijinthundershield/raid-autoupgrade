@@ -15,6 +15,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
 from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.stop_conditions import (
@@ -91,7 +92,7 @@ class SpendWorkflow:
     This workflow spends a specified number of upgrade attempts.
     """
 
-    WINDOW_TITLE = "Raid: Shadow Legends"
+    WINDOW_TITLE = RAID_WINDOW_TITLE
 
     def __init__(
         self,

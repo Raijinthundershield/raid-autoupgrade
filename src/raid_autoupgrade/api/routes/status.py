@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends
 
 from raid_autoupgrade.api.deps import get_network_manager, get_window_service
+from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.protocols import NetworkManagerProtocol, WindowInteractionProtocol
 from raid_autoupgrade.services.network import NetworkState
-
-RAID_WINDOW_TITLE = "Raid: Shadow Legends"
 
 router = APIRouter()
 

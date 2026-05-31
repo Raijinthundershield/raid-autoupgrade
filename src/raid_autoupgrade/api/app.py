@@ -34,6 +34,7 @@ def create_app(
     settings_service: Any = None,
     screenshot_service: Any = None,
     cache_service: Any = None,
+    count_screenshot_store: Any = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -47,6 +48,7 @@ def create_app(
         app.state.settings_service = settings_service
         app.state.screenshot_service = screenshot_service
         app.state.cache_service = cache_service
+        app.state.count_screenshot_store = count_screenshot_store
         yield
 
     app = FastAPI(lifespan=lifespan)

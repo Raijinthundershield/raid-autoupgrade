@@ -7,6 +7,7 @@ from raid_autoupgrade.protocols import (
     ScreenshotProtocol,
     WindowInteractionProtocol,
 )
+from raid_autoupgrade.services.count_target_screenshot import CountTargetScreenshot
 from raid_autoupgrade.services.settings_service import SettingsService
 
 
@@ -42,3 +43,7 @@ def get_spend_runner(request: Request):
 
 def get_settings_service(request: Request) -> SettingsService:
     return request.app.state.settings_service
+
+
+def get_count_screenshot_store(request: Request) -> CountTargetScreenshot:
+    return request.app.state.count_screenshot_store

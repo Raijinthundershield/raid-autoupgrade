@@ -8,6 +8,7 @@ from raid_autoupgrade.api.deps import (
     get_screenshot_service,
     get_window_service,
 )
+from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.exceptions import WindowNotFoundException
 from raid_autoupgrade.protocols import (
     CacheProtocol,
@@ -16,8 +17,6 @@ from raid_autoupgrade.protocols import (
 )
 
 router = APIRouter()
-
-RAID_WINDOW_TITLE = "Raid: Shadow Legends"
 
 
 @router.get("/api/screenshot")
