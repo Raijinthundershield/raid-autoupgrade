@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
 import { CalibrationBanner } from "./components/CalibrationBanner";
 import { CountPanel } from "./components/CountPanel";
@@ -6,9 +7,22 @@ import { SpendPanel } from "./components/SpendPanel";
 import { NetworkPanel } from "./components/NetworkPanel";
 import { ProgressBarStateCard } from "./components/ProgressBarStateCard";
 import { RegionPanel } from "./components/RegionPanel";
+import { LabelPanel } from "./components/LabelPanel";
 import { useJobStream, type JobPhase } from "./hooks/useJobStream";
 
-type Tab = "run" | "calibration";
+type Tab = "run" | "calibration" | "label";
+
+const TAB_LABELS: Record<Tab, string> = {
+  run: "Run",
+  calibration: "Calibration",
+  label: "Label",
+};
+
+async function fetchDebugEnabled(): Promise<boolean> {
+  const res = await fetch("/api/debug/status");
+  if (!res.ok) return false;
+  return (await res.json()).enabled === true;
+}
 
 // Numbered phase header above a Run-tab panel (a Session reads Count → Spend).
 function PhaseHeader({ num, title }: { num: string; title: string }) {
@@ -31,6 +45,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("run");
   const [adapterIds, setAdapterIds] = useState<string[]>([]);
 
+  // The debug-only Label tab is shown only when the app was launched with
+  // --debug (the backend reports it). Without it, the tab and its data are absent.
+  const { data: debugEnabled } = useQuery({
+    queryKey: ["debug-enabled"],
+    queryFn: fetchDebugEnabled,
+  });
+  const tabs: Tab[] = debugEnabled ? ["run", "calibration", "label"] : ["run", "calibration"];
+
   // The Run tab owns the single active job and the one shared stream (ADR-0002).
   const [job, setJob] = useState<{ id: string; phase: JobPhase } | null>(null);
   const stream = useJobStream(job?.id ?? null, job?.phase ?? "count");
@@ -44,7 +66,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <StatusHeader />
       <nav role="tablist" className="flex border-b border-[var(--t-border)] px-6">
-        {(["run", "calibration"] as Tab[]).map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab}
             role="tab"
@@ -57,7 +79,7 @@ export default function App() {
                 : "text-[var(--t-muted)] hover:text-[var(--t-text)]",
             ].join(" ")}
           >
-            {tab === "run" ? "Run" : "Calibration"}
+            {TAB_LABELS[tab]}
           </button>
         ))}
       </nav>
@@ -98,6 +120,11 @@ export default function App() {
         {activeTab === "calibration" && (
           <div role="tabpanel" aria-label="Calibration" className="p-6 h-full">
             <RegionPanel />
+          </div>
+        )}
+        {activeTab === "label" && (
+          <div role="tabpanel" aria-label="Label" className="p-6 h-full">
+            <LabelPanel />
           </div>
         )}
       </main>

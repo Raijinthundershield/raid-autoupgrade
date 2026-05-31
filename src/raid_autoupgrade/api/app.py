@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from raid_autoupgrade.api.routes.adapters import router as adapters_router
 from raid_autoupgrade.api.routes.count import router as count_router
+from raid_autoupgrade.api.routes.debug import router as debug_router
 from raid_autoupgrade.api.routes.regions import router as regions_router
 from raid_autoupgrade.api.routes.settings import router as settings_router
 from raid_autoupgrade.api.routes.spend import router as spend_router
@@ -17,6 +18,7 @@ from raid_autoupgrade.exceptions import (
     WorkflowValidationError,
 )
 from raid_autoupgrade.jobs.registry import JobRegistry
+from raid_autoupgrade.services.debug_session_store import DebugSessionStore
 
 _EXCEPTION_STATUS: dict[type[RaidAutoupgradeError], int] = {
     WindowNotFoundException: 409,
@@ -35,6 +37,7 @@ def create_app(
     screenshot_service: Any = None,
     cache_service: Any = None,
     count_screenshot_store: Any = None,
+    debug_session_store: Any = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -49,6 +52,11 @@ def create_app(
         app.state.screenshot_service = screenshot_service
         app.state.cache_service = cache_service
         app.state.count_screenshot_store = count_screenshot_store
+        app.state.debug_session_store = (
+            debug_session_store
+            if debug_session_store is not None
+            else DebugSessionStore(debug_root=None)
+        )
         yield
 
     app = FastAPI(lifespan=lifespan)
@@ -80,4 +88,5 @@ def create_app(
     app.include_router(regions_router)
     app.include_router(settings_router)
     app.include_router(adapters_router)
+    app.include_router(debug_router)
     return app

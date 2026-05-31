@@ -8,9 +8,9 @@ screenshot.png
 temp/
 .nicegui/
 
-# detection templates and test fixture images are machine-local, not committed
+# detection templates are machine-local, not committed
+# (test fixture images under test/fixtures/images/ are committed as persistent test data)
 src/raid_autoupgrade/detection/templates/
-test/fixtures/images/
 
 # Misc
 scripts/
@@ -36,6 +36,10 @@ wheels/
 .coverage
 htmlcov/
 *.log
+
+# Node / frontend
+node_modules/
+.vite/
 
 # Virtual environments
 .venv

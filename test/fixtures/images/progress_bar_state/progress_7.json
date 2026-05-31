@@ -1,0 +1,16 @@
+{
+  "label": "skip",
+  "window_size": null,
+  "avg_bgr": [
+    16.184409414813217,
+    36.55150075577629,
+    40.82487583675232
+  ],
+  "hsv_mean": [
+    22.636579572446557,
+    139.63722738069532,
+    40.82487583675232
+  ],
+  "fill_fraction": null,
+  "source": "legacy (annotated progress; single-frame ambiguous vs standby, deferred to #38)"
+}

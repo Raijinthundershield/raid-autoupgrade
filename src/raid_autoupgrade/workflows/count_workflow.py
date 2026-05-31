@@ -169,7 +169,10 @@ class CountWorkflow:
             network_adapter_ids=self._network_adapter_ids,
             disable_network=self._network_adapter_ids is not None,
             require_offline=True,
-            debug_dir=self._debug_dir / "count" if self._debug_dir else None,
+            # ``self._debug_dir`` is already the kind-namespaced ``.../debug/count``
+            # (run_fn does that); the session timestamp dir is added by the
+            # DebugFrameLogger, so no extra subdir is needed here.
+            debug_dir=self._debug_dir,
         )
 
         # Create orchestrator and run session

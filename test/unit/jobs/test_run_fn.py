@@ -181,6 +181,10 @@ class _SpendWorkflowStub:
     def max_upgrade_attempts(self):
         return self._kwargs.get("max_upgrade_attempts")
 
+    @property
+    def debug_dir(self):
+        return self._kwargs.get("debug_dir")
+
 
 # ---------------------------------------------------------------------------
 # Behavior: factory → run_fn returns dict with spend result fields
@@ -272,6 +276,56 @@ def test_spend_runner_serializes_enriched_progress_onto_queue():
         "upgrades": 1,
         "state": "fail",
     }
+
+
+# ---------------------------------------------------------------------------
+# Behavior: a debug_dir_root → SpendWorkflow receives debug_dir under the root,
+# mirroring make_count_runner. The root is wired only with --debug.
+# ---------------------------------------------------------------------------
+
+
+def test_spend_runner_with_debug_root_passes_debug_dir_to_workflow(tmp_path: Path):
+    debug_root = tmp_path / "debug"
+    factory = make_spend_runner(
+        cache_service=None,
+        window_service=None,
+        network_manager=None,
+        screenshot_service=None,
+        detector=None,
+        debug_dir_root=debug_root,
+        workflow_class=_SpendWorkflowStub,
+    )
+
+    _SpendWorkflowStub.last_instance = None
+    run_fn = factory(max_upgrade_attempts=5, continue_upgrade=False)
+    run_fn(queue.Queue(), threading.Event())
+
+    assert _SpendWorkflowStub.last_instance is not None
+    assert _SpendWorkflowStub.last_instance.debug_dir == debug_root / "spend"
+
+
+# ---------------------------------------------------------------------------
+# Behavior: no debug_dir_root → debug_dir=None (no --debug, the exe default)
+# ---------------------------------------------------------------------------
+
+
+def test_spend_runner_without_debug_root_passes_no_debug_dir():
+    factory = make_spend_runner(
+        cache_service=None,
+        window_service=None,
+        network_manager=None,
+        screenshot_service=None,
+        detector=None,
+        debug_dir_root=None,
+        workflow_class=_SpendWorkflowStub,
+    )
+
+    _SpendWorkflowStub.last_instance = None
+    run_fn = factory(max_upgrade_attempts=5, continue_upgrade=False)
+    run_fn(queue.Queue(), threading.Event())
+
+    assert _SpendWorkflowStub.last_instance is not None
+    assert _SpendWorkflowStub.last_instance.debug_dir is None
 
 
 # ---------------------------------------------------------------------------
