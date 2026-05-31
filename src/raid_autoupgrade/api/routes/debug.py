@@ -103,7 +103,7 @@ def export_labeled_samples(
         raise HTTPException(status_code=404, detail="session not found")
     return {
         "exported": written,
-        "directory": store.session_directory(request.session),
+        "directory": store.export_directory(request.session),
     }
 
 

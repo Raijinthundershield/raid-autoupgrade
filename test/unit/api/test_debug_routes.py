@@ -242,10 +242,10 @@ def test_export_writes_samples_and_returns_filenames(tmp_path):
     assert response.status_code == 200
     body = response.json()
     assert body["exported"] == ["fail_30x20_1.png"]
-    # The response names the folder the samples landed in, so the UI can tell
-    # the reviewer where to copy the {png, json} pairs from.
-    assert body["directory"] == str((tmp_path / rel).resolve())
-    assert (tmp_path / rel / "fail_30x20_1.png").is_file()
+    # The response names the exports/ folder the samples landed in, so the UI
+    # can tell the reviewer where to copy the {png, json} pairs from.
+    assert body["directory"] == str((tmp_path / rel / "exports").resolve())
+    assert (tmp_path / rel / "exports" / "fail_30x20_1.png").is_file()
 
 
 def test_export_404_for_unknown_session(tmp_path):

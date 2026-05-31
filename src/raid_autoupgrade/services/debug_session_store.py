@@ -32,6 +32,10 @@ _LABELS_FILE = "labels.json"
 # Records which exported file each frame produced, so re-exporting a frame
 # replaces its previous sample instead of accumulating duplicates.
 _EXPORT_MANIFEST_FILE = "export_manifest.json"
+# Exported fixture pairs land in this subfolder of the session, keeping them
+# apart from the capture's own files (and the manifest, which stays at the
+# session root) so the reviewer can grab the whole folder.
+_EXPORTS_DIR = "exports"
 
 
 @dataclass(frozen=True)
@@ -144,14 +148,14 @@ class DebugSessionStore:
     def _write_export_manifest(session_dir: Path, manifest: dict[str, str]) -> None:
         (session_dir / _EXPORT_MANIFEST_FILE).write_text(json.dumps(manifest, indent=2))
 
-    def session_directory(self, session_id: str) -> str | None:
-        """Return a session's absolute on-disk folder, or ``None`` if unknown.
+    def export_directory(self, session_id: str) -> str | None:
+        """Return the absolute exports/ folder for a session, or ``None``.
 
         Exposed so the export flow can tell the reviewer exactly where the
         written samples landed.
         """
         session_dir = self._session_dir(session_id)
-        return None if session_dir is None else str(session_dir)
+        return None if session_dir is None else str(session_dir / _EXPORTS_DIR)
 
     def read_image(self, session_id: str, filename: str) -> bytes | None:
         """Return a frame image's bytes, or ``None`` if absent.
@@ -185,6 +189,8 @@ class DebugSessionStore:
         if session_dir is None:
             return None
 
+        exports_dir = session_dir / _EXPORTS_DIR
+        exports_dir.mkdir(exist_ok=True)
         frames = self.read_frames(session_id) or []
         by_number = {f["frame_number"]: f for f in frames}
         manifest = self._read_export_manifest(session_dir)
@@ -194,8 +200,8 @@ class DebugSessionStore:
         for entry in labels:
             prior = manifest.pop(str(entry["frame_number"]), None)
             if prior is not None:
-                (session_dir / f"{prior}.png").unlink(missing_ok=True)
-                (session_dir / f"{prior}.json").unlink(missing_ok=True)
+                (exports_dir / f"{prior}.png").unlink(missing_ok=True)
+                (exports_dir / f"{prior}.json").unlink(missing_ok=True)
 
         written: list[str] = []
         for entry in labels:
@@ -209,14 +215,14 @@ class DebugSessionStore:
             height, width = shot.shape[:2]
 
             n = 1
-            while (session_dir / f"{label}_{width}x{height}_{n}.png").exists():
+            while (exports_dir / f"{label}_{width}x{height}_{n}.png").exists():
                 n += 1
             stem = f"{label}_{width}x{height}_{n}"
 
-            cv2.imwrite(str(session_dir / f"{stem}.png"), roi)
+            cv2.imwrite(str(exports_dir / f"{stem}.png"), roi)
             meta = derive_metadata(roi)
             write_annotation(
-                session_dir / f"{stem}.json",
+                exports_dir / f"{stem}.json",
                 SampleAnnotation(
                     label=label,
                     window_size=[width, height],

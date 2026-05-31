@@ -151,13 +151,13 @@ def test_read_image_rejects_filename_escaping_session_dir(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# export_labeled_samples writes the Label tab's corrected labels back into the
-# session dir as {label}_{w}x{h}_{n}.png + a SampleAnnotation sidecar, ready to
-# copy into test/fixtures/images/.
+# export_labeled_samples writes the Label tab's corrected labels into an
+# exports/ subfolder of the session as {label}_{w}x{h}_{n}.png + a
+# SampleAnnotation sidecar, ready to copy into test/fixtures/images/.
 # ---------------------------------------------------------------------------
 
 
-def test_export_writes_named_png_and_sidecar_for_a_labelled_frame(tmp_path):
+def test_export_writes_named_png_and_sidecar_into_an_exports_subfolder(tmp_path):
     rel = "count/count/s1"
     _capture(
         tmp_path,
@@ -175,11 +175,12 @@ def test_export_writes_named_png_and_sidecar_for_a_labelled_frame(tmp_path):
 
     written = store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
 
-    # Named by the corrected label and the window size (from the screenshot).
+    # Named by the corrected label and the window size (from the screenshot),
+    # written under the session's exports/ folder.
     assert written == ["fail_30x20_1.png"]
-    session_dir = tmp_path / rel
-    assert (session_dir / "fail_30x20_1.png").is_file()
-    assert load_annotation(session_dir / "fail_30x20_1.json").label == "fail"
+    exports = tmp_path / rel / "exports"
+    assert (exports / "fail_30x20_1.png").is_file()
+    assert load_annotation(exports / "fail_30x20_1.json").label == "fail"
 
 
 def test_export_sidecar_carries_derived_metadata_and_provenance(tmp_path):
@@ -202,7 +203,7 @@ def test_export_sidecar_carries_derived_metadata_and_provenance(tmp_path):
         rel, [{"frame_number": 2, "label": "connection_error"}]
     )
 
-    ann = load_annotation(tmp_path / rel / "connection_error_60x40_1.json")
+    ann = load_annotation(tmp_path / rel / "exports" / "connection_error_60x40_1.json")
     # Window size is the screenshot's [w, h].
     assert ann.window_size == [60, 40]
     # avg_bgr is the ROI's mean colour (solid blue → 200,0,0).
@@ -240,9 +241,9 @@ def test_export_numbers_same_label_and_size_without_clobbering(tmp_path):
 
     assert first == ["fail_30x20_1.png"]
     assert second == ["fail_30x20_2.png"]
-    session_dir = tmp_path / rel
-    assert (session_dir / "fail_30x20_1.png").is_file()
-    assert (session_dir / "fail_30x20_2.png").is_file()
+    exports = tmp_path / rel / "exports"
+    assert (exports / "fail_30x20_1.png").is_file()
+    assert (exports / "fail_30x20_2.png").is_file()
 
 
 def _one_frame_store(tmp_path, *, detected_state="standby"):
@@ -264,27 +265,27 @@ def _one_frame_store(tmp_path, *, detected_state="standby"):
 
 def test_re_exporting_a_frame_overrides_without_duplicating(tmp_path):
     rel, store = _one_frame_store(tmp_path)
-    session_dir = tmp_path / rel
+    exports = tmp_path / rel / "exports"
 
     store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
     again = store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
 
     # The same sample re-exported overwrites its file — no _2 duplicate.
     assert again == ["fail_30x20_1.png"]
-    assert [p.name for p in session_dir.glob("fail_*.png")] == ["fail_30x20_1.png"]
+    assert [p.name for p in exports.glob("fail_*.png")] == ["fail_30x20_1.png"]
 
 
 def test_re_exporting_a_frame_with_a_new_label_drops_the_old_file(tmp_path):
     rel, store = _one_frame_store(tmp_path)
-    session_dir = tmp_path / rel
+    exports = tmp_path / rel / "exports"
 
     store.export_labeled_samples(rel, [{"frame_number": 0, "label": "standby"}])
     store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
 
     # Relabelling the same sample replaces the prior export rather than leaving
     # a stale standby pair behind.
-    assert list(session_dir.glob("standby_*")) == []
-    assert [p.name for p in session_dir.glob("fail_*.png")] == ["fail_30x20_1.png"]
+    assert list(exports.glob("standby_*")) == []
+    assert [p.name for p in exports.glob("fail_*.png")] == ["fail_30x20_1.png"]
 
 
 def test_export_unknown_session_returns_none(tmp_path):
@@ -338,13 +339,11 @@ def test_exported_pairs_are_discovered_by_the_detector_globber(tmp_path):
     # Copy the exported pairs into a clean fixtures dir, like the reviewer would.
     fixtures = tmp_path / "fixtures"
     fixtures.mkdir()
-    session_dir = tmp_path / rel
+    exports = tmp_path / rel / "exports"
     for png in written:
         stem = png[: -len(".png")]
-        (fixtures / png).write_bytes((session_dir / png).read_bytes())
-        (fixtures / f"{stem}.json").write_text(
-            (session_dir / f"{stem}.json").read_text()
-        )
+        (fixtures / png).write_bytes((exports / png).read_bytes())
+        (fixtures / f"{stem}.json").write_text((exports / f"{stem}.json").read_text())
 
     by_label = {s.annotation.label: s for s in discover_labeled_samples(fixtures)}
     assert by_label["fail"].is_assertable is True
