@@ -29,9 +29,19 @@ const PROMPTS = path.join(SCRIPT_DIR, "prompts");
 
 const MODELS = {
   planner: "claude-opus-4-8",
-  implement: "claude-sonnet-4-6",
+  implement: "claude-opus-4-8",
+  // implement: "claude-sonnet-4-6",
   review: "claude-opus-4-8",
-  reviewFix: "claude-sonnet-4-6",
+  // reviewFix: "claude-sonnet-4-6",
+  reviewFix: "claude-opus-4-8",
+} as const;
+
+// Reasoning effort per role (claude --effort): "low" | "medium" | "high" | "xhigh" | "max".
+const EFFORT = {
+  planner: "high",
+  implement: "medium",
+  review: "high",
+  reviewFix: "medium",
 } as const;
 
 const GATE_RETRY_ATTEMPTS = 2; // resume-the-implementer fix passes before giving up
@@ -205,9 +215,14 @@ const runGate = (wt: string, base: string): GateResult => {
 // Agents
 // --------------------------------------------------------------------------
 
-const agent = (model: string) => {
+type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+const agent = (model: string, effort?: Effort) => {
   const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-  return sandcastle.claudeCode(model, token ? { env: { CLAUDE_CODE_OAUTH_TOKEN: token } } : undefined);
+  return sandcastle.claudeCode(model, {
+    ...(token ? { env: { CLAUDE_CODE_OAUTH_TOKEN: token } } : {}),
+    ...(effort ? { effort } : {}),
+  });
 };
 
 class FeatureError extends Error {
@@ -229,7 +244,7 @@ const plan = async (issueDetails: string): Promise<Plan> => {
   const output = sandcastle.Output.object({ tag: "plan", schema: standardSchema(parsePlan) });
   const common = {
     name: "planner",
-    agent: agent(MODELS.planner),
+    agent: agent(MODELS.planner, EFFORT.planner),
     sandbox: noSandbox(),
     cwd: REPO_ROOT,
     logging: { type: "stdout" } as const,
@@ -294,7 +309,7 @@ const gateWithRetry = async (
     console.log(`  gate red for #${issueNum} — fix attempt ${attempt}/${GATE_RETRY_ATTEMPTS}`);
     await sandbox.run({
       name: `gate-fix-#${issueNum} (attempt ${attempt})`,
-      agent: agent(MODELS.implement),
+      agent: agent(MODELS.implement, EFFORT.implement),
       logging: { type: "stdout" },
       maxIterations: 20,
       prompt:
@@ -335,7 +350,7 @@ const reviewAndFix = async (
 
   await sandbox.run({
     name: `review-${tag}`,
-    agent: agent(MODELS.review),
+    agent: agent(MODELS.review, EFFORT.review),
     logging: { type: "stdout" },
     maxIterations: 15,
     promptFile: path.join(PROMPTS, "review-prompt.md"),
@@ -355,7 +370,7 @@ const reviewAndFix = async (
     console.log(`  review found blocking findings for ${tag} — running fix pass`);
     await sandbox.run({
       name: `review-fix-${tag}`,
-      agent: agent(MODELS.reviewFix),
+      agent: agent(MODELS.reviewFix, EFFORT.reviewFix),
       logging: { type: "stdout" },
       maxIterations: 20,
       promptFile: path.join(PROMPTS, "review-fix-prompt.md"),
@@ -443,7 +458,7 @@ const processFeature = async (feature: Feature, featureDir: string): Promise<str
 
       await sandbox.run({
         name: `implement-#${issueNum}`,
-        agent: agent(MODELS.implement),
+        agent: agent(MODELS.implement, EFFORT.implement),
         logging: { type: "stdout" },
         maxIterations: 30,
         promptFile: path.join(PROMPTS, "implement-prompt.md"),
