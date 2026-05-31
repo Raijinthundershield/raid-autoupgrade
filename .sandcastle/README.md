@@ -101,7 +101,11 @@ npm start -- 40 41 42 --review-mode=per-issue
 
 ## Output
 
-- **Live:** progress streams to the console.
+- **Live:** progress streams to the console. Note the console only surfaces the
+  agent's prose plus four allowlisted tools (Bash/WebSearch/WebFetch/Agent) —
+  Read/Edit/Write/Grep/thinking are dropped before display. To see in full
+  detail what an agent is doing, tail its raw Claude session transcript in a
+  second pane: `./watch-agent.sh` (see `watch-agent.sh -h`).
 - **Successful feature:** the **PR** is the report — body carries the summary,
   `Closes #…`, and a "Review notes" section with the reviewer's judgment calls.
 - **Failed feature:** a comment is left on the issue(s) with the gate/error
@@ -116,6 +120,7 @@ npm start -- 40 41 42 --review-mode=per-issue
 | File | Role |
 | --- | --- |
 | `run.ts` | Orchestrator: planner call + per-feature loop + gate + PR + summary. |
+| `watch-agent.sh` | Tail an agent's raw Claude session transcript (full tool calls + thinking) in a second pane. |
 | `prompts/plan-prompt.md` | Planner: group/order issues into features (structured `<plan>` output). |
 | `prompts/implement-prompt.md` | Implementer: TDD via the repo's `tdd` skill (AFK override) + the gate. |
 | `prompts/review-prompt.md` | Reviewer: the repo's two-axis `review` skill; writes blocking + notes files. |
