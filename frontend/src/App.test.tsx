@@ -325,13 +325,13 @@ describe("App", () => {
     vi.stubGlobal(
       "fetch",
       makeFetchMock({
-        "/api/debug/sessions/count/sess1/frames": {
+        "/api/debug/frames": {
           frames: [
             { frame_number: 0, detected_state: "fail", roi_file: "r.png", screenshot_file: "s.png" },
           ],
         },
         "/api/debug/sessions": {
-          sessions: [{ kind: "count", name: "sess1", frame_count: 1 }],
+          sessions: [{ id: "count/sess1", kind: "count", name: "sess1", frame_count: 1 }],
         },
         "/api/debug/status": { enabled: true },
       })

@@ -2,7 +2,9 @@
 
 The endpoints surface the progress-bar samples a `--debug` Count/Spend session
 writes to disk. They are gated on debug being enabled: without `--debug` the
-data endpoints are absent (404) and only /api/debug/status answers.
+data endpoints are absent (404) and only /api/debug/status answers. A session
+is addressed by its id — its path relative to the debug root — which travels as
+a query parameter because it bears slashes.
 """
 
 import json
@@ -20,20 +22,18 @@ def _client(store: DebugSessionStore) -> TestClient:
     return TestClient(app)
 
 
-def _write_session(
-    root, kind: str, name: str, frames: list[dict], images: dict[str, bytes]
-) -> None:
-    """Materialise a captured session on disk like DebugFrameLogger does."""
-    session_dir = root / kind / name
+def _write_session(root, rel, frames, images=None) -> None:
+    """Materialise a captured session at ``root/rel`` like DebugFrameLogger."""
+    session_dir = root / rel
     session_dir.mkdir(parents=True)
-    summary = {"session_name": name, "total_frames": len(frames), "frames": frames}
+    summary = {"session_name": session_dir.name, "frames": frames}
     (session_dir / "debug_summary.json").write_text(json.dumps(summary))
-    for filename, data in images.items():
+    for filename, data in (images or {}).items():
         (session_dir / filename).write_bytes(data)
 
 
 # ---------------------------------------------------------------------------
-# Tracer bullet: GET /api/debug/status reflects whether debug is enabled
+# GET /api/debug/status reflects whether debug is enabled
 # ---------------------------------------------------------------------------
 
 
@@ -55,13 +55,13 @@ def test_status_disabled_when_no_debug_root():
 
 # ---------------------------------------------------------------------------
 # GET /api/debug/sessions lists count + spend sessions, most-recent-first,
-# kind-tagged, with each session's frame count.
+# kind-tagged, addressed by id, with each session's frame count.
 # ---------------------------------------------------------------------------
 
 
 def test_sessions_lists_both_kinds_most_recent_first(tmp_path):
-    _write_session(tmp_path, "count", "20260531_120000_000", frames=[{}, {}], images={})
-    _write_session(tmp_path, "spend", "20260531_130000_000", frames=[{}], images={})
+    _write_session(tmp_path, "count/20260531_120000_000", frames=[{}, {}])
+    _write_session(tmp_path, "spend/upgrade_1/20260531_130000_000", frames=[{}])
 
     with _client(DebugSessionStore(debug_root=tmp_path)) as client:
         response = client.get("/api/debug/sessions")
@@ -69,8 +69,18 @@ def test_sessions_lists_both_kinds_most_recent_first(tmp_path):
     assert response.status_code == 200
     assert response.json() == {
         "sessions": [
-            {"kind": "spend", "name": "20260531_130000_000", "frame_count": 1},
-            {"kind": "count", "name": "20260531_120000_000", "frame_count": 2},
+            {
+                "id": "spend/upgrade_1/20260531_130000_000",
+                "kind": "spend",
+                "name": "20260531_130000_000",
+                "frame_count": 1,
+            },
+            {
+                "id": "count/20260531_120000_000",
+                "kind": "count",
+                "name": "20260531_120000_000",
+                "frame_count": 2,
+            },
         ]
     }
 
@@ -91,8 +101,8 @@ def test_sessions_404_when_debug_disabled():
 
 
 # ---------------------------------------------------------------------------
-# GET /api/debug/sessions/{kind}/{name}/frames returns each captured frame,
-# including the detector's recorded state guess and its image filenames.
+# GET /api/debug/frames?session=... returns each captured frame, including the
+# detector's recorded state guess and its image filenames.
 # ---------------------------------------------------------------------------
 
 
@@ -119,10 +129,12 @@ _FRAMES = [
 
 
 def test_frames_returns_captured_frames_with_state_guess(tmp_path):
-    _write_session(tmp_path, "count", "20260531_120000_000", frames=_FRAMES, images={})
+    _write_session(tmp_path, "count/20260531_120000_000", frames=_FRAMES)
 
     with _client(DebugSessionStore(debug_root=tmp_path)) as client:
-        response = client.get("/api/debug/sessions/count/20260531_120000_000/frames")
+        response = client.get(
+            "/api/debug/frames", params={"session": "count/20260531_120000_000"}
+        )
 
     assert response.status_code == 200
     assert response.json() == {"frames": _FRAMES}
@@ -130,21 +142,20 @@ def test_frames_returns_captured_frames_with_state_guess(tmp_path):
 
 def test_frames_404_for_unknown_session(tmp_path):
     with _client(DebugSessionStore(debug_root=tmp_path)) as client:
-        response = client.get("/api/debug/sessions/count/nope/frames")
+        response = client.get("/api/debug/frames", params={"session": "count/nope"})
 
     assert response.status_code == 404
 
 
 def test_frames_404_when_debug_disabled():
     with _client(DebugSessionStore(debug_root=None)) as client:
-        response = client.get("/api/debug/sessions/count/whatever/frames")
+        response = client.get("/api/debug/frames", params={"session": "count/x"})
 
     assert response.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# GET /api/debug/sessions/{kind}/{name}/images/{filename} serves a frame's
-# ROI or screenshot PNG.
+# GET /api/debug/image?session=...&file=... serves a frame's ROI/screenshot PNG.
 # ---------------------------------------------------------------------------
 
 
@@ -153,16 +164,13 @@ _PNG = b"\x89PNG\r\n\x1a\nfake-roi-bytes"
 
 def test_image_serves_png_bytes(tmp_path):
     _write_session(
-        tmp_path,
-        "count",
-        "20260531_120000_000",
-        frames=[],
-        images={"roi.png": _PNG},
+        tmp_path, "count/20260531_120000_000", frames=[], images={"roi.png": _PNG}
     )
 
     with _client(DebugSessionStore(debug_root=tmp_path)) as client:
         response = client.get(
-            "/api/debug/sessions/count/20260531_120000_000/images/roi.png"
+            "/api/debug/image",
+            params={"session": "count/20260531_120000_000", "file": "roi.png"},
         )
 
     assert response.status_code == 200
@@ -171,11 +179,12 @@ def test_image_serves_png_bytes(tmp_path):
 
 
 def test_image_404_for_missing_file(tmp_path):
-    _write_session(tmp_path, "count", "20260531_120000_000", frames=[], images={})
+    _write_session(tmp_path, "count/20260531_120000_000", frames=[])
 
     with _client(DebugSessionStore(debug_root=tmp_path)) as client:
         response = client.get(
-            "/api/debug/sessions/count/20260531_120000_000/images/ghost.png"
+            "/api/debug/image",
+            params={"session": "count/20260531_120000_000", "file": "ghost.png"},
         )
 
     assert response.status_code == 404
@@ -183,6 +192,8 @@ def test_image_404_for_missing_file(tmp_path):
 
 def test_image_404_when_debug_disabled():
     with _client(DebugSessionStore(debug_root=None)) as client:
-        response = client.get("/api/debug/sessions/count/whatever/images/roi.png")
+        response = client.get(
+            "/api/debug/image", params={"session": "count/x", "file": "roi.png"}
+        )
 
     assert response.status_code == 404

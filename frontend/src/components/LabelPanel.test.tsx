@@ -4,47 +4,38 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LabelPanel } from "./LabelPanel";
 
-// Two sessions; the backend returns them most-recent-first. Each session's
-// frames are keyed by its frames URL so a test can prove which one loaded.
+// Two sessions; the backend returns them most-recent-first and addresses each
+// by its id (its path relative to the debug root). Each session's frames are
+// keyed by its id so a test can prove which one loaded.
 const SESSIONS = [
-  { kind: "count", name: "20260531_130000_000", frame_count: 2 },
-  { kind: "spend", name: "20260531_120000_000", frame_count: 1 },
+  { id: "count/20260531_130000_000", kind: "count", name: "20260531_130000_000", frame_count: 2 },
+  {
+    id: "spend/upgrade_1/20260531_120000_000",
+    kind: "spend",
+    name: "20260531_120000_000",
+    frame_count: 1,
+  },
 ];
 
 const COUNT_FRAMES = {
   frames: [
-    {
-      frame_number: 0,
-      detected_state: "standby",
-      roi_file: "f0_roi.png",
-      screenshot_file: "f0_shot.png",
-    },
-    {
-      frame_number: 1,
-      detected_state: "fail",
-      roi_file: "f1_roi.png",
-      screenshot_file: "f1_shot.png",
-    },
+    { frame_number: 0, detected_state: "standby", roi_file: "f0_roi.png", screenshot_file: "f0_shot.png" },
+    { frame_number: 1, detected_state: "fail", roi_file: "f1_roi.png", screenshot_file: "f1_shot.png" },
   ],
 };
 
 const SPEND_FRAMES = {
   frames: [
-    {
-      frame_number: 0,
-      detected_state: "connection_error",
-      roi_file: "s0_roi.png",
-      screenshot_file: "s0_shot.png",
-    },
+    { frame_number: 0, detected_state: "connection_error", roi_file: "s0_roi.png", screenshot_file: "s0_shot.png" },
   ],
 };
 
 function makeFetch(sessions: unknown = SESSIONS) {
   return vi.fn((url: string) => {
     let body: unknown = {};
-    if (url.includes("/api/debug/sessions/count/20260531_130000_000/frames")) {
+    if (url.includes("/api/debug/frames") && url.includes("session=count")) {
       body = COUNT_FRAMES;
-    } else if (url.includes("/api/debug/sessions/spend/20260531_120000_000/frames")) {
+    } else if (url.includes("/api/debug/frames") && url.includes("session=spend")) {
       body = SPEND_FRAMES;
     } else if (url.includes("/api/debug/sessions")) {
       body = { sessions };
@@ -78,15 +69,12 @@ describe("LabelPanel", () => {
     await screen.findByText("standby");
     expect(screen.getByText("fail")).toBeInTheDocument();
 
-    // Each frame shows its ROI and full screenshot, served from the image endpoint.
+    // Each frame shows its ROI and full screenshot, served from the image endpoint
+    // with the session id and filename as query params.
     const roi = screen.getByAltText(/roi.*frame 0/i) as HTMLImageElement;
-    expect(roi.src).toContain(
-      "/api/debug/sessions/count/20260531_130000_000/images/f0_roi.png"
-    );
-    const shot = screen.getByAltText(/screenshot.*frame 0/i) as HTMLImageElement;
-    expect(shot.src).toContain(
-      "/api/debug/sessions/count/20260531_130000_000/images/f0_shot.png"
-    );
+    expect(roi.src).toContain("/api/debug/image?");
+    expect(roi.src).toContain("session=count%2F20260531_130000_000");
+    expect(roi.src).toContain("file=f0_roi.png");
   });
 
   // ---------------------------------------------------------------------------
@@ -100,7 +88,7 @@ describe("LabelPanel", () => {
 
     await userEvent.selectOptions(
       screen.getByRole("combobox"),
-      "spend/20260531_120000_000"
+      "spend/upgrade_1/20260531_120000_000"
     );
 
     await screen.findByText("connection_error");

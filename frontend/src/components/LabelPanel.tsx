@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface DebugSession {
+  id: string;
   kind: string;
   name: string;
   frame_count: number;
@@ -14,22 +15,20 @@ interface DebugFrame {
   screenshot_file: string;
 }
 
-// A session is addressed by "{kind}/{name}", which is also its URL path under
-// /api/debug/sessions/.
-function sessionKey(s: DebugSession): string {
-  return `${s.kind}/${s.name}`;
-}
-
 async function fetchSessions(): Promise<DebugSession[]> {
   const res = await fetch("/api/debug/sessions");
   if (!res.ok) return [];
   return (await res.json()).sessions ?? [];
 }
 
-async function fetchFrames(sessionKey: string): Promise<DebugFrame[]> {
-  const res = await fetch(`/api/debug/sessions/${sessionKey}/frames`);
+async function fetchFrames(sessionId: string): Promise<DebugFrame[]> {
+  const res = await fetch(`/api/debug/frames?session=${encodeURIComponent(sessionId)}`);
   if (!res.ok) return [];
   return (await res.json()).frames ?? [];
+}
+
+function imageUrl(sessionId: string, file: string): string {
+  return `/api/debug/image?session=${encodeURIComponent(sessionId)}&file=${encodeURIComponent(file)}`;
 }
 
 export function LabelPanel() {
@@ -41,7 +40,7 @@ export function LabelPanel() {
   // Default to the most recent session (the backend lists them recent-first)
   // until the user explicitly picks another.
   const [picked, setPicked] = useState<string | null>(null);
-  const active = picked ?? (sessions && sessions[0] ? sessionKey(sessions[0]) : null);
+  const active = picked ?? sessions?.[0]?.id ?? null;
 
   const { data: frames } = useQuery({
     queryKey: ["debug-frames", active],
@@ -63,14 +62,11 @@ export function LabelPanel() {
           onChange={(e) => setPicked(e.target.value)}
           className="bg-transparent border border-[var(--t-border)] rounded px-2 py-1 text-sm"
         >
-          {(sessions ?? []).map((s) => {
-            const key = sessionKey(s);
-            return (
-              <option key={key} value={key}>
-                {s.kind} · {s.name} ({s.frame_count})
-              </option>
-            );
-          })}
+          {(sessions ?? []).map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.kind} · {s.name} ({s.frame_count})
+            </option>
+          ))}
         </select>
       </label>
 
@@ -82,12 +78,12 @@ export function LabelPanel() {
           >
             <img
               alt={`ROI for frame ${f.frame_number}`}
-              src={`/api/debug/sessions/${active}/images/${f.roi_file}`}
+              src={imageUrl(active!, f.roi_file)}
               className="h-12"
             />
             <img
               alt={`Screenshot for frame ${f.frame_number}`}
-              src={`/api/debug/sessions/${active}/images/${f.screenshot_file}`}
+              src={imageUrl(active!, f.screenshot_file)}
               className="h-24"
             />
             <span className="font-mono text-sm">{f.detected_state}</span>

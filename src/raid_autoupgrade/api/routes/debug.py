@@ -29,33 +29,33 @@ def list_debug_sessions(
     return {"sessions": [asdict(s) for s in store.list_sessions()]}
 
 
-@router.get("/api/debug/sessions/{kind}/{name}/frames")
+@router.get("/api/debug/frames")
 def get_session_frames(
-    kind: str,
-    name: str,
+    session: str,
     store: DebugSessionStore = Depends(get_debug_session_store),
 ) -> dict:
     """Return a session's captured frames, each carrying the detector's
-    recorded state guess and its ROI/screenshot filenames."""
+    recorded state guess and its ROI/screenshot filenames. ``session`` is the
+    id from the sessions list (a slash-bearing relative path, so it travels as
+    a query parameter)."""
     if not store.enabled:
         raise HTTPException(status_code=404, detail="debug capture disabled")
-    frames = store.read_frames(kind, name)
+    frames = store.read_frames(session)
     if frames is None:
         raise HTTPException(status_code=404, detail="session not found")
     return {"frames": frames}
 
 
-@router.get("/api/debug/sessions/{kind}/{name}/images/{filename}")
+@router.get("/api/debug/image")
 def get_session_image(
-    kind: str,
-    name: str,
-    filename: str,
+    session: str,
+    file: str,
     store: DebugSessionStore = Depends(get_debug_session_store),
 ) -> Response:
-    """Serve a frame's ROI or screenshot PNG by filename."""
+    """Serve a frame's ROI or screenshot PNG (``file``) from a session."""
     if not store.enabled:
         raise HTTPException(status_code=404, detail="debug capture disabled")
-    data = store.read_image(kind, name, filename)
+    data = store.read_image(session, file)
     if data is None:
         raise HTTPException(status_code=404, detail="image not found")
     return Response(content=data, media_type="image/png")

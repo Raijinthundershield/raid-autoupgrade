@@ -198,8 +198,12 @@ class SpendWorkflow:
                 check_interval=0.25,
                 network_adapter_ids=None,
                 disable_network=False,
+                # ``self._debug_dir`` is already the kind-namespaced
+                # ``.../debug/spend`` (run_fn does that). Each upgrade attempt
+                # runs its own monitor session, so they are grouped per attempt;
+                # the timestamp dir under that is added by the DebugFrameLogger.
                 debug_dir=(
-                    self._debug_dir / "spend" / f"upgrade_{upgrade_count + 1}"
+                    self._debug_dir / f"upgrade_{upgrade_count + 1}"
                     if self._debug_dir
                     else None
                 ),

@@ -1,87 +1,96 @@
 """Read access to the progress-bar samples a ``--debug`` session captures.
 
-A debug Count/Spend run writes one timestamped session directory per run under
-``{debug_root}/{kind}/`` (kind = ``count`` | ``spend``), each holding a
-``debug_summary.json`` (the captured frames, including the detector's recorded
-state guess) plus the ROI and screenshot PNGs. This store is the read side the
-Label tab reviews them through; it is disabled (no root) unless the GUI was
-launched with ``--debug``.
+A debug Count/Spend run writes one timestamped session directory per monitor
+run, each holding a ``debug_summary.json`` (the captured frames, including the
+detector's recorded state guess) plus the ROI and screenshot PNGs. The exact
+nesting varies — Count lands at ``{root}/count/count/{ts}/`` and Spend at
+``{root}/spend/spend/upgrade_{n}/{ts}/`` — so sessions are discovered by
+recursively finding the summary files rather than assuming a fixed depth. A
+session is then addressed by its path relative to the debug root.
+
+This store is the read side the Label tab reviews captures through; it is
+disabled (no root) unless the GUI was launched with ``--debug``.
 """
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
 
-_KINDS = ("count", "spend")
 _SUMMARY_FILE = "debug_summary.json"
 
 
 @dataclass(frozen=True)
 class DebugSession:
-    """One captured session: its kind, directory name, and frame count."""
+    """One captured session.
 
+    ``id`` is the session directory's path relative to the debug root (posix
+    style) and doubles as its address in the API. ``kind`` is the top-level
+    group (``count`` | ``spend``); ``name`` is the leaf directory (the capture
+    timestamp).
+    """
+
+    id: str
     kind: str
     name: str
     frame_count: int
 
 
 class DebugSessionStore:
-    """Enumerate and read captured debug sessions under a debug root.
+    """Discover and read captured debug sessions under a debug root.
 
     Args:
-        debug_root: Root directory holding ``count/`` and ``spend/`` session
-            dirs, or ``None`` when debug capture is disabled.
+        debug_root: Root directory the capture side writes under, or ``None``
+            when debug capture is disabled.
     """
 
     def __init__(self, debug_root: Path | None) -> None:
-        self._root = debug_root
+        self._root = debug_root.resolve() if debug_root is not None else None
 
     @property
     def enabled(self) -> bool:
         return self._root is not None
 
     def list_sessions(self) -> list[DebugSession]:
-        """Enumerate captured sessions across both kinds, most-recent-first.
+        """Discover captured sessions at any depth, most-recent-first.
 
         Session names are millisecond timestamps, so lexicographic descending
-        order is chronological. A directory without a ``debug_summary.json`` is
-        an incomplete/aborted capture and is skipped.
+        order is chronological.
         """
-        if self._root is None:
+        if self._root is None or not self._root.is_dir():
             return []
 
         sessions: list[DebugSession] = []
-        for kind in _KINDS:
-            kind_dir = self._root / kind
-            if not kind_dir.is_dir():
-                continue
-            for session_dir in kind_dir.iterdir():
-                summary = session_dir / _SUMMARY_FILE
-                if not summary.is_file():
-                    continue
-                frames = json.loads(summary.read_text()).get("frames", [])
-                sessions.append(DebugSession(kind, session_dir.name, len(frames)))
+        for summary in self._root.rglob(_SUMMARY_FILE):
+            session_dir = summary.parent
+            rel = session_dir.relative_to(self._root).as_posix()
+            frames = json.loads(summary.read_text()).get("frames", [])
+            sessions.append(
+                DebugSession(
+                    id=rel,
+                    kind=rel.split("/", 1)[0],
+                    name=session_dir.name,
+                    frame_count=len(frames),
+                )
+            )
 
         sessions.sort(key=lambda s: s.name, reverse=True)
         return sessions
 
-    def read_frames(self, kind: str, name: str) -> list[dict] | None:
+    def read_frames(self, session_id: str) -> list[dict] | None:
         """Return a session's captured frames, or ``None`` if it doesn't exist."""
-        session_dir = self._session_dir(kind, name)
+        session_dir = self._session_dir(session_id)
         if session_dir is None:
             return None
         summary = session_dir / _SUMMARY_FILE
-        if not summary.is_file():
-            return None
         return json.loads(summary.read_text()).get("frames", [])
 
-    def read_image(self, kind: str, name: str, filename: str) -> bytes | None:
+    def read_image(self, session_id: str, filename: str) -> bytes | None:
         """Return a frame image's bytes, or ``None`` if absent.
 
         ``filename`` must name a file directly inside the session directory;
         anything that escapes it (a separator or ``..``) is rejected.
         """
-        session_dir = self._session_dir(kind, name)
+        session_dir = self._session_dir(session_id)
         if session_dir is None:
             return None
         image_path = (session_dir / filename).resolve()
@@ -89,13 +98,14 @@ class DebugSessionStore:
             return None
         return image_path.read_bytes()
 
-    def _session_dir(self, kind: str, name: str) -> Path | None:
-        """Resolve a session directory, guarding against an unknown kind and
-        any ``name`` that escapes the kind directory."""
-        if self._root is None or kind not in _KINDS:
+    def _session_dir(self, session_id: str) -> Path | None:
+        """Resolve a session id to its directory, rejecting any id that escapes
+        the root or doesn't point at a real captured session."""
+        if self._root is None:
             return None
-        kind_dir = (self._root / kind).resolve()
-        session_dir = (kind_dir / name).resolve()
-        if session_dir.parent != kind_dir or not session_dir.is_dir():
+        session_dir = (self._root / session_id).resolve()
+        if not session_dir.is_relative_to(self._root):
+            return None
+        if not (session_dir / _SUMMARY_FILE).is_file():
             return None
         return session_dir
