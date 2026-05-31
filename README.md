@@ -8,52 +8,49 @@ A Windows desktop tool to automate the "airplane mode trick" for gear upgrades i
 
 ## Download
 
-Grab the latest `RaidAutoupgrade-v<version>-win64.exe`
-from the [**Releases page**](../../releases/latest) — no Python, Node, or command
-line needed. The app asks for administrator rights once at launch (required for
-network-adapter control).
+Grab the latest `RaidAutoupgrade-v<version>-win64.exe` from the [**Releases
+page**](../../releases/latest). The app asks for administrator rights at
+launch (required for network-adapter control).
 
-On a fresh Windows machine the unsigned exe trips a few Windows safety prompts on
-first download and run — all expected, none a sign of malware. See
+Because the exe is unsigned, your browser and Windows may flag it as unsafe when
+you download or run it. See
 [**Troubleshooting the download**](#troubleshooting-the-download) if any of them
 stops you.
 
-> **Building from source?** See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites, setup, and the frontend dev workflow.
+> **Building from source?** See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites, setup, and the dev workflow.
 
 ## Usage
 
-Once the app is running (whether from the exe or from source):
+Once the app is running:
 
-1. **Calibrate regions** (whenever the Raid window is resized):
-   - Navigate to the upgrade screen in Raid
-   - Open the **Calibration tab**, click **Capture Screenshot**, then draw regions over the upgrade progress bar and upgrade button
-   - Regions are saved and reused across sessions — recalibrate if the window size changes
+1. **Calibrate regions**:
+   - Navigate to the upgrade screen of a gear piece in Raid
+   - Open the **Calibration tab**, click **Capture Screenshot**, then draw regions over the upgrade progress bar and upgrade button (examples below). It is important that the progress bar region does not go beyond the black part.
+   - Regions are saved and reused across sessions. You need to recalibrate if the window size changes.
 
    ![Region Selection](docs/images/image_with_regions.png)
 
 2. **Select network adapters** (one-time):
-   - In the **Run tab**, use the Network sidebar to choose which adapters to disable during counting (Wi-Fi, Ethernet, etc.)
+   - In the **Run** tab, use the Network sidebar to choose which adapters to disable during counting (Wi-Fi, Ethernet, etc.). All adapters that provide network access need to be selected.
 
 3. **Run an upgrade**:
    - Navigate to the upgrade screen of the gear piece to count fails on
    - In the **Count panel**, click **Start Count** — network is disabled automatically while counting
    - Navigate to the upgrade screen of the gear piece to spend upgrades on
-   - In the **Spend panel**, click **Start Spend** — max attempts is auto-populated from the count
-   - Enable **Continue upgrade** in the Spend panel for level 10 gear to upgrade to level 12 if required
+   - In the **Spend panel**, click **Start Spend** — max attempts was auto-populated from the count
+   - Enable **Continue upgrade** in the Spend panel for level 10 gear to upgrade to level 12 in case it upgrades to level 11 before max attempts is reached. By default it stops after one upgrade.
 
 ## Important Notes
 
 - **Window size**: Keep the Raid window size constant during a session — regions are cached per window size, so resizing invalidates them and forces recalibration
-- **Foreground window**: the Raid window activates and grabs focus during operation
-  - Don't multitask while the tool runs (it repeatedly takes focus for screenshots and clicks)
-  - It may briefly minimize/restore the Raid window
+- **Foreground window**: the Raid window activates and grabs focus during operation.
 - **First-try success**: the tool may misbehave on upgrades that succeed on the very first attempt
-- **App data location**: settings and debug captures live under `%PROGRAMDATA%\RaidAutoupgrade\`; calibrated regions live under `%LOCALAPPDATA%\RaidAutoupgrade\regions`
+- **App data location**: settings and debug captures live under `%PROGRAMDATA%\RaidAutoupgrade\`
 
 ## Troubleshooting the download
 
 The downloaded exe is unsigned, so Windows treats it cautiously. Each of these is
-expected and is not a sign the app is malware.
+expected.
 
 - **Browser blocks the download** — your browser may flag the exe as unsafe and
   refuse to save it. Click **Keep** / **Keep anyway** in the download bar to get
