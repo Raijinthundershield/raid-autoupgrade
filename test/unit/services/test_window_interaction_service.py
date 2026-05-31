@@ -1,6 +1,7 @@
 """Unit tests for WindowInteractionService."""
 
 import ctypes
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
@@ -11,6 +12,15 @@ from raid_autoupgrade.services.window_interaction_service import (
     SW_RESTORE,
     WindowInteractionService,
 )
+
+# Constructs the service (touches ctypes.windll) and patches pygetwindow —
+# both Windows-only (ctypes.windll is absent off Windows).
+pytestmark = [
+    pytest.mark.windows,
+    pytest.mark.skipif(
+        sys.platform != "win32", reason="Windows-only: Win32 (ctypes.windll) APIs"
+    ),
+]
 
 
 class TestWindowInteractionService:

@@ -1,8 +1,11 @@
 """Unit tests for the WebView2 runtime detector."""
 
-import winreg
+from raid_autoupgrade.utils.webview2 import _HIVES, webview2_installed
 
-from raid_autoupgrade.utils.webview2 import webview2_installed
+# (HKLM, HKCU) hive handles the detector iterates. Sourced from the module
+# rather than winreg so this pure-logic test runs cross-platform (winreg is
+# Windows-only); the stub treats them as opaque keys.
+_HKLM, _HKCU = _HIVES
 
 
 class _RegistryStub:
@@ -23,7 +26,7 @@ class TestWebview2Installed:
     """Contract: detect WebView2 from the EdgeUpdate client key in either hive."""
 
     def test_true_when_hklm_has_non_empty_version(self):
-        reader = _RegistryStub({winreg.HKEY_LOCAL_MACHINE: "121.0.2277.83"})
+        reader = _RegistryStub({_HKLM: "121.0.2277.83"})
 
         assert webview2_installed(reader) is True
 
@@ -33,11 +36,11 @@ class TestWebview2Installed:
         assert webview2_installed(reader) is False
 
     def test_true_when_present_only_under_hkcu(self):
-        reader = _RegistryStub({winreg.HKEY_CURRENT_USER: "121.0.2277.83"})
+        reader = _RegistryStub({_HKCU: "121.0.2277.83"})
 
         assert webview2_installed(reader) is True
 
     def test_false_when_version_is_empty(self):
-        reader = _RegistryStub({winreg.HKEY_LOCAL_MACHINE: ""})
+        reader = _RegistryStub({_HKLM: ""})
 
         assert webview2_installed(reader) is False

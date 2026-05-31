@@ -9,12 +9,20 @@ import time
 
 import cv2
 import numpy as np
-import pyautogui
-import pygetwindow
 from loguru import logger
 
 from raid_autoupgrade.exceptions import WindowNotFoundException
 from raid_autoupgrade.protocols import WindowInteractionProtocol
+
+# Win32-only GUI-automation libs (gated to sys_platform == 'win32' in
+# pyproject). Guard the import so this module loads on Linux/WSL — capture runs
+# only on Windows; ROI extraction below is pure numpy and stays cross-platform.
+try:
+    import pyautogui
+    import pygetwindow
+except ImportError:  # non-Windows
+    pyautogui = None  # type: ignore[assignment]
+    pygetwindow = None  # type: ignore[assignment]
 
 
 class ScreenshotService:

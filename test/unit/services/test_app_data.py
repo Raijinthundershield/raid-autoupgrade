@@ -19,7 +19,9 @@ class TestAppDataInitialization:
 
             app_data = AppData(debug_enabled=False)
 
-            assert app_data.root_dir == Path("C:\\ProgramData\\RaidAutoupgrade")
+            # Build the expected path with the same join the code uses, so the
+            # comparison is separator-agnostic (passes on Windows and Linux).
+            assert app_data.root_dir == Path("C:\\ProgramData") / "RaidAutoupgrade"
             assert app_data.debug_enabled is False
 
     def test_app_data_with_custom_root_parameter(self):
@@ -56,13 +58,13 @@ class TestAppDataProperties:
         """Verify cache_dir property returns root_dir/cache."""
         app_data = AppData(root_dir=Path("C:\\test"), debug_enabled=False)
 
-        assert app_data.cache_dir == Path("C:\\test\\cache")
+        assert app_data.cache_dir == Path("C:\\test") / "cache"
 
     def test_debug_dir_with_debug_enabled(self):
         """Verify debug_dir property returns root_dir/debug when enabled."""
         app_data = AppData(root_dir=Path("C:\\test"), debug_enabled=True)
 
-        assert app_data.debug_dir == Path("C:\\test\\debug")
+        assert app_data.debug_dir == Path("C:\\test") / "debug"
 
     def test_debug_dir_with_debug_disabled(self):
         """Verify debug_dir property returns None when disabled."""
@@ -74,7 +76,7 @@ class TestAppDataProperties:
         """Verify browser_data_dir property returns root_dir/browser_data."""
         app_data = AppData(root_dir=Path("C:\\test"), debug_enabled=False)
 
-        assert app_data.browser_data_dir == Path("C:\\test\\browser_data")
+        assert app_data.browser_data_dir == Path("C:\\test") / "browser_data"
 
 
 class TestAppDataDirectoryCreation:
@@ -113,7 +115,7 @@ class TestAppDataLogFilePath:
 
         log_path = app_data.get_log_file_path()
 
-        assert log_path == Path("C:\\test\\debug\\raid_autoupgrade.log")
+        assert log_path == Path("C:\\test") / "debug" / "raid_autoupgrade.log"
 
     def test_get_log_file_path_with_debug_disabled(self):
         """Verify get_log_file_path() returns None when debug disabled."""
