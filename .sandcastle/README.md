@@ -39,10 +39,14 @@ it to `runs/<runId>/<branch>/handoff-issue-<N>.md` (gitignored, never committed)
 
 ### Key decisions baked in
 
-- **Isolation:** `noSandbox()` — agents run directly on this **Windows host**, so
-  `uv`, Win32/WMI, admin, and the GUI all work. Each feature gets its own git
-  **worktree** under `.sandcastle/worktrees/` for branch isolation. (No Docker:
-  a Linux container can't run autoraid's Windows-specific code.)
+- **Isolation:** `noSandbox()` — agents run directly on the **host**, currently
+  **WSL/Linux**. There the gate runs the cross-platform test subset
+  (`uv run pytest -m "not windows"`); the Win32/WMI tests are validated on a
+  Windows host pre-merge (CONTRIBUTING.md). Each feature gets its own git
+  **worktree** under `.sandcastle/worktrees/` for branch isolation. `noSandbox`
+  also works on a Windows host (runs the full suite); a Linux container
+  (`docker()`) is viable for the cross-platform subset but we run `noSandbox`
+  for now.
 - **Models:** Sonnet 4.6 implements; Opus 4.8 plans and reviews.
 - **Gate is a safety net, not the feedback loop.** The implementer runs the gate
   itself through its TDD loop; the script re-runs it independently to catch a
@@ -57,12 +61,20 @@ it to `runs/<runId>/<branch>/handoff-issue-<N>.md` (gitignored, never committed)
 
 ## Prerequisites
 
+Run it from your **WSL/Linux** environment (where the cross-platform test subset
+runs). There you need:
+
 - Node 20.11+ (uses `import.meta`), `npm`.
-- `uv` on PATH (the gate runs `uv run pytest` / `uv run pre-commit`).
+- `uv` on PATH (the gate runs `uv run pytest -m "not windows"` / `uv run pre-commit`).
 - `gh` authenticated (`gh auth status`) with push rights to the repo.
-- `claude` CLI authenticated on this host with your subscription. If it is, no
-  token is needed. Otherwise run `claude setup-token` and put the token in
+- `claude` CLI authenticated with your subscription. If it is, no token is
+  needed. Otherwise run `claude setup-token` and put the token in
   `.sandcastle/.env` as `CLAUDE_CODE_OAUTH_TOKEN` (see `.env.example`).
+
+If you instead run it on a **Windows host** (PowerShell), also install **Git for
+Windows**: `noSandbox` shells out via `sh -c` and uses coreutils like `cp`, which
+PowerShell lacks on PATH — `run.ts` auto-prepends Git's `usr\bin`/`bin` (missing →
+`spawn sh/cp ENOENT`). On WSL/Linux those tools are native and the shim is a no-op.
 
 ## Usage
 
@@ -127,11 +139,17 @@ These are non-obvious and will break things subtly if changed without care.
 Verified against **sandcastle 0.7.0**; re-check against the installed version
 before relying on the API points.
 
-1. **`noSandbox()` is mandatory, not a preference.** Agents run on the Windows
-   host because the gate (`uv`, Win32/WMI, admin, the GUI) cannot run in a Linux
-   container. Switching to `docker()`/`podman()` for "isolation" breaks the gate
-   and the whole point of the tool. Branch isolation comes from the **worktree**,
-   not a container.
+1. **`noSandbox()` is the current choice; the gate runs the cross-platform test
+   subset.** Agents run on the host — currently **WSL/Linux**, where
+   `PYTEST_CMD` is `uv run pytest -m "not windows"` (the Win32/WMI tests are
+   `windows`-marked and validated on a Windows host pre-merge). The full app
+   (WMI/Win32/GUI) only *runs* on Windows, but the in-scope issues are
+   cross-platform Python, so Linux is fine. `noSandbox` on a Windows host runs
+   the full suite (`PYTEST_CMD` switches on `process.platform`). A Linux
+   container (`docker()`) is viable for this subset, but we run `noSandbox` for
+   now — so the loop sees real `uv`/`gh`/`claude` and a real worktree. Branch
+   isolation comes from the **worktree**, not a container. The loop CANNOT
+   validate `windows`-marked tests; the PR body flags this.
 2. **Gate-fix is a fresh agent in the same worktree, NOT a resumed session.**
    `Sandbox.run()` (the createSandbox handle) exposes neither session-resume nor
    structured `output` — only top-level `run()` does. To get literal
