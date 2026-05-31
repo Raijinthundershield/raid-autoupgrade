@@ -9,6 +9,8 @@ a query parameter because it bears slashes.
 
 import json
 
+import cv2
+import numpy as np
 from fastapi.testclient import TestClient
 
 from raid_autoupgrade.api.app import create_app
@@ -30,6 +32,29 @@ def _write_session(root, rel, frames, images=None) -> None:
     (session_dir / "debug_summary.json").write_text(json.dumps(summary))
     for filename, data in (images or {}).items():
         (session_dir / filename).write_bytes(data)
+
+
+def _write_capture(root, rel, *, detected_state="standby", win=(30, 20)):
+    """Materialise a one-frame session with real ROI + screenshot PNGs.
+
+    ``win`` is the (width, height) the screenshot stands in for. Returns the
+    session id ``rel``.
+    """
+    session_dir = root / rel
+    session_dir.mkdir(parents=True)
+    w, h = win
+    cv2.imwrite(str(session_dir / "roi.png"), np.full((4, 8, 3), 200, dtype=np.uint8))
+    cv2.imwrite(str(session_dir / "shot.png"), np.zeros((h, w, 3), dtype=np.uint8))
+    frames = [
+        {
+            "frame_number": 0,
+            "detected_state": detected_state,
+            "roi_file": "roi.png",
+            "screenshot_file": "shot.png",
+        }
+    ]
+    (session_dir / "debug_summary.json").write_text(json.dumps({"frames": frames}))
+    return rel
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +219,49 @@ def test_image_404_when_debug_disabled():
     with _client(DebugSessionStore(debug_root=None)) as client:
         response = client.get(
             "/api/debug/image", params={"session": "count/x", "file": "roi.png"}
+        )
+
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /api/debug/export writes the reviewer's corrected labels back into the
+# session as fixture samples, returning the written filenames.
+# ---------------------------------------------------------------------------
+
+
+def test_export_writes_samples_and_returns_filenames(tmp_path):
+    rel = _write_capture(tmp_path, "count/20260531_120000_000", win=(30, 20))
+
+    with _client(DebugSessionStore(debug_root=tmp_path)) as client:
+        response = client.post(
+            "/api/debug/export",
+            json={"session": rel, "labels": [{"frame_number": 0, "label": "fail"}]},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"exported": ["fail_30x20_1.png"]}
+    assert (tmp_path / rel / "fail_30x20_1.png").is_file()
+
+
+def test_export_404_for_unknown_session(tmp_path):
+    with _client(DebugSessionStore(debug_root=tmp_path)) as client:
+        response = client.post(
+            "/api/debug/export",
+            json={
+                "session": "count/nope",
+                "labels": [{"frame_number": 0, "label": "fail"}],
+            },
+        )
+
+    assert response.status_code == 404
+
+
+def test_export_404_when_debug_disabled():
+    with _client(DebugSessionStore(debug_root=None)) as client:
+        response = client.post(
+            "/api/debug/export",
+            json={"session": "count/x", "labels": []},
         )
 
     assert response.status_code == 404

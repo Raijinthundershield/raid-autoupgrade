@@ -37,6 +37,10 @@ wheels/
 htmlcov/
 *.log
 
+# Node / frontend
+node_modules/
+.vite/
+
 # Virtual environments
 .venv
 venv/

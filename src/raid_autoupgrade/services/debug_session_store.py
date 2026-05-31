@@ -8,13 +8,22 @@ nesting varies — Count lands at ``{root}/count/count/{ts}/`` and Spend at
 recursively finding the summary files rather than assuming a fixed depth. A
 session is then addressed by its path relative to the debug root.
 
-This store is the read side the Label tab reviews captures through; it is
-disabled (no root) unless the GUI was launched with ``--debug``.
+This store is what the Label tab reviews captures through and exports
+corrected labels back out of; it is disabled (no root) unless the GUI was
+launched with ``--debug``.
 """
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
+
+import cv2
+
+from raid_autoupgrade.detection.sample_annotation import (
+    SampleAnnotation,
+    derive_metadata,
+    write_annotation,
+)
 
 _SUMMARY_FILE = "debug_summary.json"
 
@@ -97,6 +106,60 @@ class DebugSessionStore:
         if image_path.parent != session_dir or not image_path.is_file():
             return None
         return image_path.read_bytes()
+
+    def export_labeled_samples(
+        self, session_id: str, labels: list[dict]
+    ) -> list[str] | None:
+        """Write the Label tab's corrected labels back as fixture samples.
+
+        ``labels`` carries one ``{"frame_number", "label"}`` entry per frame the
+        reviewer chose to export. Each frame's ROI is copied to
+        ``{label}_{w}x{h}_{n}.png`` (``w``×``h`` read from its screenshot) beside
+        a :class:`SampleAnnotation` sidecar, ready to copy into
+        ``test/fixtures/images/``. Returns the written PNG filenames, or ``None``
+        when the session is unknown.
+        """
+        session_dir = self._session_dir(session_id)
+        if session_dir is None:
+            return None
+
+        frames = self.read_frames(session_id) or []
+        by_number = {f["frame_number"]: f for f in frames}
+
+        written: list[str] = []
+        for entry in labels:
+            frame = by_number.get(entry["frame_number"])
+            if frame is None:
+                continue
+            label = entry["label"]
+
+            roi = cv2.imread(str(session_dir / frame["roi_file"]))
+            shot = cv2.imread(str(session_dir / frame["screenshot_file"]))
+            height, width = shot.shape[:2]
+
+            n = 1
+            while (session_dir / f"{label}_{width}x{height}_{n}.png").exists():
+                n += 1
+            stem = f"{label}_{width}x{height}_{n}"
+
+            cv2.imwrite(str(session_dir / f"{stem}.png"), roi)
+            meta = derive_metadata(roi)
+            write_annotation(
+                session_dir / f"{stem}.json",
+                SampleAnnotation(
+                    label=label,
+                    window_size=[width, height],
+                    avg_bgr=meta["avg_bgr"],
+                    hsv_mean=meta["hsv_mean"],
+                    fill_fraction=None,
+                    source=(
+                        f"{session_id}#frame{entry['frame_number']} "
+                        f"guess={frame.get('detected_state')}"
+                    ),
+                ),
+            )
+            written.append(f"{stem}.png")
+        return written
 
     def _session_dir(self, session_id: str) -> Path | None:
         """Resolve a session id to its directory, rejecting any id that escapes

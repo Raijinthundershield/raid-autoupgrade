@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface DebugSession {
   id: string;
@@ -31,6 +33,24 @@ function imageUrl(sessionId: string, file: string): string {
   return `/api/debug/image?session=${encodeURIComponent(sessionId)}&file=${encodeURIComponent(file)}`;
 }
 
+async function exportSamples(
+  session: string,
+  labels: { frame_number: number; label: string }[]
+): Promise<string[]> {
+  const res = await fetch("/api/debug/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session, labels }),
+  });
+  if (!res.ok) return [];
+  return (await res.json()).exported ?? [];
+}
+
+// The labels a reviewer can assign: the four real states plus `unknown` and
+// `skip` (a deliberately-ambiguous frame, kept but not asserted by the detector
+// test).
+const LABELS = ["fail", "progress", "standby", "connection_error", "unknown", "skip"];
+
 export function LabelPanel() {
   const { data: sessions } = useQuery({
     queryKey: ["debug-sessions"],
@@ -47,6 +67,29 @@ export function LabelPanel() {
     queryFn: () => fetchFrames(active!),
     enabled: active != null,
   });
+
+  // Per-frame label overrides; a frame with no override keeps the detector's
+  // guess. `picks` is the set of frames ticked for export — off by default, so
+  // the reviewer opts each keeper in. Both reset when the session changes.
+  const [labels, setLabels] = useState<Record<number, string>>({});
+  const [picks, setPicks] = useState<Record<number, boolean>>({});
+  const [exported, setExported] = useState<string[]>([]);
+  useEffect(() => {
+    setLabels({});
+    setPicks({});
+    setExported([]);
+  }, [active]);
+
+  async function handleExport() {
+    if (active == null) return;
+    const chosen = (frames ?? [])
+      .filter((f) => picks[f.frame_number])
+      .map((f) => ({
+        frame_number: f.frame_number,
+        label: labels[f.frame_number] ?? f.detected_state,
+      }));
+    setExported(await exportSamples(active, chosen));
+  }
 
   if (sessions && sessions.length === 0) {
     return <p className="label-empty">No debug sessions captured yet.</p>;
@@ -86,10 +129,63 @@ export function LabelPanel() {
               src={imageUrl(active!, f.screenshot_file)}
               className="h-24"
             />
-            <span className="font-mono text-sm">{f.detected_state}</span>
+            <div className="flex flex-col items-start gap-2">
+              <select
+                aria-label={`Label for frame ${f.frame_number}`}
+                value={labels[f.frame_number] ?? f.detected_state}
+                onChange={(e) =>
+                  setLabels((prev) => ({ ...prev, [f.frame_number]: e.target.value }))
+                }
+                className="bg-transparent border border-[var(--t-border)] rounded px-2 py-1 text-sm font-mono"
+              >
+                {LABELS.map((label) => (
+                  <option key={label} value={label}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id={`export-${f.frame_number}`}
+                  aria-label={`Export frame ${f.frame_number}`}
+                  checked={picks[f.frame_number] ?? false}
+                  onCheckedChange={(value) =>
+                    setPicks((prev) => ({ ...prev, [f.frame_number]: value === true }))
+                  }
+                />
+                <Label
+                  htmlFor={`export-${f.frame_number}`}
+                  className="text-sm cursor-pointer"
+                >
+                  Export
+                </Label>
+              </div>
+            </div>
           </li>
         ))}
       </ul>
+
+      <button
+        type="button"
+        onClick={handleExport}
+        className="self-start border border-[var(--t-border)] rounded px-3 py-1 text-sm hover:bg-[var(--t-border)]"
+      >
+        Export
+      </button>
+
+      {exported.length > 0 && (
+        <div className="text-sm">
+          <p className="text-[var(--t-muted)]">
+            Wrote {exported.length} sample{exported.length === 1 ? "" : "s"} into the
+            session — copy the {"{png, json}"} pairs into test/fixtures/images/:
+          </p>
+          <ul className="font-mono list-disc list-inside">
+            {exported.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

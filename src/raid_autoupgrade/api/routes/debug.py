@@ -2,11 +2,26 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from raid_autoupgrade.api.deps import get_debug_session_store
 from raid_autoupgrade.services.debug_session_store import DebugSessionStore
 
 router = APIRouter()
+
+
+class FrameLabel(BaseModel):
+    """One frame the reviewer chose to export, with its corrected label."""
+
+    frame_number: int
+    label: str
+
+
+class ExportRequest(BaseModel):
+    """A request to export the reviewer's corrected labels as fixture samples."""
+
+    session: str
+    labels: list[FrameLabel]
 
 
 @router.get("/api/debug/status")
@@ -59,3 +74,23 @@ def get_session_image(
     if data is None:
         raise HTTPException(status_code=404, detail="image not found")
     return Response(content=data, media_type="image/png")
+
+
+@router.post("/api/debug/export")
+def export_labeled_samples(
+    request: ExportRequest,
+    store: DebugSessionStore = Depends(get_debug_session_store),
+) -> dict:
+    """Write the reviewer's corrected labels back into the session as
+    ``{label}_{w}x{h}_{n}.png`` + ``SampleAnnotation`` sidecar pairs, ready to
+    copy into ``test/fixtures/images/``. Returns the written PNG filenames. 404
+    when debug is disabled or the session is unknown."""
+    if not store.enabled:
+        raise HTTPException(status_code=404, detail="debug capture disabled")
+    written = store.export_labeled_samples(
+        request.session,
+        [label.model_dump() for label in request.labels],
+    )
+    if written is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    return {"exported": written}

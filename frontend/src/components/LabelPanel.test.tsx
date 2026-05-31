@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -31,7 +31,7 @@ const SPEND_FRAMES = {
 };
 
 function makeFetch(sessions: unknown = SESSIONS) {
-  return vi.fn((url: string) => {
+  return vi.fn((url: string, _init?: RequestInit) => {
     let body: unknown = {};
     if (url.includes("/api/debug/frames") && url.includes("session=count")) {
       body = COUNT_FRAMES;
@@ -65,9 +65,11 @@ describe("LabelPanel", () => {
     vi.stubGlobal("fetch", makeFetch());
     renderPanel();
 
-    // The most recent session's two frames, by their detector state guesses.
-    await screen.findByText("standby");
-    expect(screen.getByText("fail")).toBeInTheDocument();
+    // The most recent session's two frames each render a label control.
+    await screen.findByRole("combobox", { name: /label for frame 0/i });
+    expect(
+      screen.getByRole("combobox", { name: /label for frame 1/i })
+    ).toBeInTheDocument();
 
     // Each frame shows its ROI and full screenshot, served from the image endpoint
     // with the session id and filename as query params.
@@ -84,15 +86,106 @@ describe("LabelPanel", () => {
   it("loads an older session's frames when it is selected", async () => {
     vi.stubGlobal("fetch", makeFetch());
     renderPanel();
-    await screen.findByText("standby");
+    await screen.findByRole("combobox", { name: /label for frame 0/i });
 
     await userEvent.selectOptions(
-      screen.getByRole("combobox"),
+      screen.getByRole("combobox", { name: "Session" }),
       "spend/upgrade_1/20260531_120000_000"
     );
 
-    await screen.findByText("connection_error");
-    expect(screen.queryByText("standby")).not.toBeInTheDocument();
+    // The spend session has a single frame, pre-filled with its detector guess.
+    const frame0 = (await screen.findByRole("combobox", {
+      name: /label for frame 0/i,
+    })) as HTMLSelectElement;
+    await waitFor(() => expect(frame0.value).toBe("connection_error"));
+    expect(
+      screen.queryByRole("combobox", { name: /label for frame 1/i })
+    ).not.toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Each frame's label control is pre-filled with the detector's guess, so
+  // correcting a wrong label is a one-click change rather than a fresh pick.
+  // ---------------------------------------------------------------------------
+
+  it("pre-fills each frame's label control with the detector's guess", async () => {
+    vi.stubGlobal("fetch", makeFetch());
+    renderPanel();
+
+    const frame0 = (await screen.findByRole("combobox", {
+      name: /label for frame 0/i,
+    })) as HTMLSelectElement;
+    expect(frame0.value).toBe("standby");
+
+    const frame1 = screen.getByRole("combobox", {
+      name: /label for frame 1/i,
+    }) as HTMLSelectElement;
+    expect(frame1.value).toBe("fail");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Export posts only the frames the reviewer ticked, each with its (possibly
+  // corrected) label. Checkboxes are off by default, so nothing exports by
+  // accident — the reviewer opts each keeper in.
+  // ---------------------------------------------------------------------------
+
+  it("exports only the checked frames with their chosen labels", async () => {
+    const fetchMock = makeFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    // Off by default: no frame is selected for export.
+    const frame1Checkbox = await screen.findByRole("checkbox", {
+      name: /export frame 1/i,
+    });
+    expect(frame1Checkbox).not.toBeChecked();
+
+    // Correct frame 1's label, tick it, and leave frame 0 unchecked.
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /label for frame 1/i }),
+      "progress"
+    );
+    await userEvent.click(frame1Checkbox);
+    await userEvent.click(screen.getByRole("button", { name: /export/i }));
+
+    // Only the ticked frame is posted, carrying its corrected label.
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((args) =>
+        args[0].includes("/api/debug/export")
+      );
+      expect(call).toBeTruthy();
+      const body = JSON.parse(call![1]!.body as string);
+      expect(body.session).toBe("count/20260531_130000_000");
+      expect(body.labels).toEqual([{ frame_number: 1, label: "progress" }]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // After exporting, the written filenames are shown so the reviewer knows
+  // which {png, json} pairs to copy into test/fixtures/images/.
+  // ---------------------------------------------------------------------------
+
+  it("shows the written sample filenames after exporting", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      let body: unknown = {};
+      if (url.includes("/api/debug/export")) {
+        body = { exported: ["fail_640x360_1.png"] };
+      } else if (url.includes("/api/debug/frames")) {
+        body = COUNT_FRAMES;
+      } else if (url.includes("/api/debug/sessions")) {
+        body = { sessions: SESSIONS };
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /export frame 0/i })
+    );
+    await userEvent.click(screen.getByRole("button", { name: /export/i }));
+
+    await screen.findByText(/fail_640x360_1\.png/);
   });
 
   // ---------------------------------------------------------------------------
