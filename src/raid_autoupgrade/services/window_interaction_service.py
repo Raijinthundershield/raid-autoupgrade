@@ -10,11 +10,19 @@ import ctypes
 import time
 from ctypes import wintypes
 
-import pyautogui
-import pygetwindow
 from loguru import logger
 
 from raid_autoupgrade.exceptions import WindowNotFoundException
+
+# Win32-only GUI-automation libs (gated to sys_platform == 'win32' in
+# pyproject). Guard the import so this module loads on Linux/WSL — every method
+# that touches them runs only on Windows, behind the `windows`-marked tests.
+try:
+    import pyautogui
+    import pygetwindow
+except ImportError:  # non-Windows
+    pyautogui = None  # type: ignore[assignment]
+    pygetwindow = None  # type: ignore[assignment]
 
 # Win32 Constants
 SW_MINIMIZE = 6

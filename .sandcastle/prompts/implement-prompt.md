@@ -47,12 +47,16 @@ things pass.
 Tests are your inner loop — run them continuously. Before you are done, the
 **full gate must be green**:
 
-1. `uv run pytest`
+1. `uv run pytest -m "not windows"` — this loop runs on **Linux/WSL**. The
+   Win32/WMI tests are tagged `windows` and belong on a Windows host; deselect
+   them here (they auto-skip on Linux anyway). Do NOT add or modify a `windows`
+   test to pass on Linux — if your change genuinely needs Win32/WMI coverage,
+   note it in the handoff so it's validated on Windows pre-merge.
 2. `uv run pre-commit run --all-files` (this auto-fixes formatting/lint; re-stage
    and amend/commit the fixups)
 3. **Only if your change touched `frontend/`**, also run, from `frontend/`:
    `npm install` (the worktree has no `node_modules`), then `npm run build`
-   (this is the TypeScript typecheck) and `npm test`.
+   (this is the TypeScript typecheck) and `npm test -- --run`.
 
 Do not emit the completion signal until every applicable step above passes.
 

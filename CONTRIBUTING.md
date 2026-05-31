@@ -4,7 +4,9 @@ This guide covers building and running the app from a source checkout.
 
 ## Prerequisites
 
-- **Windows 10/11** — the tool uses WMI and Win32 APIs and is Windows-only.
+- **Windows 10/11** — the tool uses WMI and Win32 APIs and is Windows-only to
+  run. You can still develop and run most of the test suite on Linux or WSL —
+  see [Developing on Linux or WSL](#developing-on-linux-or-wsl).
 - **Administrator rights** — required for WMI network-adapter control; the app
   prompts for elevation on launch.
 - [**uv**](https://docs.astral.sh/uv/) — manages the Python side.
@@ -102,6 +104,69 @@ uv run ruff check --fix .     # lint
 uv run ruff format .          # format
 uv run pre-commit run --all-files
 ```
+
+## Developing on Linux or WSL
+
+The app only **runs** on Windows (WMI, Win32 window control, the WebView2
+window), but most development and the bulk of the test suite work on Linux or
+WSL — handy for editing logic, the API, the detector, and the frontend without
+a Windows box. WSL behaves exactly like Linux here: `pywin32` has no Linux
+wheels, so the real app and the Windows-only tests always belong on a Windows
+host (or the Windows CI runner).
+
+The four Windows-only runtime deps (`wmi`/pywin32, `pyautogui`, `pygetwindow`,
+`pywebview`) are gated in `pyproject.toml` with a `sys_platform == 'win32'`
+marker, so `uv sync` resolves cleanly on Linux by simply skipping them. The
+modules that import them are guarded so they still load off Windows.
+
+```bash
+uv sync                          # Windows-only deps are skipped via markers
+uv run pytest -m "not windows"   # the cross-platform subset
+uv run ruff check --fix .        # lint and format work everywhere
+uv run ruff format .
+
+cd frontend && npm install && npm run build   # frontend is fully cross-platform
+```
+
+> **Don't share `.venv` across Windows and WSL.** `uv sync` builds `.venv`
+> for the current OS, so running it from WSL against a Windows checkout (e.g.
+> under `/mnt/h/...`) replaces the Windows interpreter with a Linux one (and
+> vice versa), leaving the other side with an invalid environment. Clone the
+> repo inside the WSL filesystem (`~/…`, also far faster than `/mnt`), or point
+> `UV_PROJECT_ENVIRONMENT` at a per-OS venv path. If a `.venv` does get
+> clobbered, delete it and re-run `uv sync`.
+
+### The `windows` test marker
+
+Tests that exercise Win32/WMI seams are tagged with the `windows` marker and
+auto-skip off Windows (via `pytest.mark.skipif`). On Linux/WSL, run
+`uv run pytest -m "not windows"` to deselect them explicitly and avoid the skip
+noise. These cover the genuinely OS-bound code only:
+
+| File | Windows-only because it… |
+|------|--------------------------|
+| `test/unit/services/test_window_interaction_service.py` | constructs the service (`ctypes.windll`) and drives `pygetwindow` |
+| `test/unit/services/test_network_manager.py` | patches `wmi`/pywin32 adapter control |
+| `test/unit/utils/test_admin.py` | patches `ctypes.windll.shell32` (UAC/admin check) |
+
+Everything else — CV detection, orchestration, jobs, the FastAPI routes, both
+workflows, settings/cache services, and the WebView2 detector — runs on Linux.
+When adding a test that touches Win32, `ctypes.windll`, WMI, `pyautogui`, or
+`pygetwindow`, tag its file so the cross-platform run stays green:
+
+```python
+import sys
+import pytest
+
+pytestmark = [
+    pytest.mark.windows,
+    pytest.mark.skipif(sys.platform != "win32", reason="Windows-only: Win32/WMI APIs"),
+]
+```
+
+The full suite (including the `windows` tests) still runs on Windows with a
+plain `uv run pytest`, and that is what CI does. Run it on Windows before
+opening a PR.
 
 ## Building the Windows exe
 

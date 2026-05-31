@@ -11,8 +11,16 @@ EdgeUpdate client key under HKLM (per-machine install) and HKCU (per-user
 install). A present, non-empty version marks the runtime as installed.
 """
 
-import winreg
 from collections.abc import Callable
+
+# winreg is a Windows-only stdlib module. Guard it so this module imports on
+# Linux/WSL: the default winreg-backed reader only runs on Windows, while
+# webview2_installed's hive-iteration logic stays testable everywhere via an
+# injected reader.
+try:
+    import winreg
+except ImportError:  # non-Windows
+    winreg = None  # type: ignore[assignment]
 
 RegistryReader = Callable[[int, str, str], "str | None"]
 """Reads a registry string value: ``(hive, subkey, value_name) -> str | None``.
@@ -25,7 +33,13 @@ _CLIENT_KEY = (
     r"SOFTWARE\Microsoft\EdgeUpdate\Clients" r"\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 )
 _VERSION_VALUE = "pv"
-_HIVES = (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER)
+# (HKLM, HKCU). Off Windows winreg is absent, so fall back to the documented
+# numeric hive handles — opaque pass-through keys for an injected reader.
+_HIVES = (
+    (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER)
+    if winreg is not None
+    else (0x80000002, 0x80000001)
+)
 
 
 def _winreg_reader(hive: int, subkey: str, value_name: str) -> "str | None":

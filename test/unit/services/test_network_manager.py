@@ -1,5 +1,6 @@
 """Smoke tests for NetworkManager service."""
 
+import sys
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,14 @@ from raid_autoupgrade.services.network import (
     NetworkManager,
     NetworkState,
 )
+
+# Patches `network.wmi`, which is None off Windows (pywin32 is win32-only).
+pytestmark = [
+    pytest.mark.windows,
+    pytest.mark.skipif(
+        sys.platform != "win32", reason="Windows-only: WMI/pywin32 APIs"
+    ),
+]
 
 
 class _FakeWmiAdapter:

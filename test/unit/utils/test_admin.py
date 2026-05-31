@@ -1,8 +1,19 @@
 """Smoke tests for Windows admin privilege utilities."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from raid_autoupgrade.utils.admin import is_admin, request_admin
+
+# Patches ctypes.windll.shell32, which does not exist off Windows.
+pytestmark = [
+    pytest.mark.windows,
+    pytest.mark.skipif(
+        sys.platform != "win32", reason="Windows-only: Win32 (ctypes.windll) APIs"
+    ),
+]
 
 
 class TestIsAdmin:

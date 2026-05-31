@@ -9,14 +9,23 @@ from typing import NewType
 from urllib import request
 from urllib.error import URLError
 
-import pythoncom
-import wmi
 from loguru import logger
 
 from raid_autoupgrade.exceptions import NetworkAdapterError
 
-# Known issue with wmi module emitting SyntaxWarning
-warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
+# pywin32/WMI ship win32 wheels only. Guard the import so this module loads on
+# Linux/WSL (for the cross-platform test subset); the methods that touch `wmi`
+# only run on Windows, behind the `windows`-marked tests. `wmi`/`pythoncom`
+# stay module attributes so they remain patchable in those tests on Windows.
+try:
+    import pythoncom
+    import wmi
+
+    # Known issue with wmi module emitting SyntaxWarning
+    warnings.filterwarnings("ignore", category=SyntaxWarning, module="wmi")
+except ImportError:  # non-Windows
+    pythoncom = None  # type: ignore[assignment]
+    wmi = None  # type: ignore[assignment]
 
 
 class _ThreadLocalWMI:

@@ -55,10 +55,11 @@ deliberately left for the human and are out of scope for you.
 
 Before you are done, the full gate must be green:
 
-1. `uv run pytest`
+1. `uv run pytest -m "not windows"` (this loop runs on Linux/WSL; the `windows`
+   tests run on a Windows host pre-merge — never weaken one to pass here)
 2. `uv run pre-commit run --all-files`
 3. Only if you touched `frontend/`: from `frontend/`, `npm install` then
-   `npm run build` and `npm test`.
+   `npm run build` and `npm test -- --run`.
 
 # COMMIT
 

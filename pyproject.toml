@@ -8,22 +8,26 @@ authors = [
 ]
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "pyautogui>=0.9.54",
+    # Cross-platform: detection (CV), API, settings, logging — installable and
+    # importable on Linux/WSL so the platform-independent test subset can run.
     "opencv-python>=4.8.0",
     "numpy>=1.24.0",
-    "pygetwindow>=0.0.9",
     "pillow>=10.0.0",
     "mss>=10.0.0",
     "loguru>=0.7.3",
-    "pywinauto>=0.6.9",
     "click>=8.1.8",
     "diskcache>=5.6.3",
-    "wmi>=1.5.1",
-    "pyscreeze>=1.0.1",
+    "pyscreeze>=1.0.1",  # used by the cross-platform detection layer (locate_region)
     "python-dotenv>=1.0.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
-    "pywebview>=5.3.4",
+    # Windows-only runtime deps. Gated by marker so `uv sync` succeeds on
+    # Linux/WSL (pywin32 — pulled by `wmi` — ships win32 wheels only). The code
+    # paths that import these are marked `windows` in the test suite.
+    "pyautogui>=0.9.54 ; sys_platform == 'win32'",
+    "pygetwindow>=0.0.9 ; sys_platform == 'win32'",
+    "wmi>=1.5.1 ; sys_platform == 'win32'",
+    "pywebview>=5.3.4 ; sys_platform == 'win32'",
 ]
 
 [project.scripts]
@@ -32,6 +36,11 @@ raid-autoupgrade = "raid_autoupgrade.main:raid_autoupgrade"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+markers = [
+    "windows: test requires Win32/WMI APIs; auto-skipped off Windows. Run the cross-platform subset with `-m \"not windows\"`.",
+]
 
 
 [dependency-groups]
