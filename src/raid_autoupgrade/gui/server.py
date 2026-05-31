@@ -23,6 +23,7 @@ from raid_autoupgrade.detection.progress_bar_detector import ProgressBarStateDet
 from raid_autoupgrade.jobs.run_fn import make_count_runner, make_spend_runner
 from raid_autoupgrade.services.cache_service import CacheService
 from raid_autoupgrade.services.count_target_screenshot import CountTargetScreenshot
+from raid_autoupgrade.services.debug_session_store import DebugSessionStore
 from raid_autoupgrade.services.network import NetworkManager
 from raid_autoupgrade.services.screenshot_service import ScreenshotService
 from raid_autoupgrade.services.settings_service import SettingsService
@@ -151,6 +152,9 @@ def _run(debug: bool = False) -> None:
         if debug
         else None
     )
+    # Read side of the same debug captures: the Label tab reviews sessions
+    # under this root. Disabled (no root) unless launched with --debug.
+    debug_session_store = DebugSessionStore(debug_root=_debug_root)
     settings_cache = diskcache.Cache(directory=str(_SETTINGS_CACHE_DIR))
     settings_service = SettingsService(cache=settings_cache)
     count_screenshot_store = CountTargetScreenshot(directory=_COUNT_SCREENSHOT_DIR)
@@ -184,6 +188,7 @@ def _run(debug: bool = False) -> None:
         screenshot_service=screenshot_service,
         cache_service=cache_service,
         count_screenshot_store=count_screenshot_store,
+        debug_session_store=debug_session_store,
     )
 
     if not dev_mode:
