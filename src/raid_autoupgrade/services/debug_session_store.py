@@ -29,6 +29,9 @@ _SUMMARY_FILE = "debug_summary.json"
 # The reviewer's corrected labels live in a sidecar so the capture's own
 # ``debug_summary.json`` (and its original ``detected_state``) stays untouched.
 _LABELS_FILE = "labels.json"
+# Records which exported file each frame produced, so re-exporting a frame
+# replaces its previous sample instead of accumulating duplicates.
+_EXPORT_MANIFEST_FILE = "export_manifest.json"
 
 
 @dataclass(frozen=True)
@@ -129,6 +132,18 @@ class DebugSessionStore:
             return {}
         return json.loads(path.read_text())
 
+    @staticmethod
+    def _read_export_manifest(session_dir: Path) -> dict[str, str]:
+        """Load the frame→exported-stem map, or ``{}`` if nothing exported yet."""
+        path = session_dir / _EXPORT_MANIFEST_FILE
+        if not path.is_file():
+            return {}
+        return json.loads(path.read_text())
+
+    @staticmethod
+    def _write_export_manifest(session_dir: Path, manifest: dict[str, str]) -> None:
+        (session_dir / _EXPORT_MANIFEST_FILE).write_text(json.dumps(manifest, indent=2))
+
     def session_directory(self, session_id: str) -> str | None:
         """Return a session's absolute on-disk folder, or ``None`` if unknown.
 
@@ -161,7 +176,9 @@ class DebugSessionStore:
         reviewer chose to export. Each frame's ROI is copied to
         ``{label}_{w}x{h}_{n}.png`` (``w``×``h`` read from its screenshot) beside
         a :class:`SampleAnnotation` sidecar, ready to copy into
-        ``test/fixtures/images/``. Returns the written PNG filenames, or ``None``
+        ``test/fixtures/images/``. Re-exporting a frame replaces its previous
+        sample (tracked in an export manifest) rather than duplicating it — even
+        if the label changed. Returns the written PNG filenames, or ``None``
         when the session is unknown.
         """
         session_dir = self._session_dir(session_id)
@@ -170,6 +187,15 @@ class DebugSessionStore:
 
         frames = self.read_frames(session_id) or []
         by_number = {f["frame_number"]: f for f in frames}
+        manifest = self._read_export_manifest(session_dir)
+
+        # Drop each re-exported frame's previous pair up front, so a relabel
+        # leaves no stale file behind and distinct frames keep stable numbering.
+        for entry in labels:
+            prior = manifest.pop(str(entry["frame_number"]), None)
+            if prior is not None:
+                (session_dir / f"{prior}.png").unlink(missing_ok=True)
+                (session_dir / f"{prior}.json").unlink(missing_ok=True)
 
         written: list[str] = []
         for entry in labels:
@@ -203,7 +229,10 @@ class DebugSessionStore:
                     ),
                 ),
             )
+            manifest[str(entry["frame_number"])] = stem
             written.append(f"{stem}.png")
+
+        self._write_export_manifest(session_dir, manifest)
         return written
 
     def _session_dir(self, session_id: str) -> Path | None:

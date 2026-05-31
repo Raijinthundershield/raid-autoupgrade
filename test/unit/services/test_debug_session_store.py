@@ -245,6 +245,48 @@ def test_export_numbers_same_label_and_size_without_clobbering(tmp_path):
     assert (session_dir / "fail_30x20_2.png").is_file()
 
 
+def _one_frame_store(tmp_path, *, detected_state="standby"):
+    rel = "count/count/s1"
+    _capture(
+        tmp_path,
+        rel,
+        [
+            {
+                "frame_number": 0,
+                "detected_state": detected_state,
+                "roi": _solid(4, 8, (0, 0, 200)),
+                "shot": _solid(20, 30, (0, 0, 0)),
+            }
+        ],
+    )
+    return rel, DebugSessionStore(debug_root=tmp_path)
+
+
+def test_re_exporting_a_frame_overrides_without_duplicating(tmp_path):
+    rel, store = _one_frame_store(tmp_path)
+    session_dir = tmp_path / rel
+
+    store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
+    again = store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
+
+    # The same sample re-exported overwrites its file — no _2 duplicate.
+    assert again == ["fail_30x20_1.png"]
+    assert [p.name for p in session_dir.glob("fail_*.png")] == ["fail_30x20_1.png"]
+
+
+def test_re_exporting_a_frame_with_a_new_label_drops_the_old_file(tmp_path):
+    rel, store = _one_frame_store(tmp_path)
+    session_dir = tmp_path / rel
+
+    store.export_labeled_samples(rel, [{"frame_number": 0, "label": "standby"}])
+    store.export_labeled_samples(rel, [{"frame_number": 0, "label": "fail"}])
+
+    # Relabelling the same sample replaces the prior export rather than leaving
+    # a stale standby pair behind.
+    assert list(session_dir.glob("standby_*")) == []
+    assert [p.name for p in session_dir.glob("fail_*.png")] == ["fail_30x20_1.png"]
+
+
 def test_export_unknown_session_returns_none(tmp_path):
     store = DebugSessionStore(debug_root=tmp_path)
 
