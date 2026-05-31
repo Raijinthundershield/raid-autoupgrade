@@ -237,8 +237,8 @@ class NetworkManager:
         # If all IDs were invalid
         if not valid_adapter_ids:
             raise NetworkAdapterError(
-                "None of the selected network adapters are available anymore. "
-                "Pick one in the Network panel."
+                "No usable network adapter: none is selected, or the selected "
+                "one is no longer available. Pick an adapter in the Network panel."
             )
 
         # Toggle each valid adapter
