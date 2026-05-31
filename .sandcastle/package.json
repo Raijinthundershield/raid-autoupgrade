@@ -1,0 +1,18 @@
+{
+  "name": "autoraid-sandcastle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sandcastle orchestration for resolving autoraid issues one feature at a time (plan -> implement via TDD -> review -> PR).",
+  "scripts": {
+    "start": "tsx --env-file-if-exists=.env run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.7.0",
+    "@standard-schema/spec": "^1.0.0",
+    "@types/node": "^22.19.19",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
