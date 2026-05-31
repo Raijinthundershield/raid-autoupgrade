@@ -4,6 +4,12 @@ status: accepted
 
 # Run tab owns one shared job stream with per-phase result slices
 
+> **Refined by [0005](0005-discriminated-progress-events.md).** The "single merged
+> `progress` type with optional fields" decided here is replaced by two discriminated
+> per-phase events (`count_progress` / `spend_progress`). Everything else below — the
+> shared stream, the live-part-plus-per-phase-slices reducer, the one sidebar Progress
+> Bar State box — still stands.
+
 The Run tab now owns a single active `jobId` and one `useJobStream`, replacing
 the per-panel streams of [0001](0001-per-panel-job-streams.md). `CountPanel` and
 `SpendPanel` start jobs through it and read their numbers from it; the
