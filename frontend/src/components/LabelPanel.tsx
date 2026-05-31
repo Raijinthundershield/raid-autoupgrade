@@ -33,17 +33,23 @@ function imageUrl(sessionId: string, file: string): string {
   return `/api/debug/image?session=${encodeURIComponent(sessionId)}&file=${encodeURIComponent(file)}`;
 }
 
+interface ExportResult {
+  filenames: string[];
+  directory: string | null;
+}
+
 async function exportSamples(
   session: string,
   labels: { frame_number: number; label: string }[]
-): Promise<string[]> {
+): Promise<ExportResult> {
   const res = await fetch("/api/debug/export", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session, labels }),
   });
-  if (!res.ok) return [];
-  return (await res.json()).exported ?? [];
+  if (!res.ok) return { filenames: [], directory: null };
+  const data = await res.json();
+  return { filenames: data.exported ?? [], directory: data.directory ?? null };
 }
 
 // The labels a reviewer can assign: the four real states plus `unknown` and
@@ -73,11 +79,11 @@ export function LabelPanel() {
   // the reviewer opts each keeper in. Both reset when the session changes.
   const [labels, setLabels] = useState<Record<number, string>>({});
   const [picks, setPicks] = useState<Record<number, boolean>>({});
-  const [exported, setExported] = useState<string[]>([]);
+  const [result, setResult] = useState<ExportResult | null>(null);
   useEffect(() => {
     setLabels({});
     setPicks({});
-    setExported([]);
+    setResult(null);
   }, [active]);
 
   async function handleExport() {
@@ -88,7 +94,7 @@ export function LabelPanel() {
         frame_number: f.frame_number,
         label: labels[f.frame_number] ?? f.detected_state,
       }));
-    setExported(await exportSamples(active, chosen));
+    setResult(await exportSamples(active, chosen));
   }
 
   if (sessions && sessions.length === 0) {
@@ -121,6 +127,17 @@ export function LabelPanel() {
         >
           Export
         </button>
+
+        {result &&
+          (result.directory ? (
+            <span className="text-sm text-[var(--t-muted)]">
+              Wrote {result.filenames.length} sample
+              {result.filenames.length === 1 ? "" : "s"} to{" "}
+              <span className="font-mono text-[var(--t-text)]">{result.directory}</span>
+            </span>
+          ) : (
+            <span className="text-sm text-[var(--t-muted)]">Nothing to export.</span>
+          ))}
       </div>
 
       <ul className="flex flex-col gap-3 list-none m-0 p-0">
@@ -175,14 +192,13 @@ export function LabelPanel() {
         ))}
       </ul>
 
-      {exported.length > 0 && (
+      {result && result.filenames.length > 0 && (
         <div className="text-sm">
           <p className="text-[var(--t-muted)]">
-            Wrote {exported.length} sample{exported.length === 1 ? "" : "s"} into the
-            session — copy the {"{png, json}"} pairs into test/fixtures/images/:
+            Copy the {"{png, json}"} pairs into test/fixtures/images/:
           </p>
           <ul className="font-mono list-disc list-inside">
-            {exported.map((name) => (
+            {result.filenames.map((name) => (
               <li key={name}>{name}</li>
             ))}
           </ul>

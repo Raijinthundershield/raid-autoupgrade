@@ -189,6 +189,35 @@ describe("LabelPanel", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // The reviewer needs to know the export fired and where the files landed, so
+  // the folder path is shown after a successful export.
+  // ---------------------------------------------------------------------------
+
+  it("shows the export folder path after exporting", async () => {
+    const folder = "C:/raid/debug/count/count/20260531_130000_000";
+    const fetchMock = vi.fn((url: string) => {
+      let body: unknown = {};
+      if (url.includes("/api/debug/export")) {
+        body = { exported: ["fail_640x360_1.png"], directory: folder };
+      } else if (url.includes("/api/debug/frames")) {
+        body = COUNT_FRAMES;
+      } else if (url.includes("/api/debug/sessions")) {
+        body = { sessions: SESSIONS };
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /export frame 0/i })
+    );
+    await userEvent.click(screen.getByRole("button", { name: /export/i }));
+
+    await screen.findByText(folder);
+  });
+
+  // ---------------------------------------------------------------------------
   // Empty state: no captured sessions yet.
   // ---------------------------------------------------------------------------
 

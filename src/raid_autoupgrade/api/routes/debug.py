@@ -93,4 +93,7 @@ def export_labeled_samples(
     )
     if written is None:
         raise HTTPException(status_code=404, detail="session not found")
-    return {"exported": written}
+    return {
+        "exported": written,
+        "directory": store.session_directory(request.session),
+    }

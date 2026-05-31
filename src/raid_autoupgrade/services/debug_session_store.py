@@ -93,6 +93,15 @@ class DebugSessionStore:
         summary = session_dir / _SUMMARY_FILE
         return json.loads(summary.read_text()).get("frames", [])
 
+    def session_directory(self, session_id: str) -> str | None:
+        """Return a session's absolute on-disk folder, or ``None`` if unknown.
+
+        Exposed so the export flow can tell the reviewer exactly where the
+        written samples landed.
+        """
+        session_dir = self._session_dir(session_id)
+        return None if session_dir is None else str(session_dir)
+
     def read_image(self, session_id: str, filename: str) -> bytes | None:
         """Return a frame image's bytes, or ``None`` if absent.
 
