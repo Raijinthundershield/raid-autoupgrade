@@ -124,6 +124,66 @@ describe("LabelPanel", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // A relabel persists to the session, so a later view shows the correction
+  // (carried on the frame as `user_label`) while the original guess is kept.
+  // ---------------------------------------------------------------------------
+
+  it("shows the persisted corrected label, not the detector guess, on load", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      let body: unknown = {};
+      if (url.includes("/api/debug/frames")) {
+        body = {
+          frames: [
+            {
+              frame_number: 0,
+              detected_state: "standby",
+              user_label: "fail",
+              roi_file: "r.png",
+              screenshot_file: "s.png",
+            },
+          ],
+        };
+      } else if (url.includes("/api/debug/sessions")) {
+        body = { sessions: SESSIONS };
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    const sel = (await screen.findByRole("combobox", {
+      name: /label for frame 0/i,
+    })) as HTMLSelectElement;
+    expect(sel.value).toBe("fail");
+    // The detector's original guess stays visible alongside the correction.
+    expect(screen.getByText(/guess:\s*standby/i)).toBeInTheDocument();
+  });
+
+  it("persists a relabel to the session as soon as it changes", async () => {
+    const fetchMock = makeFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    await userEvent.selectOptions(
+      await screen.findByRole("combobox", { name: /label for frame 0/i }),
+      "progress"
+    );
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((args) =>
+        args[0].includes("/api/debug/labels")
+      );
+      expect(call).toBeTruthy();
+      const body = JSON.parse(call![1]!.body as string);
+      expect(body).toMatchObject({
+        session: "count/20260531_130000_000",
+        frame_number: 0,
+        label: "progress",
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Export posts only the frames the reviewer ticked, each with its (possibly
   // corrected) label. Checkboxes are off by default, so nothing exports by
   // accident — the reviewer opts each keeper in.
@@ -215,6 +275,37 @@ describe("LabelPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: /export/i }));
 
     await screen.findByText(folder);
+  });
+
+  it("copies the export folder path to the clipboard", async () => {
+    const folder = "C:/raid/debug/count/count/20260531_130000_000";
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const fetchMock = vi.fn((url: string) => {
+      let body: unknown = {};
+      if (url.includes("/api/debug/export")) {
+        body = { exported: ["fail_640x360_1.png"], directory: folder };
+      } else if (url.includes("/api/debug/frames")) {
+        body = COUNT_FRAMES;
+      } else if (url.includes("/api/debug/sessions")) {
+        body = { sessions: SESSIONS };
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: /export frame 0/i })
+    );
+    await userEvent.click(screen.getByRole("button", { name: /export/i }));
+    await screen.findByText(folder);
+
+    await userEvent.click(screen.getByRole("button", { name: /copy path/i }));
+    expect(writeText).toHaveBeenCalledWith(folder);
   });
 
   // ---------------------------------------------------------------------------

@@ -98,6 +98,36 @@ def test_read_frames_unknown_session_is_none(tmp_path):
     )
 
 
+def test_set_label_persists_correction_without_touching_the_original(tmp_path):
+    rel = "count/count/s1"
+    _write_session(
+        tmp_path, rel, frames=[{"frame_number": 0, "detected_state": "standby"}]
+    )
+
+    assert DebugSessionStore(debug_root=tmp_path).set_label(rel, 0, "fail") is True
+
+    # A fresh store (a later view of the session) reads the corrected label back,
+    # while the detector's original guess is preserved alongside it.
+    frame = DebugSessionStore(debug_root=tmp_path).read_frames(rel)[0]
+    assert frame["user_label"] == "fail"
+    assert frame["detected_state"] == "standby"
+
+
+def test_read_frames_omits_user_label_when_none_persisted(tmp_path):
+    rel = "count/count/s1"
+    _write_session(
+        tmp_path, rel, frames=[{"frame_number": 0, "detected_state": "standby"}]
+    )
+
+    frame = DebugSessionStore(debug_root=tmp_path).read_frames(rel)[0]
+    assert "user_label" not in frame
+
+
+def test_set_label_unknown_session_is_false(tmp_path):
+    store = DebugSessionStore(debug_root=tmp_path)
+    assert store.set_label("count/count/ghost", 0, "fail") is False
+
+
 def test_read_image_returns_bytes_for_a_real_frame_image(tmp_path):
     _write_session(tmp_path, "count/count/s1", frames=[], images={"roi.png": b"png"})
     store = DebugSessionStore(debug_root=tmp_path)

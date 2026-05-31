@@ -26,6 +26,9 @@ from raid_autoupgrade.detection.sample_annotation import (
 )
 
 _SUMMARY_FILE = "debug_summary.json"
+# The reviewer's corrected labels live in a sidecar so the capture's own
+# ``debug_summary.json`` (and its original ``detected_state``) stays untouched.
+_LABELS_FILE = "labels.json"
 
 
 @dataclass(frozen=True)
@@ -86,12 +89,45 @@ class DebugSessionStore:
         return sessions
 
     def read_frames(self, session_id: str) -> list[dict] | None:
-        """Return a session's captured frames, or ``None`` if it doesn't exist."""
+        """Return a session's captured frames, or ``None`` if it doesn't exist.
+
+        Each frame the reviewer has relabelled carries the persisted correction
+        as ``user_label``; the detector's original ``detected_state`` is left
+        untouched so both are visible on a later view.
+        """
         session_dir = self._session_dir(session_id)
         if session_dir is None:
             return None
         summary = session_dir / _SUMMARY_FILE
-        return json.loads(summary.read_text()).get("frames", [])
+        frames = json.loads(summary.read_text()).get("frames", [])
+        user_labels = self._read_user_labels(session_dir)
+        for frame in frames:
+            corrected = user_labels.get(str(frame.get("frame_number")))
+            if corrected is not None:
+                frame["user_label"] = corrected
+        return frames
+
+    def set_label(self, session_id: str, frame_number: int, label: str) -> bool:
+        """Persist the reviewer's corrected label for one frame.
+
+        Stored in a ``labels.json`` sidecar so it survives reloading the
+        session. Returns ``False`` if the session is unknown.
+        """
+        session_dir = self._session_dir(session_id)
+        if session_dir is None:
+            return False
+        user_labels = self._read_user_labels(session_dir)
+        user_labels[str(frame_number)] = label
+        (session_dir / _LABELS_FILE).write_text(json.dumps(user_labels, indent=2))
+        return True
+
+    @staticmethod
+    def _read_user_labels(session_dir: Path) -> dict[str, str]:
+        """Load a session's persisted corrections, or ``{}`` if none yet."""
+        path = session_dir / _LABELS_FILE
+        if not path.is_file():
+            return {}
+        return json.loads(path.read_text())
 
     def session_directory(self, session_id: str) -> str | None:
         """Return a session's absolute on-disk folder, or ``None`` if unknown.

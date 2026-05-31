@@ -13,6 +13,8 @@ interface DebugSession {
 interface DebugFrame {
   frame_number: number;
   detected_state: string;
+  // The reviewer's persisted correction, if any. Absent until relabelled.
+  user_label?: string | null;
   roi_file: string;
   screenshot_file: string;
 }
@@ -31,6 +33,18 @@ async function fetchFrames(sessionId: string): Promise<DebugFrame[]> {
 
 function imageUrl(sessionId: string, file: string): string {
   return `/api/debug/image?session=${encodeURIComponent(sessionId)}&file=${encodeURIComponent(file)}`;
+}
+
+async function persistLabel(
+  session: string,
+  frame_number: number,
+  label: string
+): Promise<void> {
+  await fetch("/api/debug/labels", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session, frame_number, label }),
+  });
 }
 
 interface ExportResult {
@@ -92,7 +106,7 @@ export function LabelPanel() {
       .filter((f) => picks[f.frame_number])
       .map((f) => ({
         frame_number: f.frame_number,
-        label: labels[f.frame_number] ?? f.detected_state,
+        label: labels[f.frame_number] ?? f.user_label ?? f.detected_state,
       }));
     setResult(await exportSamples(active, chosen));
   }
@@ -130,10 +144,17 @@ export function LabelPanel() {
 
         {result &&
           (result.directory ? (
-            <span className="text-sm text-[var(--t-muted)]">
+            <span className="text-sm text-[var(--t-muted)] flex items-center gap-2">
               Wrote {result.filenames.length} sample
               {result.filenames.length === 1 ? "" : "s"} to{" "}
               <span className="font-mono text-[var(--t-text)]">{result.directory}</span>
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard?.writeText(result.directory!)}
+                className="border border-[var(--t-border)] rounded px-2 py-0.5 text-xs hover:bg-[var(--t-border)]"
+              >
+                Copy path
+              </button>
             </span>
           ) : (
             <span className="text-sm text-[var(--t-muted)]">Nothing to export.</span>
@@ -159,10 +180,12 @@ export function LabelPanel() {
             <div className="flex flex-col items-start gap-2">
               <select
                 aria-label={`Label for frame ${f.frame_number}`}
-                value={labels[f.frame_number] ?? f.detected_state}
-                onChange={(e) =>
-                  setLabels((prev) => ({ ...prev, [f.frame_number]: e.target.value }))
-                }
+                value={labels[f.frame_number] ?? f.user_label ?? f.detected_state}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLabels((prev) => ({ ...prev, [f.frame_number]: value }));
+                  if (active != null) void persistLabel(active, f.frame_number, value);
+                }}
                 className="bg-transparent border border-[var(--t-border)] rounded px-2 py-1 text-sm font-mono"
               >
                 {LABELS.map((label) => (
@@ -171,6 +194,9 @@ export function LabelPanel() {
                   </option>
                 ))}
               </select>
+              <span className="text-xs text-[var(--t-muted)] font-mono">
+                guess: {f.detected_state}
+              </span>
               <div className="flex items-center gap-2">
                 <Checkbox
                   id={`export-${f.frame_number}`}

@@ -24,6 +24,14 @@ class ExportRequest(BaseModel):
     labels: list[FrameLabel]
 
 
+class LabelUpdate(BaseModel):
+    """A request to persist one frame's corrected label for a session."""
+
+    session: str
+    frame_number: int
+    label: str
+
+
 @router.get("/api/debug/status")
 def get_debug_status(
     store: DebugSessionStore = Depends(get_debug_session_store),
@@ -97,3 +105,18 @@ def export_labeled_samples(
         "exported": written,
         "directory": store.session_directory(request.session),
     }
+
+
+@router.post("/api/debug/labels")
+def set_frame_label(
+    request: LabelUpdate,
+    store: DebugSessionStore = Depends(get_debug_session_store),
+) -> dict:
+    """Persist one frame's corrected label so it survives reloading the session.
+    The detector's original guess is left intact. 404 when debug is disabled or
+    the session is unknown."""
+    if not store.enabled:
+        raise HTTPException(status_code=404, detail="debug capture disabled")
+    if not store.set_label(request.session, request.frame_number, request.label):
+        raise HTTPException(status_code=404, detail="session not found")
+    return {"ok": True}

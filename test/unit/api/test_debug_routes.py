@@ -269,3 +269,54 @@ def test_export_404_when_debug_disabled():
         )
 
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /api/debug/labels persists one frame's corrected label so it survives a
+# reload, leaving the detector's original guess intact.
+# ---------------------------------------------------------------------------
+
+
+def test_set_label_persists_and_is_returned_on_next_read(tmp_path):
+    _write_session(
+        tmp_path,
+        "count/20260531_120000_000",
+        frames=[{"frame_number": 0, "detected_state": "standby"}],
+    )
+
+    with _client(DebugSessionStore(debug_root=tmp_path)) as client:
+        set_response = client.post(
+            "/api/debug/labels",
+            json={
+                "session": "count/20260531_120000_000",
+                "frame_number": 0,
+                "label": "fail",
+            },
+        )
+        frames = client.get(
+            "/api/debug/frames", params={"session": "count/20260531_120000_000"}
+        ).json()["frames"]
+
+    assert set_response.status_code == 200
+    assert frames[0]["user_label"] == "fail"
+    assert frames[0]["detected_state"] == "standby"
+
+
+def test_set_label_404_for_unknown_session(tmp_path):
+    with _client(DebugSessionStore(debug_root=tmp_path)) as client:
+        response = client.post(
+            "/api/debug/labels",
+            json={"session": "count/nope", "frame_number": 0, "label": "fail"},
+        )
+
+    assert response.status_code == 404
+
+
+def test_set_label_404_when_debug_disabled():
+    with _client(DebugSessionStore(debug_root=None)) as client:
+        response = client.post(
+            "/api/debug/labels",
+            json={"session": "count/x", "frame_number": 0, "label": "fail"},
+        )
+
+    assert response.status_code == 404
