@@ -8,10 +8,6 @@ screenshot.png
 temp/
 .nicegui/
 
-# detection templates are machine-local, not committed
-# (test fixture images under test/fixtures/images/ are committed as persistent test data)
-src/raid_autoupgrade/detection/templates/
-
 # Misc
 scripts/
 plans/
