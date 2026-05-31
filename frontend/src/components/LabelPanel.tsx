@@ -97,21 +97,31 @@ export function LabelPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex items-center gap-2">
-        <span className="sidebar-section">Session</span>
-        <select
-          aria-label="Session"
-          value={active ?? ""}
-          onChange={(e) => setPicked(e.target.value)}
-          className="bg-transparent border border-[var(--t-border)] rounded px-2 py-1 text-sm"
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-2">
+          <span className="sidebar-section">Session</span>
+          <select
+            aria-label="Session"
+            value={active ?? ""}
+            onChange={(e) => setPicked(e.target.value)}
+            className="bg-transparent border border-[var(--t-border)] rounded px-2 py-1 text-sm"
+          >
+            {(sessions ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.kind} · {s.name} ({s.frame_count})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={handleExport}
+          className="border border-[var(--t-border)] rounded px-3 py-1 text-sm hover:bg-[var(--t-border)]"
         >
-          {(sessions ?? []).map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.kind} · {s.name} ({s.frame_count})
-            </option>
-          ))}
-        </select>
-      </label>
+          Export
+        </button>
+      </div>
 
       <ul className="flex flex-col gap-3 list-none m-0 p-0">
         {(frames ?? []).map((f) => (
@@ -164,14 +174,6 @@ export function LabelPanel() {
           </li>
         ))}
       </ul>
-
-      <button
-        type="button"
-        onClick={handleExport}
-        className="self-start border border-[var(--t-border)] rounded px-3 py-1 text-sm hover:bg-[var(--t-border)]"
-      >
-        Export
-      </button>
 
       {exported.length > 0 && (
         <div className="text-sm">
