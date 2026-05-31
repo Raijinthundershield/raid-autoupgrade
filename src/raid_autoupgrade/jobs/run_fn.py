@@ -154,17 +154,25 @@ def make_spend_runner(
     network_manager,
     screenshot_service,
     detector,
+    debug_dir_root: Path | None = None,
     workflow_class=SpendWorkflow,
 ) -> Callable[
     [int, bool],
     Callable[[_queue.Queue, threading.Event], dict | None],
 ]:
-    """Return a factory: (max_upgrade_attempts, continue_upgrade) → run_fn for JobRegistry.start_job."""
+    """Return a factory: (max_upgrade_attempts, continue_upgrade) → run_fn for JobRegistry.start_job.
+
+    Debug-frame capture is gated by ``debug_dir_root``: the composition root
+    passes a root only when the GUI is launched with ``--debug``; otherwise it
+    is ``None`` and no debug artifacts are written.
+    """
 
     def factory(
         max_upgrade_attempts: int,
         continue_upgrade: bool = False,
     ) -> Callable[[_queue.Queue, threading.Event], dict | None]:
+        debug_dir = debug_dir_root / "spend" if debug_dir_root else None
+
         def run_fn(q: _queue.Queue, cancel_event: threading.Event) -> dict | None:
             workflow = workflow_class(
                 cache_service=cache_service,
@@ -174,6 +182,7 @@ def make_spend_runner(
                 detector=detector,
                 max_upgrade_attempts=max_upgrade_attempts,
                 continue_upgrade=continue_upgrade,
+                debug_dir=debug_dir,
             )
             result = workflow.run(
                 cancel_event=cancel_event,

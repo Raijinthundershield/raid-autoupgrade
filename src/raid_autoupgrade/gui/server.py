@@ -172,6 +172,7 @@ def _run(debug: bool = False) -> None:
         network_manager=network_manager,
         screenshot_service=screenshot_service,
         detector=detector,
+        debug_dir_root=_debug_root,
     )
 
     app = create_app(
