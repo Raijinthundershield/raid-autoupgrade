@@ -301,4 +301,47 @@ describe("App", () => {
     renderApp();
     expect(screen.getByRole("heading", { name: "Network" })).toBeInTheDocument();
   });
+
+  // ===========================================================================
+  // Debug-only Label tab (#33) — gated on /api/debug/status
+  // ===========================================================================
+
+  it("does not show the Label tab when debug is disabled", async () => {
+    vi.stubGlobal("fetch", makeFetchMock({ "/api/debug/status": { enabled: false } }));
+    renderApp();
+    await screen.findByText("Wi-Fi");
+    expect(screen.queryByRole("tab", { name: /label/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the Label tab when debug is enabled", async () => {
+    vi.stubGlobal("fetch", makeFetchMock({ "/api/debug/status": { enabled: true } }));
+    renderApp();
+    await screen.findByRole("tab", { name: /label/i });
+  });
+
+  it("renders the captured session's frames when the Label tab is opened", async () => {
+    // Order matters: the specific frames URL must be matched before the generic
+    // /api/debug/sessions list URL.
+    vi.stubGlobal(
+      "fetch",
+      makeFetchMock({
+        "/api/debug/sessions/count/sess1/frames": {
+          frames: [
+            { frame_number: 0, detected_state: "fail", roi_file: "r.png", screenshot_file: "s.png" },
+          ],
+        },
+        "/api/debug/sessions": {
+          sessions: [{ kind: "count", name: "sess1", frame_count: 1 }],
+        },
+        "/api/debug/status": { enabled: true },
+      })
+    );
+    renderApp();
+
+    await userEvent.click(await screen.findByRole("tab", { name: /label/i }));
+
+    const panel = await screen.findByRole("tabpanel", { name: "Label" });
+    expect(within(panel).getByText("fail")).toBeInTheDocument();
+    expect(within(panel).getByAltText(/roi.*frame 0/i)).toBeInTheDocument();
+  });
 });
