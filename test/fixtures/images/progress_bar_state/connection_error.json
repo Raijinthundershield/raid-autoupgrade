@@ -1,0 +1,16 @@
+{
+  "label": "connection_error",
+  "window_size": null,
+  "avg_bgr": [
+    82.42876731112025,
+    74.78575346222405,
+    40.35396955985191
+  ],
+  "hsv_mean": [
+    84.09831345125463,
+    183.8663787193199,
+    97.19532428355957
+  ],
+  "fill_fraction": null,
+  "source": "legacy"
+}

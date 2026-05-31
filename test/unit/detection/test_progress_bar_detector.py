@@ -4,7 +4,6 @@ Tests the stateless detector class with fixture images and validation.
 Coverage target: ≥90%
 """
 
-import json
 from pathlib import Path
 
 import cv2
@@ -14,14 +13,15 @@ from raid_autoupgrade.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )
+from raid_autoupgrade.detection.sample_annotation import discover_labeled_samples
 
-# Load annotations for comprehensive fixture image testing
+# Samples self-describe their label via a per-image sidecar JSON; the suite
+# discovers them by globbing. `skip` samples (single-frame-ambiguous dim
+# progress, deferred to #38) are present for inspection but not asserted.
 IMAGE_DIR = Path(__file__).parent.parent.parent / Path(
     "fixtures/images/progress_bar_state"
 )
-ANNOTATION_PATH = IMAGE_DIR / "annotations_progress_bar_state.json"
-with open(ANNOTATION_PATH) as f:
-    ANNOTATIONS = json.load(f)
+ASSERTABLE_SAMPLES = [s for s in discover_labeled_samples(IMAGE_DIR) if s.is_assertable]
 
 
 @pytest.fixture
@@ -89,39 +89,23 @@ def test_detect_state_is_stateless(detector, fail_image):
         assert state == expected_state, "Detector is not stateless - result changed"
 
 
-@pytest.mark.parametrize("image_name, expected_state_str", ANNOTATIONS.items())
-def test_detect_state_comprehensive(detector, image_name, expected_state_str):
-    """Test detector against all 17 annotated fixture images.
+@pytest.mark.parametrize("sample", ASSERTABLE_SAMPLES, ids=lambda s: s.image_path.name)
+def test_detect_state_comprehensive(detector, sample):
+    """Detector matches the recorded label for every assertable sample.
 
-    This comprehensive test ensures the detector correctly identifies states
-    across diverse real-world progress bar screenshots. Critical for ensuring
-    fail state detection accuracy (required for upgrade counting workflow).
+    Discovered by globbing per-image sidecars, this asserts *every* label
+    (not just FAIL), closing the previously-untested progress<->standby gap.
     """
-    image_path = IMAGE_DIR / image_name
+    image = cv2.imread(str(sample.image_path))
+    assert image is not None, f"Failed to load image: {sample.image_path}"
 
-    assert image_path.exists(), f"Test image does not exist: {image_path}"
-
-    # Load fixture image
-    image = cv2.imread(str(image_path))
-    assert image is not None, f"Failed to load image: {image_path}"
-
-    # Convert string state to enum
-    expected_state = ProgressBarState(expected_state_str)
-
-    # Detect state
+    expected_state = ProgressBarState(sample.annotation.label)
     detected_state = detector.detect_state(image)
 
-    # Critical assertion: fail state must be detected accurately
-    # This is essential for the upgrade counting workflow
-    if (
-        detected_state == ProgressBarState.FAIL
-        or expected_state == ProgressBarState.FAIL
-    ):
-        avg_color = cv2.mean(image)[:3]
-        assert detected_state == expected_state, (
-            f"Fail state detection mismatch!\n"
-            f"  Image: {image_path}\n"
-            f"  Expected: {expected_state.value}\n"
-            f"  Detected: {detected_state.value}\n"
-            f"  Avg BGR color: {avg_color}"
-        )
+    assert detected_state == expected_state, (
+        f"State detection mismatch!\n"
+        f"  Image: {sample.image_path}\n"
+        f"  Expected: {expected_state.value}\n"
+        f"  Detected: {detected_state.value}\n"
+        f"  Avg BGR color: {cv2.mean(image)[:3]}"
+    )
