@@ -51,3 +51,14 @@ class WorkflowValidationError(RaidAutoupgradeError):
     """Raised when workflow validation fails before execution."""
 
     pass
+
+
+class WindowResizedError(RaidAutoupgradeError):
+    """Raised when the Raid window size drifts from the size regions were resolved for.
+
+    Regions are cached per window size, so a mid-run resize invalidates them. The
+    tool fails loudly at the next attempt boundary rather than clicking stale
+    coordinates.
+    """
+
+    pass

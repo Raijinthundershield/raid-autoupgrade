@@ -16,6 +16,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
+    from raid_autoupgrade.orchestration.upgrade_screen import BarCapture
     from raid_autoupgrade.services.network import (
         AdapterId,
         NetworkAdapter,
@@ -250,6 +251,28 @@ class LocateRegionProtocol(Protocol):
         Returns:
             Dictionary mapping region names to (left, top, width, height) tuples
         """
+        ...
+
+
+@runtime_checkable
+class UpgradeScreenProtocol(Protocol):
+    """Protocol for the in-game upgrade surface.
+
+    Consumers drive an Attempt and read the progress bar through intent-named,
+    coordinate-free actions, depending on this abstraction rather than the
+    concrete ``UpgradeScreen``.
+    """
+
+    def start_attempt(self) -> None:
+        """Begin an Attempt by clicking the upgrade-button Region."""
+        ...
+
+    def cancel_attempt(self) -> None:
+        """Abort the pending Attempt by clicking the same upgrade-button Region."""
+        ...
+
+    def capture_progress_bar(self) -> BarCapture:
+        """Take one screenshot and return the full frame plus the bar ROI."""
         ...
 
 

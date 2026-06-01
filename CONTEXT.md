@@ -53,7 +53,10 @@ _Avoid_: connected, network-enabled
 
 ### Regions & Calibration
 
-**Region**: A cached bounding box (left, top, width, height) relative to the Raid window, identifying a UI element for CV detection or interaction. Two regions are tracked: the upgrade bar and the upgrade button. Regions are keyed by window size and become invalid if the window is resized.
+**Upgrade Screen**: The in-game gear-upgrade surface within the Raid window — the screen bearing the upgrade button and the progress bar, where Count and Spend attempts are performed. The tool clicks its button and reads its progress bar.
+_Avoid_: upgrade panel, upgrade view, game window
+
+**Region**: A cached bounding box (left, top, width, height) relative to the Raid window, identifying a UI element on the Upgrade Screen for CV detection or interaction. Two regions are tracked: the upgrade bar and the upgrade button. Regions are keyed by window size and become invalid if the window is resized.
 _Avoid_: area, zone, coordinate
 
 **Calibration**: The process of setting or verifying regions by drawing on a screenshot of the Raid window. Calibration is a prerequisite for Count and Spend but need not be repeated each session once regions are cached.
