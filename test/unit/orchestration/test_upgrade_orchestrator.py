@@ -1,6 +1,15 @@
-"""Unit tests for UpgradeOrchestrator."""
+"""Unit tests for UpgradeOrchestrator.
+
+The orchestrator drives the run through a fake ``UpgradeScreen`` — it never
+touches the window, screenshot, or cache services directly. Tests inject a fake
+screen that records ``start_attempt``/``cancel_attempt`` and hands back a
+``BarCapture`` from ``capture_progress_bar``, plus a mock detector and network
+manager. Assertions are on side effects (which screen action fired, what the
+detector received) rather than message wording.
+"""
 
 import threading
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -10,442 +19,281 @@ from raid_autoupgrade.detection.progress_bar_detector import (
     ProgressBarState,
     ProgressBarStateDetector,
 )
-from raid_autoupgrade.exceptions import WindowNotFoundException, WorkflowValidationError
+from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.stop_conditions import (
     MaxAttemptsCondition,
     StopConditionChain,
     StopReason,
 )
 from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    MonitorRun,
+    ProgressEvent,
     UpgradeOrchestrator,
-    UpgradeSession,
 )
-from raid_autoupgrade.services.cache_service import CacheService
-from raid_autoupgrade.services.network import NetworkManager
-from raid_autoupgrade.services.screenshot_service import ScreenshotService
-from raid_autoupgrade.services.window_interaction_service import (
-    WindowInteractionService,
-)
+from raid_autoupgrade.orchestration.upgrade_screen import BarCapture
+from raid_autoupgrade.services.network import NetworkManager, NetworkState
+
+
+class FakeUpgradeScreen:
+    """Records screen actions; hands back a sentinel frame/ROI per capture.
+
+    The ROI is a distinct array so it can be told apart from the frame when the
+    orchestrator routes one to the detector and both to the debug logger.
+    """
+
+    def __init__(self):
+        self.frame = np.zeros((100, 200, 3), dtype=np.uint8)
+        self.roi = np.ones((50, 200, 3), dtype=np.uint8)
+        self.start_calls = 0
+        self.cancel_calls = 0
+        self.captures = 0
+
+    def start_attempt(self) -> None:
+        self.start_calls += 1
+
+    def cancel_attempt(self) -> None:
+        self.cancel_calls += 1
+
+    def capture_progress_bar(self) -> BarCapture:
+        self.captures += 1
+        return BarCapture(frame=self.frame, roi=self.roi)
+
+
+def _offline_network() -> Mock:
+    network = Mock(spec=NetworkManager)
+    network.check_network_access.return_value = NetworkState.OFFLINE
+    return network
 
 
 class TestUpgradeOrchestrator:
     """Tests for UpgradeOrchestrator class."""
 
-    def test_validate_prerequisites_raises_when_window_not_found(self):
-        """Verify validate_prerequisites raises WindowNotFoundException when window not found."""
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        # Window does not exist
-        mock_window.window_exists.return_value = False
-
-        orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
-        )
-
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
-            stop_conditions=StopConditionChain([]),
-        )
-
-        with pytest.raises(WindowNotFoundException):
-            orchestrator.validate_prerequisites(session)
-
-    def test_validate_prerequisites_raises_when_regions_not_cached(self):
-        """Verify validate_prerequisites raises WorkflowValidationError when regions not cached."""
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        # Window exists but regions not cached
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = None
-
-        orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
-        )
-
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
-            stop_conditions=StopConditionChain([]),
-        )
-
-        with pytest.raises(WorkflowValidationError):
-            orchestrator.validate_prerequisites(session)
-
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
-    def test_run_upgrade_session_calls_services_in_correct_order(self, mock_sleep):
-        """Verify run_upgrade_session calls services in expected sequence."""
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        # Configure mock behavior
-        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
-        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
-        mock_screenshot.take_screenshot.return_value = fake_screenshot
-        mock_screenshot.extract_roi.return_value = fake_roi
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
-
-        # Configure detector to return PROGRESS then FAIL for single fail transition
-        mock_detector.detect_state.side_effect = [
-            ProgressBarState.PROGRESS,  # Initial state
-            ProgressBarState.FAIL,  # Fail transition 1
+    def test_run_monitor_begins_attempt_and_drives_loop_to_stop(self, mock_sleep):
+        """run_monitor begins the Attempt via start_attempt() and drives the
+        monitor loop until a stop condition fires, returning the fail count and
+        stop reason."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.side_effect = [
+            ProgressBarState.PROGRESS,
+            ProgressBarState.FAIL,
         ]
 
-        # Create stop conditions - just use actual MaxAttemptsCondition
-        stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
-
         orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
+        )
+        run = MonitorRun(
+            stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
         )
 
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
-            stop_conditions=stop_conditions,
-        )
+        result = orchestrator.run_monitor(run)
 
-        result = orchestrator.run_upgrade_session(session)
-
-        # Verify service calls
-        mock_window.click_region.assert_called_once()
-        assert mock_screenshot.take_screenshot.call_count >= 2
-        # Note: monitor is created internally, so we verify detector was used
-        assert mock_detector.detect_state.call_count >= 2
-
+        assert screen.start_calls == 1
+        assert screen.captures >= 2
         assert result.fail_count == 1
         assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
 
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
+    def test_detector_gets_roi_and_debug_logger_gets_frame_and_roi(self, mock_sleep):
+        """Each frame routes the ROI to the detector and both the full frame and
+        the ROI to the debug logger — served from one capture, no re-derivation."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.side_effect = [
+            ProgressBarState.PROGRESS,
+            ProgressBarState.FAIL,
+        ]
+        debug_logger = Mock()
+
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
+        )
+        run = MonitorRun(
+            stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
+        )
+
+        with patch(
+            "raid_autoupgrade.orchestration.upgrade_orchestrator.DebugFrameLogger",
+            return_value=debug_logger,
+        ):
+            run = MonitorRun(
+                stop_conditions=StopConditionChain(
+                    [MaxAttemptsCondition(max_attempts=1)]
+                ),
+                debug_dir=Path("ignored"),
+            )
+            orchestrator.run_monitor(run)
+
+        # The detector saw the ROI sentinel, never the full frame.
+        for call in detector.detect_state.call_args_list:
+            assert call.args[0] is screen.roi
+
+        # The debug logger saw both the full frame and the ROI from the capture.
+        assert debug_logger.log_frame.call_count >= 1
+        first = debug_logger.log_frame.call_args_list[0]
+        assert first.kwargs["screenshot"] is screen.frame
+        assert first.kwargs["roi"] is screen.roi
+
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.NetworkContext")
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
-    def test_run_upgrade_session_uses_network_context(
-        self, mock_sleep, mock_network_context
-    ):
-        """Verify run_upgrade_session uses NetworkContext for network management."""
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        # Configure mock behavior
-        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
-        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
-        mock_screenshot.take_screenshot.return_value = fake_screenshot
-        mock_screenshot.extract_roi.return_value = fake_roi
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
-
-        # Configure detector to return FAIL state
-        mock_detector.detect_state.side_effect = [
-            ProgressBarState.PROGRESS,  # Initial state
-            ProgressBarState.FAIL,  # Fail transition 1
+    def test_run_monitor_uses_network_context(self, mock_sleep, mock_network_context):
+        """run_monitor wraps the run in NetworkContext with the configured
+        adapters and disable flag."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.side_effect = [
+            ProgressBarState.PROGRESS,
+            ProgressBarState.FAIL,
         ]
+        network = _offline_network()
 
-        stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=screen,
+            network_manager=network,
+            detector=detector,
+        )
+        run = MonitorRun(
+            stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
+            network_adapter_ids=[1, 2],
+            disable_network=True,
+        )
 
-        call_count = 0
+        orchestrator.run_monitor(run)
 
-        def check_side_effect(state):
-            nonlocal call_count
-            call_count += 1
-            if call_count >= 1:
-                return StopReason.MAX_ATTEMPTS_REACHED
-            return None
-
-        with patch.object(stop_conditions, "check", side_effect=check_side_effect):
-            orchestrator = UpgradeOrchestrator(
-                screenshot_service=mock_screenshot,
-                window_interaction_service=mock_window,
-                cache_service=mock_cache,
-                network_manager=mock_network,
-                detector=mock_detector,
-            )
-
-            session = UpgradeSession(
-                upgrade_bar_region=(0, 0, 100, 50),
-                upgrade_button_region=(0, 0, 100, 50),
-                stop_conditions=stop_conditions,
-                network_adapter_ids=[1, 2],
-                disable_network=True,
-            )
-
-            orchestrator.run_upgrade_session(session)
-
-            # Verify NetworkContext was called with correct parameters
-            mock_network_context.assert_called_once_with(
-                network_manager=mock_network,
-                adapter_ids=[1, 2],
-                disable_network=True,
-            )
+        mock_network_context.assert_called_once_with(
+            network_manager=network,
+            adapter_ids=[1, 2],
+            disable_network=True,
+        )
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.NetworkContext")
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_require_offline_aborts_when_network_still_reachable(
         self, mock_sleep, mock_network_context
     ):
-        """A require_offline session must not click upgrade while the network is
+        """A require_offline run must not begin the Attempt while the network is
         still reachable — that would spend a real attempt. It raises and never
-        clicks."""
-        from raid_autoupgrade.services.network import NetworkState
-
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
+        begins the Attempt or invokes the detector."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        network = Mock(spec=NetworkManager)
         # Network still up after adapter setup (e.g. wrong adapter selected).
-        mock_network.check_network_access.return_value = NetworkState.ONLINE
+        network.check_network_access.return_value = NetworkState.ONLINE
 
         orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
+            upgrade_screen=screen,
+            network_manager=network,
+            detector=detector,
         )
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
+        run = MonitorRun(
             stop_conditions=StopConditionChain([]),
             require_offline=True,
         )
 
         with pytest.raises(WorkflowValidationError):
-            orchestrator.run_upgrade_session(session)
+            orchestrator.run_monitor(run)
 
-        mock_window.click_region.assert_not_called()
-        mock_detector.detect_state.assert_not_called()
+        assert screen.start_calls == 0
+        detector.detect_state.assert_not_called()
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_require_offline_proceeds_when_offline(self, mock_sleep):
-        """A require_offline session proceeds normally once the network is
-        confirmed offline."""
-        from raid_autoupgrade.services.network import NetworkState
-
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
-        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
-        mock_screenshot.take_screenshot.return_value = fake_screenshot
-        mock_screenshot.extract_roi.return_value = fake_roi
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
-        mock_network.check_network_access.return_value = NetworkState.OFFLINE
-        mock_detector.detect_state.side_effect = [
+        """A require_offline run proceeds normally once the network is confirmed
+        offline."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.side_effect = [
             ProgressBarState.PROGRESS,
             ProgressBarState.FAIL,
         ]
 
         orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
         )
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
+        run = MonitorRun(
             stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
             require_offline=True,
         )
 
-        result = orchestrator.run_upgrade_session(session)
+        result = orchestrator.run_monitor(run)
 
-        mock_window.click_region.assert_called_once()
+        assert screen.start_calls == 1
         assert result.fail_count == 1
-
-    # -------------------------------------------------------------------------
-    # Behavior: cancel_event set → monitor loop returns MANUAL_STOP immediately
-    # -------------------------------------------------------------------------
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_cancel_event_stops_monitor_loop_with_manual_stop(self, mock_sleep):
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
-        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
-        mock_screenshot.take_screenshot.return_value = fake_screenshot
-        mock_screenshot.extract_roi.return_value = fake_roi
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
-        mock_detector.detect_state.return_value = ProgressBarState.PROGRESS
+        """A pre-set cancel event stops the loop immediately with MANUAL_STOP,
+        without ever capturing a frame or invoking the detector."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.return_value = ProgressBarState.PROGRESS
 
         cancel_event = threading.Event()
         cancel_event.set()
 
         orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
         )
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
-            stop_conditions=StopConditionChain([]),
-        )
+        run = MonitorRun(stop_conditions=StopConditionChain([]))
 
-        result = orchestrator.run_upgrade_session(session, cancel_event=cancel_event)
+        result = orchestrator.run_monitor(run, cancel_event=cancel_event)
 
         assert result.stop_reason == StopReason.MANUAL_STOP
-        mock_detector.detect_state.assert_not_called()
-
-    # -------------------------------------------------------------------------
-    # Behavior: on_progress callback invoked each monitor-loop iteration
-    # -------------------------------------------------------------------------
+        detector.detect_state.assert_not_called()
+        assert screen.captures == 0
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_on_progress_called_once_per_loop_iteration(self, mock_sleep):
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
-        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
-        mock_screenshot.take_screenshot.return_value = fake_screenshot
-        mock_screenshot.extract_roi.return_value = fake_roi
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
-
-        # Two iterations: PROGRESS → FAIL (triggers MaxAttemptsCondition with max=1)
-        mock_detector.detect_state.side_effect = [
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.side_effect = [
             ProgressBarState.PROGRESS,
             ProgressBarState.FAIL,
         ]
 
-        stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
-        events = []
-
         orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
         )
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
-            stop_conditions=stop_conditions,
+        run = MonitorRun(
+            stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
         )
 
-        orchestrator.run_upgrade_session(session, on_progress=events.append)
+        events: list[ProgressEvent] = []
+        orchestrator.run_monitor(run, on_progress=events.append)
 
         assert len(events) == 2
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_on_progress_events_carry_correct_data(self, mock_sleep):
-        mock_screenshot = Mock(spec=ScreenshotService)
-        mock_window = Mock(spec=WindowInteractionService)
-        mock_cache = Mock(spec=CacheService)
-        mock_network = Mock(spec=NetworkManager)
-        mock_detector = Mock(spec=ProgressBarStateDetector)
-
-        fake_screenshot = np.zeros((100, 200, 3), dtype=np.uint8)
-        fake_roi = np.zeros((50, 200, 3), dtype=np.uint8)
-        mock_screenshot.take_screenshot.return_value = fake_screenshot
-        mock_screenshot.extract_roi.return_value = fake_roi
-
-        mock_window.window_exists.return_value = True
-        mock_window.get_window_size.return_value = (800, 600)
-        mock_cache.get_regions.return_value = {
-            "upgrade_bar": (0, 0, 100, 50),
-            "upgrade_button": (0, 0, 100, 50),
-        }
-
-        mock_detector.detect_state.side_effect = [
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.side_effect = [
             ProgressBarState.PROGRESS,
             ProgressBarState.FAIL,
         ]
 
-        stop_conditions = StopConditionChain([MaxAttemptsCondition(max_attempts=1)])
-        events = []
-
         orchestrator = UpgradeOrchestrator(
-            screenshot_service=mock_screenshot,
-            window_interaction_service=mock_window,
-            cache_service=mock_cache,
-            network_manager=mock_network,
-            detector=mock_detector,
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
         )
-        session = UpgradeSession(
-            upgrade_bar_region=(0, 0, 100, 50),
-            upgrade_button_region=(0, 0, 100, 50),
-            stop_conditions=stop_conditions,
+        run = MonitorRun(
+            stop_conditions=StopConditionChain([MaxAttemptsCondition(max_attempts=1)]),
         )
 
-        orchestrator.run_upgrade_session(session, on_progress=events.append)
-
-        from raid_autoupgrade.orchestration.upgrade_orchestrator import ProgressEvent
+        events: list[ProgressEvent] = []
+        orchestrator.run_monitor(run, on_progress=events.append)
 
         first, second = events
         assert isinstance(first, ProgressEvent)

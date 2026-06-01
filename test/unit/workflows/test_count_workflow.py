@@ -16,8 +16,8 @@ from raid_autoupgrade.orchestration.stop_conditions import (
     UpgradedCondition,
 )
 from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    MonitorRun,
     UpgradeResult,
-    UpgradeSession,
 )
 from raid_autoupgrade.services.network import NetworkState
 from raid_autoupgrade.workflows.count_workflow import CountResult, CountWorkflow
@@ -122,8 +122,8 @@ class TestCountWorkflowExecution:
     """Test execution phase of CountWorkflow."""
 
     @patch("raid_autoupgrade.workflows.count_workflow.UpgradeOrchestrator")
-    def test_run_creates_correct_upgrade_session(self, mock_orchestrator_class):
-        """Test workflow creates UpgradeSession with correct configuration."""
+    def test_run_creates_correct_monitor_run(self, mock_orchestrator_class):
+        """Test workflow creates a MonitorRun with correct configuration."""
         # Arrange: Mock services
         mock_cache_service = Mock()
         mock_cache_service.get_regions.return_value = {
@@ -136,7 +136,7 @@ class TestCountWorkflowExecution:
 
         # Mock orchestrator instance to return controlled result
         mock_orchestrator = Mock()
-        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+        mock_orchestrator.run_monitor.return_value = UpgradeResult(
             fail_count=5,
             frames_processed=100,
             stop_reason=StopReason.MAX_ATTEMPTS_REACHED,
@@ -159,24 +159,22 @@ class TestCountWorkflowExecution:
         with patch.object(workflow, "validate"):
             result = workflow.run()
 
-        # Assert: Verify orchestrator was called with correct session
-        mock_orchestrator.run_upgrade_session.assert_called_once()
-        session: UpgradeSession = mock_orchestrator.run_upgrade_session.call_args[0][0]
+        # Assert: Verify orchestrator was called with the correct run intent
+        mock_orchestrator.run_monitor.assert_called_once()
+        run: MonitorRun = mock_orchestrator.run_monitor.call_args[0][0]
 
-        assert session.upgrade_bar_region == (100, 250, 200, 10)
-        assert session.upgrade_button_region == (100, 200, 50, 30)
-        assert session.check_interval == 0.25
-        assert session.network_adapter_ids == [1, 2]
-        assert session.disable_network is True
-        assert session.require_offline is True
-        assert session.debug_dir is None
+        assert run.check_interval == 0.25
+        assert run.network_adapter_ids == [1, 2]
+        assert run.disable_network is True
+        assert run.require_offline is True
+        assert run.debug_dir is None
 
         # Verify stop conditions
-        assert len(session.stop_conditions._conditions) == 2
-        assert isinstance(session.stop_conditions._conditions[0], MaxAttemptsCondition)
-        assert session.stop_conditions._conditions[0].max_attempts == 10
-        assert isinstance(session.stop_conditions._conditions[1], UpgradedCondition)
-        assert session.stop_conditions._conditions[1].network_disabled is True
+        assert len(run.stop_conditions._conditions) == 2
+        assert isinstance(run.stop_conditions._conditions[0], MaxAttemptsCondition)
+        assert run.stop_conditions._conditions[0].max_attempts == 10
+        assert isinstance(run.stop_conditions._conditions[1], UpgradedCondition)
+        assert run.stop_conditions._conditions[1].network_disabled is True
 
         # Verify result mapping
         assert isinstance(result, CountResult)
@@ -216,7 +214,7 @@ class TestCountWorkflowExecution:
         with pytest.raises(WorkflowValidationError):
             workflow.run()
 
-        mock_orchestrator.run_upgrade_session.assert_not_called()
+        mock_orchestrator.run_monitor.assert_not_called()
 
     @patch("raid_autoupgrade.workflows.count_workflow.UpgradeOrchestrator")
     def test_run_passes_on_progress_to_orchestrator(self, mock_orchestrator_class):
@@ -229,7 +227,7 @@ class TestCountWorkflowExecution:
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         mock_orchestrator = Mock()
-        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+        mock_orchestrator.run_monitor.return_value = UpgradeResult(
             fail_count=3,
             frames_processed=50,
             stop_reason=StopReason.MAX_ATTEMPTS_REACHED,
@@ -250,7 +248,7 @@ class TestCountWorkflowExecution:
         with patch.object(workflow, "validate"):
             workflow.run(on_progress=on_progress)
 
-        _, kwargs = mock_orchestrator.run_upgrade_session.call_args
+        _, kwargs = mock_orchestrator.run_monitor.call_args
         assert kwargs.get("on_progress") is on_progress
 
     def test_run_raises_when_regions_not_cached(self):

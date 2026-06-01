@@ -159,7 +159,7 @@ class TestSpendWorkflowExecution:
         with pytest.raises(WorkflowValidationError):
             workflow.run()
 
-        mock_orchestrator.run_upgrade_session.assert_not_called()
+        mock_orchestrator.run_monitor.assert_not_called()
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_raises_when_regions_not_cached(self, mock_orchestrator_class):
@@ -186,7 +186,7 @@ class TestSpendWorkflowExecution:
         with pytest.raises(WorkflowValidationError):
             workflow.run()
 
-        mock_orchestrator.run_upgrade_session.assert_not_called()
+        mock_orchestrator.run_monitor.assert_not_called()
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_single_upgrade_success(self, mock_orchestrator_class):
@@ -199,7 +199,7 @@ class TestSpendWorkflowExecution:
             stop_reason=StopReason.UPGRADED,
             debug_session_dir=None,
         )
-        mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator.run_monitor.return_value = mock_result
         mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
@@ -233,7 +233,7 @@ class TestSpendWorkflowExecution:
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called once
-        mock_orchestrator.run_upgrade_session.assert_called_once()
+        mock_orchestrator.run_monitor.assert_called_once()
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_max_attempts_exhausted(self, mock_orchestrator_class):
@@ -246,7 +246,7 @@ class TestSpendWorkflowExecution:
             stop_reason=StopReason.MAX_ATTEMPTS_REACHED,
             debug_session_dir=None,
         )
-        mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator.run_monitor.return_value = mock_result
         mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
@@ -292,7 +292,7 @@ class TestSpendWorkflowExecution:
             stop_reason=StopReason.CONNECTION_ERROR,
             debug_session_dir=None,
         )
-        mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator.run_monitor.return_value = mock_result
         mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
@@ -350,7 +350,7 @@ class TestSpendWorkflowContinueUpgrade:
             debug_session_dir=None,
         )
 
-        mock_orchestrator.run_upgrade_session.side_effect = [
+        mock_orchestrator.run_monitor.side_effect = [
             mock_result_1,
             mock_result_2,
         ]
@@ -388,7 +388,7 @@ class TestSpendWorkflowContinueUpgrade:
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called 2 times (not 3)
-        assert mock_orchestrator.run_upgrade_session.call_count == 2
+        assert mock_orchestrator.run_monitor.call_count == 2
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_continue_upgrade_disabled_stops_after_first_upgrade(
@@ -403,7 +403,7 @@ class TestSpendWorkflowContinueUpgrade:
             stop_reason=StopReason.UPGRADED,
             debug_session_dir=None,
         )
-        mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator.run_monitor.return_value = mock_result
         mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
@@ -436,7 +436,7 @@ class TestSpendWorkflowContinueUpgrade:
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called only once
-        assert mock_orchestrator.run_upgrade_session.call_count == 1
+        assert mock_orchestrator.run_monitor.call_count == 1
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_continue_upgrade_stops_when_no_remaining_attempts(
@@ -451,7 +451,7 @@ class TestSpendWorkflowContinueUpgrade:
             stop_reason=StopReason.UPGRADED,
             debug_session_dir=None,
         )
-        mock_orchestrator.run_upgrade_session.return_value = mock_result
+        mock_orchestrator.run_monitor.return_value = mock_result
         mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()
@@ -487,7 +487,7 @@ class TestSpendWorkflowContinueUpgrade:
         assert result.stop_reason == StopReason.UPGRADED
 
         # Verify orchestrator was called only once (no attempts left to continue)
-        assert mock_orchestrator.run_upgrade_session.call_count == 1
+        assert mock_orchestrator.run_monitor.call_count == 1
 
 
 class TestSpendWorkflowProgressAndCancel:
@@ -496,7 +496,7 @@ class TestSpendWorkflowProgressAndCancel:
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_passes_cancel_event_to_orchestrator(self, mock_orchestrator_class):
         mock_orchestrator = Mock()
-        mock_orchestrator.run_upgrade_session.return_value = UpgradeResult(
+        mock_orchestrator.run_monitor.return_value = UpgradeResult(
             fail_count=5, frames_processed=20, stop_reason=StopReason.UPGRADED
         )
         mock_orchestrator_class.return_value = mock_orchestrator
@@ -524,7 +524,7 @@ class TestSpendWorkflowProgressAndCancel:
 
         workflow.run(cancel_event=cancel_event)
 
-        _, kwargs = mock_orchestrator.run_upgrade_session.call_args
+        _, kwargs = mock_orchestrator.run_monitor.call_args
         assert kwargs.get("cancel_event") is cancel_event
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
@@ -537,9 +537,9 @@ class TestSpendWorkflowProgressAndCancel:
         a session boundary, not resetting each session."""
         mock_orchestrator = Mock()
 
-        def fake_session(session, cancel_event=None, on_progress=None):
+        def fake_monitor_run(run, cancel_event=None, on_progress=None):
             # The session number is implied by how many times we've been called.
-            call = mock_orchestrator.run_upgrade_session.call_count
+            call = mock_orchestrator.run_monitor.call_count
             if call == 1:
                 on_progress(
                     ProgressEvent(fail_count=1, frames=10, state=ProgressBarState.FAIL)
@@ -554,7 +554,7 @@ class TestSpendWorkflowProgressAndCancel:
                 fail_count=2, frames_processed=20, stop_reason=StopReason.UPGRADED
             )
 
-        mock_orchestrator.run_upgrade_session.side_effect = fake_session
+        mock_orchestrator.run_monitor.side_effect = fake_monitor_run
         mock_orchestrator_class.return_value = mock_orchestrator
 
         mock_cache_service = Mock()

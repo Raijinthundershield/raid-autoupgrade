@@ -21,10 +21,11 @@ from raid_autoupgrade.orchestration.stop_conditions import (
     UpgradedCondition,
 )
 from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    MonitorRun,
     ProgressEvent,
     UpgradeOrchestrator,
-    UpgradeSession,
 )
+from raid_autoupgrade.orchestration.upgrade_screen import UpgradeScreen
 from raid_autoupgrade.protocols import (
     CacheProtocol,
     NetworkManagerProtocol,
@@ -160,31 +161,34 @@ class CountWorkflow:
             ]
         )
 
-        # Create upgrade session
-        session = UpgradeSession(
-            upgrade_bar_region=regions["upgrade_bar"],
-            upgrade_button_region=regions["upgrade_button"],
+        # Describe the run intent (coordinate-free; the screen owns Regions)
+        run = MonitorRun(
             stop_conditions=stop_conditions,
             check_interval=0.25,
             network_adapter_ids=self._network_adapter_ids,
             disable_network=self._network_adapter_ids is not None,
             require_offline=True,
             # ``self._debug_dir`` is already the kind-namespaced ``.../debug/count``
-            # (run_fn does that); the session timestamp dir is added by the
+            # (run_fn does that); the run timestamp dir is added by the
             # DebugFrameLogger, so no extra subdir is needed here.
             debug_dir=self._debug_dir,
         )
 
-        # Create orchestrator and run session
-        orchestrator = UpgradeOrchestrator(
-            screenshot_service=self._screenshot_service,
+        # One UpgradeScreen per run, shared with the orchestrator
+        upgrade_screen = UpgradeScreen(
             window_interaction_service=self._window_interaction_service,
             cache_service=self._cache_service,
+            screenshot_service=self._screenshot_service,
+        )
+
+        # Create orchestrator and run the monitor
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=upgrade_screen,
             network_manager=self._network_manager,
             detector=self._detector,
         )
-        result = orchestrator.run_upgrade_session(
-            session, cancel_event=cancel_event, on_progress=on_progress
+        result = orchestrator.run_monitor(
+            run, cancel_event=cancel_event, on_progress=on_progress
         )
 
         logger.info(

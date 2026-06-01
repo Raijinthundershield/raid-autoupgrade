@@ -20,9 +20,10 @@ from raid_autoupgrade.orchestration.stop_conditions import (
     StopReason,
 )
 from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    MonitorRun,
     UpgradeOrchestrator,
-    UpgradeSession,
 )
+from raid_autoupgrade.orchestration.upgrade_screen import UpgradeScreen
 from raid_autoupgrade.protocols import (
     CacheProtocol,
     NetworkManagerProtocol,
@@ -130,12 +131,6 @@ class DebugMonitorWorkflow:
         """
         logger.info("Starting debug monitor workflow execution")
 
-        # Get regions from cache
-        current_size = self._window_interaction_service.get_window_size(
-            self.WINDOW_TITLE
-        )
-        regions = self._cache_service.get_regions(current_size)
-
         # Configure stop conditions
         stop_conditions = (
             StopConditionChain([MaxFramesCondition(max_frames=self._max_frames)])
@@ -152,10 +147,8 @@ class DebugMonitorWorkflow:
             )
         output_dir = self._debug_dir
 
-        # Create session configuration
-        session = UpgradeSession(
-            upgrade_bar_region=regions["upgrade_bar"],
-            upgrade_button_region=regions["upgrade_button"],
+        # Describe the run intent (coordinate-free; the screen owns Regions)
+        run = MonitorRun(
             stop_conditions=stop_conditions,
             check_interval=self._check_interval,
             network_adapter_ids=self._network_adapter_ids,
@@ -163,17 +156,24 @@ class DebugMonitorWorkflow:
             debug_dir=output_dir / "progressbar_monitor",
         )
 
-        # Create orchestrator and execute
-        orchestrator = UpgradeOrchestrator(
-            screenshot_service=self._screenshot_service,
+        # One UpgradeScreen per run, shared with the orchestrator. Its
+        # construction resolves Regions and raises the friendly "open
+        # Calibration first" error when none are saved for the window size.
+        upgrade_screen = UpgradeScreen(
             window_interaction_service=self._window_interaction_service,
             cache_service=self._cache_service,
+            screenshot_service=self._screenshot_service,
+        )
+
+        # Create orchestrator and execute
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=upgrade_screen,
             network_manager=self._network_manager,
             detector=self._detector,
         )
 
         try:
-            result = orchestrator.run_upgrade_session(session)
+            result = orchestrator.run_monitor(run)
         except KeyboardInterrupt:
             logger.info("Monitoring interrupted by user")
             result = None

@@ -18,15 +18,15 @@ from raid_autoupgrade.orchestration.stop_conditions import (
     UpgradedCondition,
 )
 from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    MonitorRun,
     UpgradeOrchestrator,
     UpgradeResult,
-    UpgradeSession,
 )
 
 __all__ = [
     "UpgradeOrchestrator",
     "UpgradeResult",
-    "UpgradeSession",
+    "MonitorRun",
     "ProgressBarMonitor",
     "ProgressBarMonitorState",
     "StopReason",

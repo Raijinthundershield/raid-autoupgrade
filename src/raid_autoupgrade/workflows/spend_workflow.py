@@ -26,10 +26,11 @@ from raid_autoupgrade.orchestration.stop_conditions import (
     UpgradedCondition,
 )
 from raid_autoupgrade.orchestration.upgrade_orchestrator import (
+    MonitorRun,
     ProgressEvent,
     UpgradeOrchestrator,
-    UpgradeSession,
 )
+from raid_autoupgrade.orchestration.upgrade_screen import UpgradeScreen
 from raid_autoupgrade.protocols import (
     CacheProtocol,
     NetworkManagerProtocol,
@@ -159,11 +160,16 @@ class SpendWorkflow:
                 "Open the Calibration tab and select the upgrade regions first."
             )
 
-        # Create orchestrator for this workflow
-        orchestrator = UpgradeOrchestrator(
-            screenshot_service=self._screenshot_service,
+        # One UpgradeScreen per run, shared with the orchestrator across attempts
+        upgrade_screen = UpgradeScreen(
             window_interaction_service=self._window_interaction_service,
             cache_service=self._cache_service,
+            screenshot_service=self._screenshot_service,
+        )
+
+        # Create orchestrator for this workflow
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=upgrade_screen,
             network_manager=self._network_manager,
             detector=self._detector,
         )
@@ -190,17 +196,15 @@ class SpendWorkflow:
                 ]
             )
 
-            # Create session configuration
-            session = UpgradeSession(
-                upgrade_bar_region=regions["upgrade_bar"],
-                upgrade_button_region=regions["upgrade_button"],
+            # Describe this attempt's run intent (coordinate-free)
+            run = MonitorRun(
                 stop_conditions=stop_conditions,
                 check_interval=0.25,
                 network_adapter_ids=None,
                 disable_network=False,
                 # ``self._debug_dir`` is already the kind-namespaced
                 # ``.../debug/spend`` (run_fn does that). Each upgrade attempt
-                # runs its own monitor session, so they are grouped per attempt;
+                # runs its own monitor run, so they are grouped per attempt;
                 # the timestamp dir under that is added by the DebugFrameLogger.
                 debug_dir=(
                     self._debug_dir / f"upgrade_{upgrade_count + 1}"
@@ -230,9 +234,9 @@ class SpendWorkflow:
                         )
                     )
 
-            # Execute monitoring session
-            result = orchestrator.run_upgrade_session(
-                session, cancel_event=cancel_event, on_progress=session_on_progress
+            # Execute the monitor run for this attempt
+            result = orchestrator.run_monitor(
+                run, cancel_event=cancel_event, on_progress=session_on_progress
             )
 
             # Update counters

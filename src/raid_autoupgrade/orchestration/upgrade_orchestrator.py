@@ -1,7 +1,9 @@
 """Upgrade orchestration service for coordinating upgrade monitoring.
 
 This service orchestrates the upgrade monitoring process with configurable
-stop conditions and optional debug logging.
+stop conditions and optional debug logging. It drives the in-game surface
+through an injected :class:`UpgradeScreen`, owning only the network context,
+the offline-required guard, and the monitor loop.
 """
 
 import threading
@@ -12,9 +14,8 @@ from pathlib import Path
 
 from loguru import logger
 
-from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
-from raid_autoupgrade.exceptions import WindowNotFoundException, WorkflowValidationError
+from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.debug_frame_logger import DebugFrameLogger
 from raid_autoupgrade.orchestration.progress_bar_monitor import ProgressBarMonitor
 from raid_autoupgrade.orchestration.stop_conditions import (
@@ -22,22 +23,22 @@ from raid_autoupgrade.orchestration.stop_conditions import (
     StopReason,
 )
 from raid_autoupgrade.protocols import (
-    CacheProtocol,
     NetworkManagerProtocol,
     ProgressBarDetectorProtocol,
-    ScreenshotProtocol,
-    WindowInteractionProtocol,
+    UpgradeScreenProtocol,
 )
 from raid_autoupgrade.services.network import AdapterId, NetworkState
 from raid_autoupgrade.utils.network_context import NetworkContext
 
 
 @dataclass(frozen=True)
-class UpgradeSession:
-    """Configuration for a single upgrade monitoring session."""
+class MonitorRun:
+    """Run intent for a single monitor loop.
 
-    upgrade_bar_region: tuple[int, int, int, int]
-    upgrade_button_region: tuple[int, int, int, int]
+    Carries no coordinates — Region resolution and game clicks live in the
+    injected :class:`UpgradeScreen`.
+    """
+
     stop_conditions: StopConditionChain
     check_interval: float = 0.25
     network_adapter_ids: list[AdapterId] | None = None
@@ -70,92 +71,58 @@ class UpgradeOrchestrator:
     Orchestrates upgrade monitoring with configurable stop conditions.
     """
 
-    WINDOW_TITLE = RAID_WINDOW_TITLE
-
     def __init__(
         self,
-        screenshot_service: ScreenshotProtocol,
-        window_interaction_service: WindowInteractionProtocol,
-        cache_service: CacheProtocol,
+        upgrade_screen: UpgradeScreenProtocol,
         network_manager: NetworkManagerProtocol,
         detector: ProgressBarDetectorProtocol,
     ):
         """
-        Initialize orchestrator with injected services.
+        Initialize orchestrator with injected dependencies.
 
         Args:
-            screenshot_service: Service for capturing screenshots
-            window_interaction_service: Service for window operations
-            cache_service: Service for region caching
+            upgrade_screen: The in-game upgrade surface (owns Region resolution
+                and the start/capture actions)
             network_manager: Service for network adapter management
             detector: Detector for progress bar state detection
         """
-        self._screenshot_service = screenshot_service
-        self._window_interaction_service = window_interaction_service
-        self._cache_service = cache_service
+        self._upgrade_screen = upgrade_screen
         self._network_manager = network_manager
         self._detector = detector
 
-    def validate_prerequisites(self, session: UpgradeSession) -> None:
-        logger.info("Validating orchestrator prerequisites")
-
-        # Window exists
-        if not self._window_interaction_service.window_exists(self.WINDOW_TITLE):
-            raise WindowNotFoundException(
-                f"Raid window not found. Ensure {self.WINDOW_TITLE} is running."
-            )
-
-        # Regions cached for current window size
-        current_size = self._window_interaction_service.get_window_size(
-            self.WINDOW_TITLE
-        )
-        regions = self._cache_service.get_regions(current_size)
-        if regions is None:
-            raise WorkflowValidationError(
-                f"No upgrade regions saved for this window size ({current_size}). "
-                "Open the Calibration tab and select the upgrade regions first."
-            )
-
-        logger.debug(
-            f"Prerequisites validated: window exists, regions cached for {current_size}"
-        )
-
-    def run_upgrade_session(
+    def run_monitor(
         self,
-        session: UpgradeSession,
+        run: MonitorRun,
         cancel_event: threading.Event | None = None,
         on_progress: Callable[[ProgressEvent], None] | None = None,
     ) -> UpgradeResult:
-        # Validate prerequisites first
-        self.validate_prerequisites(session)
-
-        # Create fresh monitor for this session
+        # Create fresh monitor for this run
         monitor = ProgressBarMonitor(detector=self._detector)
 
         # Create debug logger if debug_dir is provided
         debug_logger = None
-        if session.debug_dir is not None:
-            debug_logger = DebugFrameLogger(output_dir=session.debug_dir)
+        if run.debug_dir is not None:
+            debug_logger = DebugFrameLogger(output_dir=run.debug_dir)
 
-        logger.info("Starting upgrade session")
+        logger.info("Starting monitor run")
         logger.debug(
-            f"Session config: disable_network={session.disable_network}, "
-            f"adapters={session.network_adapter_ids}, "
-            f"check_interval={session.check_interval}"
+            f"Run config: disable_network={run.disable_network}, "
+            f"adapters={run.network_adapter_ids}, "
+            f"check_interval={run.check_interval}"
         )
 
         # Use NetworkContext for automatic network adapter management
         with NetworkContext(
             network_manager=self._network_manager,
-            adapter_ids=session.network_adapter_ids,
-            disable_network=session.disable_network,
+            adapter_ids=run.network_adapter_ids,
+            disable_network=run.disable_network,
         ):
-            # Refuse to start an offline-only session while the network is still
+            # Refuse to start an offline-only run while the network is still
             # reachable. Counting online would spend real upgrade attempts and
             # could upgrade the piece. This runs after adapters are disabled, so
             # it also catches the case where the wrong adapter was selected.
             if (
-                session.require_offline
+                run.require_offline
                 and self._network_manager.check_network_access() == NetworkState.ONLINE
             ):
                 raise WorkflowValidationError(
@@ -164,16 +131,13 @@ class UpgradeOrchestrator:
                     "network adapter to disable in the Network panel."
                 )
 
-            # Click upgrade button to start
-            logger.info("Clicking upgrade button to start monitoring")
-            self._window_interaction_service.click_region(
-                self.WINDOW_TITLE,
-                session.upgrade_button_region,
-            )
+            # Begin the Attempt
+            logger.info("Beginning attempt to start monitoring")
+            self._upgrade_screen.start_attempt()
 
             # Monitor loop
             stop_reason = self._monitor_loop(
-                session, monitor, debug_logger, cancel_event, on_progress
+                run, monitor, debug_logger, cancel_event, on_progress
             )
 
             # Get final state
@@ -187,12 +151,12 @@ class UpgradeOrchestrator:
                     {
                         "stop_reason": stop_reason.value,
                         "final_fail_count": final_state.fail_count,
-                        "check_interval": session.check_interval,
+                        "check_interval": run.check_interval,
                     }
                 )
 
             logger.info(
-                f"Session complete: fails={final_state.fail_count}, "
+                f"Monitor run complete: fails={final_state.fail_count}, "
                 f"frames={final_state.frames_processed}, "
                 f"reason={stop_reason.value}"
             )
@@ -207,7 +171,7 @@ class UpgradeOrchestrator:
 
     def _monitor_loop(
         self,
-        session: UpgradeSession,
+        run: MonitorRun,
         monitor: ProgressBarMonitor,
         debug_logger: DebugFrameLogger | None = None,
         cancel_event: threading.Event | None = None,
@@ -221,15 +185,11 @@ class UpgradeOrchestrator:
             if cancel_event is not None and cancel_event.is_set():
                 return StopReason.MANUAL_STOP
 
-            # Capture screenshot and extract ROI
-            screenshot = self._screenshot_service.take_screenshot(self.WINDOW_TITLE)
-            upgrade_bar_roi = self._screenshot_service.extract_roi(
-                screenshot,
-                session.upgrade_bar_region,
-            )
+            # Capture one frame plus the progress-bar ROI from the screen
+            capture = self._upgrade_screen.capture_progress_bar()
 
-            # Process frame with monitor
-            current_state = monitor.process_frame(upgrade_bar_roi)
+            # Process frame with monitor (detector sees the ROI)
+            current_state = monitor.process_frame(capture.roi)
             monitor_state = monitor.get_state()
 
             # Emit progress event
@@ -247,21 +207,21 @@ class UpgradeOrchestrator:
                 logger.info(f"Progress: {monitor_state.fail_count} fails detected")
                 prev_fail_count = monitor_state.fail_count
 
-            # Optional debug logging
+            # Optional debug logging (gets both the full frame and the ROI)
             if debug_logger:
                 debug_logger.log_frame(
                     frame_number=monitor_state.frames_processed - 1,
                     detected_state=current_state,
                     fail_count=monitor_state.fail_count,
-                    screenshot=screenshot,
-                    roi=upgrade_bar_roi,
+                    screenshot=capture.frame,
+                    roi=capture.roi,
                 )
 
             # Check stop conditions
-            stop_reason = session.stop_conditions.check(monitor_state)
+            stop_reason = run.stop_conditions.check(monitor_state)
             if stop_reason is not None:
                 logger.debug(f"Stop condition met: {stop_reason.value}")
                 return stop_reason
 
             # Wait before next iteration
-            time.sleep(session.check_interval)
+            time.sleep(run.check_interval)
