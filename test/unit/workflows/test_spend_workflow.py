@@ -235,9 +235,14 @@ class TestSpendWorkflowExecution:
         # Verify orchestrator was called once
         mock_orchestrator.run_monitor.assert_called_once()
 
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeScreen")
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
-    def test_run_max_attempts_exhausted(self, mock_orchestrator_class):
-        """Test workflow stops when max_attempts is exhausted."""
+    def test_run_max_attempts_exhausted(
+        self, mock_orchestrator_class, mock_screen_class
+    ):
+        """Test workflow stops when max_attempts is exhausted, aborting the
+        pending attempt through the screen's intent-named cancel_attempt() —
+        no raw Region coordinate is handled in the workflow."""
         # Arrange: Mock orchestrator to return MAX_ATTEMPTS_REACHED
         mock_orchestrator = Mock()
         mock_result = UpgradeResult(
@@ -249,17 +254,13 @@ class TestSpendWorkflowExecution:
         mock_orchestrator.run_monitor.return_value = mock_result
         mock_orchestrator_class.return_value = mock_orchestrator
 
-        mock_cache_service = Mock()
-        mock_cache_service.get_regions.return_value = {
-            "upgrade_button": (100, 200, 50, 30),
-            "upgrade_bar": (100, 250, 200, 10),
-        }
+        mock_screen = mock_screen_class.return_value
 
         mock_window_service = Mock()
         mock_window_service.get_window_size.return_value = (1920, 1080)
 
         workflow = SpendWorkflow(
-            cache_service=mock_cache_service,
+            cache_service=Mock(),
             window_interaction_service=mock_window_service,
             network_manager=_online_network_manager(),
             screenshot_service=Mock(),
@@ -278,8 +279,9 @@ class TestSpendWorkflowExecution:
         assert result.remaining_attempts == 0
         assert result.stop_reason == StopReason.MAX_ATTEMPTS_REACHED
 
-        # Verify cancel click was called
-        mock_window_service.click_region.assert_called_once()
+        # Abort goes through the screen, not a raw coordinate click.
+        mock_screen.cancel_attempt.assert_called_once()
+        mock_window_service.click_region.assert_not_called()
 
     @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
     def test_run_connection_error(self, mock_orchestrator_class):

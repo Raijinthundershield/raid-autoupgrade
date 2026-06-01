@@ -15,7 +15,6 @@ from pathlib import Path
 
 from loguru import logger
 
-from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
 from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.stop_conditions import (
@@ -93,8 +92,6 @@ class SpendWorkflow:
     This workflow spends a specified number of upgrade attempts.
     """
 
-    WINDOW_TITLE = RAID_WINDOW_TITLE
-
     def __init__(
         self,
         cache_service: CacheProtocol,
@@ -149,18 +146,9 @@ class SpendWorkflow:
         # Pre-flight validation (spend requires internet to save upgrades).
         self.validate()
 
-        # Get regions from cache
-        current_size = self._window_interaction_service.get_window_size(
-            self.WINDOW_TITLE
-        )
-        regions = self._cache_service.get_regions(current_size)
-        if regions is None:
-            raise WorkflowValidationError(
-                f"No upgrade regions saved for this window size ({current_size}). "
-                "Open the Calibration tab and select the upgrade regions first."
-            )
-
-        # One UpgradeScreen per run, shared with the orchestrator across attempts
+        # One UpgradeScreen per run, shared with the orchestrator across attempts.
+        # Its construction resolves Regions and raises the friendly errors when the
+        # window is missing or no Regions are saved for the current window size.
         upgrade_screen = UpgradeScreen(
             window_interaction_service=self._window_interaction_service,
             cache_service=self._cache_service,
@@ -252,9 +240,7 @@ class SpendWorkflow:
             # Handle stop reasons
             if final_stop_reason == StopReason.MAX_ATTEMPTS_REACHED:
                 logger.info("Maximum attempts reached, canceling upgrade")
-                self._window_interaction_service.click_region(
-                    self.WINDOW_TITLE, regions["upgrade_button"]
-                )
+                upgrade_screen.cancel_attempt()
                 break
 
             elif final_stop_reason == StopReason.UPGRADED:

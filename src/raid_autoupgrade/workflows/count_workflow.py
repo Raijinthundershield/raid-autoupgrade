@@ -12,7 +12,6 @@ from pathlib import Path
 
 from loguru import logger
 
-from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.stop_conditions import (
     MaxAttemptsCondition,
@@ -54,8 +53,6 @@ class CountWorkflow:
     4. Running upgrade session via orchestrator
     5. Converting orchestrator result to CountResult
     """
-
-    WINDOW_TITLE = RAID_WINDOW_TITLE
 
     def __init__(
         self,
@@ -139,17 +136,6 @@ class CountWorkflow:
         # Pre-flight validation (network configuration). The orchestrator
         # additionally confirms the network is offline before clicking.
         self.validate()
-
-        # Get regions from cache
-        current_size = self._window_interaction_service.get_window_size(
-            self.WINDOW_TITLE
-        )
-        regions = self._cache_service.get_regions(current_size)
-        if regions is None:
-            raise WorkflowValidationError(
-                f"No upgrade regions saved for this window size ({current_size}). "
-                "Open the Calibration tab and select the upgrade regions first."
-            )
 
         # Configure stop conditions
         stop_conditions = StopConditionChain(

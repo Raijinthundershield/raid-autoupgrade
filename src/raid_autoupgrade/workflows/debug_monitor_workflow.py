@@ -12,7 +12,6 @@ from pathlib import Path
 
 from loguru import logger
 
-from raid_autoupgrade.constants import RAID_WINDOW_TITLE
 from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.stop_conditions import (
     MaxFramesCondition,
@@ -54,8 +53,6 @@ class DebugMonitorWorkflow:
       - disable_network flag independent of adapter IDs
     It is the right tool for CV diagnostics; CountWorkflow is for upgrade counting.
     """
-
-    WINDOW_TITLE = RAID_WINDOW_TITLE
 
     def __init__(
         self,
