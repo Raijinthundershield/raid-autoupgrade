@@ -22,6 +22,14 @@ class StopReason(Enum):
     UPGRADED = "upgraded"
     CONNECTION_ERROR = "connection_error"
     MANUAL_STOP = "manual_stop"
+    STALLED = "stalled"
+
+
+# Frames of no new fail before a run is declared stalled. ~5 s at the 0.25 s
+# check interval (≈5 missed fails at the observed ~1 fail/sec). Frame-based by
+# deliberate choice: in the detection-stall case screenshots keep flowing at a
+# steady cadence, so frame count is a stable proxy for elapsed time.
+STALL_THRESHOLD_FRAMES = 20
 
 
 class StopCondition(ABC):
@@ -146,6 +154,44 @@ class ConnectionErrorCondition(StopCondition):
 
     def get_reason(self) -> StopReason:
         return StopReason.CONNECTION_ERROR
+
+
+class StallCondition(StopCondition):
+    """Stop when progress-bar detection has stalled.
+
+    A stateful watchdog whose heartbeat is **a new fail**: it remembers the
+    ``frames_processed`` value at which ``fail_count`` last increased and fires
+    once frames have advanced at least ``threshold_frames`` past that mark.
+
+    The mark starts at frame 0, so a run that never lands a fail also stalls —
+    the project assumes at least one fail before any upgrade, so a fail-less
+    start is itself the signature of broken detection. Success and
+    connection-error terminate via their own conditions before the threshold,
+    so fail-count is a sufficient liveness signal.
+    """
+
+    def __init__(self, threshold_frames: int = STALL_THRESHOLD_FRAMES):
+        self._threshold_frames = threshold_frames
+        self._last_fail_count = 0
+        self._last_progress_frame = 0
+
+    def check(self, state: ProgressBarMonitorState) -> bool:
+        if state.fail_count > self._last_fail_count:
+            # New fail — heartbeat. Reset the mark to the current frame.
+            self._last_fail_count = state.fail_count
+            self._last_progress_frame = state.frames_processed
+            return False
+
+        if state.frames_processed - self._last_progress_frame >= self._threshold_frames:
+            logger.warning(
+                f"Stall detected: {state.frames_processed - self._last_progress_frame} "
+                f"frames without a new fail (threshold {self._threshold_frames})"
+            )
+            return True
+        return False
+
+    def get_reason(self) -> StopReason:
+        return StopReason.STALLED
 
 
 class StopConditionChain:

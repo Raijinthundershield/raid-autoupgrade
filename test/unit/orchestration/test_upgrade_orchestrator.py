@@ -252,6 +252,54 @@ class TestUpgradeOrchestrator:
         assert screen.captures == 0
 
     @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
+    def test_pre_set_cancel_performs_zero_start_clicks(self, mock_sleep):
+        """A cancel present at the start of a run produces zero start_attempt()
+        clicks — the cancel is honoured before any click — and returns
+        MANUAL_STOP."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        detector.detect_state.return_value = ProgressBarState.PROGRESS
+
+        cancel_event = threading.Event()
+        cancel_event.set()
+
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
+        )
+        run = MonitorRun(stop_conditions=StopConditionChain([]))
+
+        result = orchestrator.run_monitor(run, cancel_event=cancel_event)
+
+        assert screen.start_calls == 0
+        assert result.stop_reason == StopReason.MANUAL_STOP
+
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
+    def test_stall_guard_fires_even_when_workflow_chain_omits_it(self, mock_sleep):
+        """The stall guard is a per-run safety invariant: a run whose
+        workflow-supplied chain has no StallCondition still stalls once
+        detection stops producing fails. The stalled run returns STALLED and
+        performs no cancel_attempt() halt-click (relinquish-under-uncertainty)."""
+        screen = FakeUpgradeScreen()
+        detector = Mock(spec=ProgressBarStateDetector)
+        # No fail ever lands — pure Unrecognized-style stream.
+        detector.detect_state.return_value = ProgressBarState.PROGRESS
+
+        orchestrator = UpgradeOrchestrator(
+            upgrade_screen=screen,
+            network_manager=_offline_network(),
+            detector=detector,
+        )
+        # Workflow chain that can never stop this run on its own.
+        run = MonitorRun(stop_conditions=StopConditionChain([]))
+
+        result = orchestrator.run_monitor(run)
+
+        assert result.stop_reason == StopReason.STALLED
+        assert screen.cancel_calls == 0
+
+    @patch("raid_autoupgrade.orchestration.upgrade_orchestrator.time.sleep")
     def test_on_progress_called_once_per_loop_iteration(self, mock_sleep):
         screen = FakeUpgradeScreen()
         detector = Mock(spec=ProgressBarStateDetector)

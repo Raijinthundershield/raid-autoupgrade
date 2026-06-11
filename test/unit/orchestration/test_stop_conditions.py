@@ -3,13 +3,71 @@
 from raid_autoupgrade.detection.progress_bar_detector import ProgressBarState
 from raid_autoupgrade.orchestration.progress_bar_monitor import ProgressBarMonitorState
 from raid_autoupgrade.orchestration.stop_conditions import (
+    STALL_THRESHOLD_FRAMES,
     ConnectionErrorCondition,
     MaxAttemptsCondition,
     MaxFramesCondition,
+    StallCondition,
     StopConditionChain,
     StopReason,
     UpgradedCondition,
 )
+
+
+def _state(frames_processed: int, fail_count: int) -> ProgressBarMonitorState:
+    """A monitor-state snapshot carrying only the counters StallCondition reads."""
+    return ProgressBarMonitorState(
+        frames_processed=frames_processed,
+        fail_count=fail_count,
+        recent_states=(),
+        current_state=None,
+    )
+
+
+class TestStallCondition:
+    """Tests for StallCondition — the fail-count heartbeat watchdog."""
+
+    def test_fires_after_threshold_failless_frames(self):
+        """With no fail ever landing, the stall fires once frames have advanced
+        the threshold past the start mark."""
+        condition = StallCondition()
+
+        # One fail lands at frame 1, then frames keep flowing without new fails.
+        assert condition.check(_state(frames_processed=1, fail_count=1)) is False
+        assert condition.get_reason() == StopReason.STALLED
+        assert (
+            condition.check(
+                _state(frames_processed=1 + STALL_THRESHOLD_FRAMES, fail_count=1)
+            )
+            is True
+        )
+
+    def test_steady_fails_never_stall(self):
+        """A new fail every few frames keeps resetting the heartbeat, so the
+        stall never fires no matter how long the run goes."""
+        condition = StallCondition()
+
+        fail_count = 0
+        for frame in range(1, 5 * STALL_THRESHOLD_FRAMES + 1):
+            # Land a new fail well within the threshold (every 3 frames).
+            if frame % 3 == 0:
+                fail_count += 1
+            assert (
+                condition.check(_state(frames_processed=frame, fail_count=fail_count))
+                is False
+            )
+
+    def test_does_not_fire_one_frame_before_threshold(self):
+        """One frame short of the threshold, the stall has not yet fired."""
+        condition = StallCondition()
+
+        condition.check(_state(frames_processed=1, fail_count=1))
+        assert (
+            condition.check(
+                _state(frames_processed=STALL_THRESHOLD_FRAMES, fail_count=1)
+            )
+            is False
+        )
 
 
 class TestMaxAttemptsCondition:
