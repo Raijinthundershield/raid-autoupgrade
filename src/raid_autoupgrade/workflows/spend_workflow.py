@@ -40,6 +40,9 @@ from raid_autoupgrade.protocols import (
 from raid_autoupgrade.services.network import NetworkState
 
 
+_OUTER_LOOP_CLICK_CAP = 3
+
+
 @dataclass(frozen=True)
 class SpendResult:
     """Result from spend workflow."""
@@ -166,10 +169,15 @@ class SpendWorkflow:
         attempt_count = 0
         remaining_attempts = self._max_upgrade_attempts
         final_stop_reason = None
+        loop_iterations = 0
 
         logger.info("Starting upgrade loop")
 
         while remaining_attempts > 0:
+            if loop_iterations >= _OUTER_LOOP_CLICK_CAP:
+                logger.warning("Outer-loop click-cap reached, breaking")
+                break
+            loop_iterations += 1
             logger.info(
                 f"Clicking upgrade button "
                 f"(attempt {attempt_count + 1}/{self._max_upgrade_attempts})"
@@ -267,6 +275,14 @@ class SpendWorkflow:
 
             elif final_stop_reason == StopReason.CONNECTION_ERROR:
                 logger.warning("Connection error detected, stopping workflow")
+                break
+
+            elif final_stop_reason == StopReason.MANUAL_STOP:
+                logger.info("Manual stop received, stopping workflow")
+                break
+
+            elif final_stop_reason == StopReason.STALLED:
+                logger.warning("Stall detected, stopping workflow")
                 break
 
         logger.info(

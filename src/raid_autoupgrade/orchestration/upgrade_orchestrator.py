@@ -19,6 +19,7 @@ from raid_autoupgrade.exceptions import WorkflowValidationError
 from raid_autoupgrade.orchestration.debug_frame_logger import DebugFrameLogger
 from raid_autoupgrade.orchestration.progress_bar_monitor import ProgressBarMonitor
 from raid_autoupgrade.orchestration.stop_conditions import (
+    StallCondition,
     StopConditionChain,
     StopReason,
 )
@@ -131,14 +132,27 @@ class UpgradeOrchestrator:
                     "network adapter to disable in the Network panel."
                 )
 
-            # Begin the Attempt
-            logger.info("Beginning attempt to start monitoring")
-            self._upgrade_screen.start_attempt()
+            # Honour a cancel that arrived before we click: a pre-set cancel
+            # produces zero clicks, so a cancel between runs can't cause one
+            # last stray start_attempt(). (relinquish-under-uncertainty)
+            if cancel_event is not None and cancel_event.is_set():
+                stop_reason = StopReason.MANUAL_STOP
+            else:
+                # Begin the Attempt
+                logger.info("Beginning attempt to start monitoring")
+                self._upgrade_screen.start_attempt()
 
-            # Monitor loop
-            stop_reason = self._monitor_loop(
-                run, monitor, debug_logger, cancel_event, on_progress
-            )
+                # Monitor loop. The stall guard is created here, fresh per run,
+                # so it always applies independent of the workflow-supplied
+                # chain — a safety invariant no workflow can forget.
+                stop_reason = self._monitor_loop(
+                    run,
+                    monitor,
+                    StallCondition(),
+                    debug_logger,
+                    cancel_event,
+                    on_progress,
+                )
 
             # Get final state
             final_state = monitor.get_state()
@@ -173,6 +187,7 @@ class UpgradeOrchestrator:
         self,
         run: MonitorRun,
         monitor: ProgressBarMonitor,
+        stall_guard: StallCondition,
         debug_logger: DebugFrameLogger | None = None,
         cancel_event: threading.Event | None = None,
         on_progress: Callable[[ProgressEvent], None] | None = None,
@@ -217,8 +232,12 @@ class UpgradeOrchestrator:
                     roi=capture.roi,
                 )
 
-            # Check stop conditions
+            # Check stop conditions. Genuine terminal reasons from the
+            # workflow chain (upgraded, max attempts, connection error) win;
+            # the always-on stall guard only fires when the chain stays silent.
             stop_reason = run.stop_conditions.check(monitor_state)
+            if stop_reason is None and stall_guard.check(monitor_state):
+                stop_reason = stall_guard.get_reason()
             if stop_reason is not None:
                 logger.debug(f"Stop condition met: {stop_reason.value}")
                 return stop_reason

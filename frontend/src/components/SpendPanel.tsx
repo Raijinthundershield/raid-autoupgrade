@@ -127,7 +127,14 @@ export function SpendPanel({ stream, running, onStart, onStop }: Props) {
         <StatCard label="Upgrades" value={stream.spend.upgrades} />
       </div>
 
-      {active && stream.status === "done" && stream.result && (
+      {active && stream.status === "done" && stream.result && stream.result.stop_reason === "stalled" && (
+        <div className="banner-warn">
+          <span className="banner-warn-label">Stalled — </span>
+          Detection stopped. The game may be mid-attempt; check it manually before continuing.
+        </div>
+      )}
+
+      {active && stream.status === "done" && stream.result && stream.result.stop_reason !== "stalled" && (
         <div className="banner-ok">
           <span className="banner-ok-label">Done — </span>
           {stream.result.upgrade_count as number} upgrade(s),{" "}

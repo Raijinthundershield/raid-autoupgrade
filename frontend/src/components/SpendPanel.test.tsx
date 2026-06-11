@@ -175,6 +175,35 @@ describe("SpendPanel", () => {
   // Running UI for this phase: Spending… + Stop, and Stop cancels via onStop.
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // Stall warning: STALLED stop reason renders a warning banner, not the
+  // normal done banner and not the error banner.
+  // ---------------------------------------------------------------------------
+
+  it("shows a stall warning banner when the spend result stop_reason is stalled", async () => {
+    render(
+      <SpendPanel
+        stream={streamWith({
+          phase: "spend",
+          status: "done",
+          result: {
+            upgrade_count: 0,
+            attempt_count: 3,
+            remaining_attempts: 7,
+            stop_reason: "stalled",
+          },
+        })}
+        running={false}
+        onStart={noop}
+        onStop={noop}
+      />
+    );
+    await waitFor(() => screen.getByLabelText(/max attempts/i));
+
+    expect(document.querySelector(".banner-warn")).toBeInTheDocument();
+    expect(document.querySelector(".banner-ok")).not.toBeInTheDocument();
+  });
+
   it("shows Spending… and a Stop that cancels when Spend is the running phase", async () => {
     const onStop = vi.fn();
     render(

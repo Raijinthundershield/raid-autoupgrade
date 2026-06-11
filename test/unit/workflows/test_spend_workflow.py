@@ -492,6 +492,103 @@ class TestSpendWorkflowContinueUpgrade:
         assert mock_orchestrator.run_monitor.call_count == 1
 
 
+class TestSpendWorkflowSafetyBranches:
+    """MANUAL_STOP and STALLED break the outer loop without a halt-click;
+    the outer-loop click-cap bounds run_monitor calls regardless of stop reason."""
+
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeScreen")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_manual_stop_breaks_without_halt_click(
+        self, mock_orchestrator_class, mock_screen_class
+    ):
+        """MANUAL_STOP: loop exits, partial counts preserved, cancel_attempt not called."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_monitor.return_value = UpgradeResult(
+            fail_count=3, frames_processed=12, stop_reason=StopReason.MANUAL_STOP
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+        mock_screen = mock_screen_class.return_value
+
+        workflow = SpendWorkflow(
+            cache_service=Mock(),
+            window_interaction_service=Mock(),
+            network_manager=_online_network_manager(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        result = workflow.run()
+
+        assert result.stop_reason == StopReason.MANUAL_STOP
+        assert result.attempt_count == 3
+        assert result.remaining_attempts == 7
+        assert result.upgrade_count == 0
+        mock_screen.cancel_attempt.assert_not_called()
+        mock_orchestrator.run_monitor.assert_called_once()
+
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeScreen")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_stalled_breaks_and_surfaces_stop_reason(
+        self, mock_orchestrator_class, mock_screen_class
+    ):
+        """STALLED: loop exits, stop_reason surfaces in result, cancel_attempt not called."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_monitor.return_value = UpgradeResult(
+            fail_count=2, frames_processed=20, stop_reason=StopReason.STALLED
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+        mock_screen = mock_screen_class.return_value
+
+        workflow = SpendWorkflow(
+            cache_service=Mock(),
+            window_interaction_service=Mock(),
+            network_manager=_online_network_manager(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+        )
+
+        result = workflow.run()
+
+        assert result.stop_reason == StopReason.STALLED
+        assert result.attempt_count == 2
+        assert result.remaining_attempts == 8
+        assert result.upgrade_count == 0
+        mock_screen.cancel_attempt.assert_not_called()
+        mock_orchestrator.run_monitor.assert_called_once()
+
+    @patch("raid_autoupgrade.workflows.spend_workflow.time")
+    @patch("raid_autoupgrade.workflows.spend_workflow._OUTER_LOOP_CLICK_CAP", 1)
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeScreen")
+    @patch("raid_autoupgrade.workflows.spend_workflow.UpgradeOrchestrator")
+    def test_outer_loop_click_cap_limits_run_monitor_calls(
+        self, mock_orchestrator_class, mock_screen_class, mock_time
+    ):
+        """Click-cap: even if continue_upgrade would drive a second iteration,
+        the cap limits run_monitor to at most cap calls."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_monitor.return_value = UpgradeResult(
+            fail_count=1, frames_processed=4, stop_reason=StopReason.UPGRADED
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        workflow = SpendWorkflow(
+            cache_service=Mock(),
+            window_interaction_service=Mock(),
+            network_manager=_online_network_manager(),
+            screenshot_service=Mock(),
+            detector=Mock(spec=ProgressBarStateDetector),
+            max_upgrade_attempts=10,
+            continue_upgrade=True,  # without cap: 2 run_monitor calls
+        )
+
+        workflow.run()
+
+        # Cap fires: only 1 call despite continue_upgrade=True
+        assert mock_orchestrator.run_monitor.call_count == 1
+
+
 class TestSpendWorkflowProgressAndCancel:
     """Test cancel_event and on_progress threading in SpendWorkflow."""
 

@@ -132,6 +132,29 @@ describe("CountPanel", () => {
     expect(after).not.toEqual(before);
   });
 
+  // ---------------------------------------------------------------------------
+  // Stall warning: STALLED stop reason renders a warning banner, not the
+  // normal done banner and not the error banner.
+  // ---------------------------------------------------------------------------
+
+  it("shows a stall warning banner when the count result stop_reason is stalled", () => {
+    render(
+      <CountPanel
+        stream={streamWith({
+          phase: "count",
+          status: "done",
+          result: { fail_count: 5, stop_reason: "stalled" },
+        })}
+        running={false}
+        onStart={noop}
+        onStop={noop}
+      />
+    );
+
+    expect(document.querySelector(".banner-warn")).toBeInTheDocument();
+    expect(document.querySelector(".banner-ok")).not.toBeInTheDocument();
+  });
+
   it("opens a lightbox with the full image when the thumbnail is clicked", async () => {
     render(<CountPanel stream={streamWith()} running={false} onStart={noop} onStop={noop} />);
 

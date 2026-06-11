@@ -40,6 +40,9 @@ _Avoid_: online phase, upgrading
 **Session**: A single end-to-end execution of the trick: Count on the target followed by Spend on the fodder. One session advances the target one level.
 _Avoid_: run, operation, workflow
 
+**Stall**: A Count or Spend that stops making progress — no new fail and no resolution within a short window — the signature of broken progress-bar detection (a persistent Unrecognized reading). On a stall the tool stops and relinquishes control to the user rather than clicking the game, because under broken detection the game state is unknown and a click could start an unintended upgrade.
+_Avoid_: hang, freeze, timeout, stuck
+
 ### Network State
 
 **Adapter**: The physical network interface the user selects to disable during Count and re-enable for Spend. A saved selection refers to the same physical adapter across sessions, regardless of how the operating system orders or re-enumerates its interfaces.
@@ -64,10 +67,12 @@ _Avoid_: setup, configuration, region selection
 
 ### Progress Bar
 
-**Progress Bar State**: One of four observed states of the upgrade progress bar during an attempt.
+**Progress Bar State**: The detected state of the upgrade progress bar during an attempt — one of four recognized states, plus Unrecognized when the reading matches none of them.
 _Avoid_: bar state, UI state
 
 - **Progress** — bar is filling yellow; an attempt is underway
 - **Fail** — bar flashes red; the attempt failed
 - **Standby** — bar is dark/black; no active attempt. Persisting Standby signals a success in Spend, or idle state before Count begins
 - **Connection Error** — offline only; the game cannot reach the server. Persisting Connection Error signals the end of Count
+- **Unrecognized** — the bar reading matches none of the four above (e.g. a mis-calibrated region, an obscuring overlay, or an off-screen window). No phase logic reacts to it, so a persistent Unrecognized reading is the signature of broken detection — the condition the stall guard exists to catch.
+_Avoid_: unknown (in user-facing text)

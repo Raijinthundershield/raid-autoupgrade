@@ -117,7 +117,14 @@ export function CountPanel({ adapterIds = null, stream, running, onStart, onStop
         </DialogContent>
       </Dialog>
 
-      {active && stream.status === "done" && stream.result && (
+      {active && stream.status === "done" && stream.result && stream.result.stop_reason === "stalled" && (
+        <div className="banner-warn">
+          <span className="banner-warn-label">Stalled — </span>
+          Detection stopped. The game may be mid-attempt; check it manually before continuing.
+        </div>
+      )}
+
+      {active && stream.status === "done" && stream.result && stream.result.stop_reason !== "stalled" && (
         <div className="banner-ok">
           <span className="banner-ok-label">Done — </span>
           {(stream.result.fail_count as number)} fails, stop reason: {stream.result.stop_reason as string}
