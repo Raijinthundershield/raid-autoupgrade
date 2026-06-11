@@ -18,6 +18,7 @@
   --t-muted:      oklch(0.52 0.03 248);    /* secondary text      */
   --t-green:      oklch(0.48 0.18 145);
   --t-red:        oklch(0.52 0.22 25);
+  --t-amber:      oklch(0.60 0.18 60);
   --t-grid:       rgba(0, 0, 0, 0.045);    /* dot-grid opacity    */
 }
 
@@ -183,6 +184,15 @@
   border-radius: 0.3rem; padding: 0.55rem 0.875rem; font-size: 0.85rem;
   color: var(--t-red);
 }
+
+.banner-warn {
+  border: 1px solid var(--t-amber); border-left: 3px solid var(--t-amber);
+  background: color-mix(in srgb, var(--t-amber) 8%, transparent);
+  border-radius: 0.3rem; padding: 0.55rem 0.875rem; font-size: 0.85rem;
+  color: var(--t-amber);
+}
+
+.banner-warn-label { font-weight: 600; color: var(--t-amber); }
 
 /* ─── Conflict badge ────────────────────────────────────────────── */
 
